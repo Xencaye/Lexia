@@ -1,0 +1,115 @@
+name: CI
+
+# Builds Release, runs the unit tests and the Fixture score. A warning fails the build.
+# Everything it downloads (vcpkg, ONNX Runtime, the OCR models, and Piper and espeak-ng, which the build clones) is developer/CI tooling;
+# the app itself never uses the network (ADR-0005).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a PR cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Actions are pinned to a commit SHA (a tag can be moved to other code); the comment names the
+# release. .github/dependabot.yml proposes updates.
+
+jobs:
+  build:
+    runs-on: windows-latest
+    # A cold run builds OpenCV from source (the vcpkg cache is empty); a warm run takes minutes.
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VCPKG_DISABLE_METRICS: '1'
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # ONNX Runtime and the models. The cache key is the fetch script, which holds every pinned URL
+      # and SHA-256; the script runs every time anyway, verifies what the cache restored (every
+      # file of onnxruntime\ against the hashes stamped when it was unpacked, and each model), and
+      # downloads whatever is missing or wrong.
+      - name: Restore ONNX Runtime and models
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            onnxruntime
+            models
+          key: deps-${{ runner.os }}-${{ hashFiles('scripts/fetch_deps.ps1') }}
+
+      - name: Fetch ONNX Runtime and models
+        run: |
+          ./scripts/fetch_deps.ps1 -SkipVoices
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # vcpkg: a shallow checkout of microsoft/vcpkg at the commit named by "builtin-baseline" in
+      # vcpkg.json (the one source of truth for the pinned versions), bootstrapped here. The
+      # runner's preinstalled vcpkg is not used: its commit is whatever the image was built with.
+      - name: Set up vcpkg
+        run: |
+          $baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+          if (-not $baseline) { throw 'vcpkg.json has no builtin-baseline' }
+          $vcpkg = Join-Path $env:RUNNER_TEMP 'vcpkg'
+          git init --quiet $vcpkg
+          git -C $vcpkg fetch --quiet --depth 1 https://github.com/microsoft/vcpkg.git $baseline
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git -C $vcpkg checkout --quiet --detach FETCH_HEAD
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $cache = Join-Path $env:RUNNER_TEMP 'vcpkg-binary-cache'
+          New-Item -ItemType Directory $cache -Force | Out-Null
+          "VCPKG_ROOT=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "VCPKG_BINARY_CACHE_DIR=$cache" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "VCPKG_BINARY_SOURCES=clear;files,$cache,readwrite" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # vcpkg binary cache (the built OpenCV etc.). The key follows vcpkg.json, baseline included;
+      # restore-keys lets a changed manifest start from the nearest older cache and only build
+      # the difference. Saved even when a later step fails, once the packages are built.
+      - name: Restore vcpkg binary cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/vcpkg-binary-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      # Release only; -DLEXIA_PACKAGE=OFF skips the package/Lexia folder and zip, which CI does
+      # not publish. The generator is the runner's default Visual Studio.
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows
+          -DLEXIA_WARNINGS_AS_ERRORS=ON
+          -DLEXIA_PACKAGE=OFF
+
+      - name: Save vcpkg binary cache
+        if: ${{ always() && steps.vcpkg-cache.outputs.cache-hit != 'true' && hashFiles('build/vcpkg_installed/**') != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/vcpkg-binary-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # Compares each Fixture with tests/fixtures/baseline.json; fails if one got worse.
+      - name: Fixture score
+        run: |
+          ./scripts/score_layout.ps1 -Cli build/cli/Release/lexia_cli.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }

@@ -1,0 +1,71 @@
+/* The window frame (D8): a fixed 800 x 600 area, the two sets of links, the rules, the Master volume and
+   the flute. Everything is placed by px, as the design is (wireframe/*.png at 96 DPI). The window is 800 x 600
+   DIPs, so a bigger browser window shows the frame in the middle; zoom makes the page scroll. */
+.window {
+  position: relative;
+  width: 800px;
+  height: 600px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* Top links: centred, vertical centre y = 36. */
+.topnav {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  z-index: 2;
+}
+.topnav .navlink { gap: 7px; font-size: 24px; }
+.topnav .navlink .icon { font-size: 32px; }
+
+/* Bottom-left links: centre y = 569. */
+.footnav {
+  position: absolute;
+  left: 30px;
+  top: 549px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  font-size: 16px;
+  z-index: 2;
+}
+.footnav { --gap: 4px; }
+.footnav .navlink { gap: 4px; }
+.footnav .navlink .icon { font-size: 24px; }
+
+/* Dotted rules: 1 px, line colour. */
+.rule { position: absolute; height: 0; border-top: 1px dotted var(--line); }
+.rule-top { left: 190px; top: 74px; width: 420px; }
+.rule-bottom { left: 30px; top: 538px; width: 280px; }
+
+/* Master volume: icon at x = 548, track 576..676, centre y = 569. */
+.volume {
+  position: absolute;
+  left: 548px;
+  top: 557px;
+  width: 128px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+.volume > .icon { font-size: 20px; color: var(--accent); }
+.volume .slider { width: 100px; height: 24px; }
+.volume .slider-thumb { width: 6px; height: 12px; }
+.volume .slider:is(:hover, [data-hover], [data-dragging]) .slider-thumb,
+.volume .slider:focus-visible .slider-thumb { width: 9px; height: 20px; }
+
+/* The flute: on every page, bottom right. */
+.flute { position: absolute; left: 692px; top: 444px; width: 100px; height: 150px; z-index: 0; }
+
+.stage { position: absolute; inset: 0; z-index: 1; }
+.page { position: absolute; inset: 0; }

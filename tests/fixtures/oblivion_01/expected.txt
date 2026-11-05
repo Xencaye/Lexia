@@ -1,0 +1,3 @@
+Shaders preloading: 2%
+
+Compiling shaders to optimize performance during gameplay.

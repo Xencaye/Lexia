@@ -1,0 +1,18 @@
+Piper (libpiper, from OHF-Voice/piper1-gpl)
+Version: 1.8.0 (commit 639388b6317fc4731e91d53da42aea68fd4166ff)
+Licence: GPL-3.0-or-later (the file LICENSE)
+Copyright: The Home Assistant Authors / Open Home Foundation; Piper was started by Michael Hansen (Rhasspy)
+Source: https://github.com/OHF-Voice/piper1-gpl
+Used for: neural text to speech, in process (piper.dll). Lexia builds libpiper from the source at
+that commit; one line is changed to work with ONNX Runtime 1.20 (cmake/patch_libpiper.cmake in
+Lexia's source).
+@covers piper.dll
+
+piper.dll contains these, which the licence of Piper does not cover:
+
+ - nlohmann/json 3.11.2, MIT, Copyright (c) 2013-2022 Niels Lohmann (https://github.com/nlohmann/json).
+   The MIT licence text is under LICENCE TEXTS.
+ - uni-algo 0.8.1, Public Domain or MIT, at the choice of the user (https://github.com/uni-algo/uni-algo).
+   It has no copyright notice to reproduce; its MIT alternative is the text under LICENCE TEXTS.
+ - eSpeak NG, below.
+@licence-text MIT

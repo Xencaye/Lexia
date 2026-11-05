@@ -1,0 +1,8 @@
+# Proposes a PR when a GitHub Action that CI pins by commit SHA has a new release. Only the
+# Actions: vcpkg, ONNX Runtime, the models and the Voices are re-pinned by hand, on purpose.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

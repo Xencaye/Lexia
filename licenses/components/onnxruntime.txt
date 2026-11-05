@@ -1,0 +1,12 @@
+ONNX Runtime
+Version: 1.20.1
+Licence: MIT
+Copyright (c) Microsoft Corporation
+Source: https://github.com/microsoft/onnxruntime (the prebuilt Windows x64 release)
+Used for: running the OCR models and the Piper Voices (onnxruntime.dll,
+onnxruntime_providers_shared.dll).
+@covers onnxruntime.dll onnxruntime_providers_shared.dll
+@include {ORT_DIR}/LICENSE
+
+ONNX Runtime's own list of the third-party software in its binaries:
+@ship {ORT_DIR}/ThirdPartyNotices.txt as onnxruntime-ThirdPartyNotices.txt

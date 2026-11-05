@@ -1,0 +1,13 @@
+OpenCV (modules core and imgproc)
+Version: 4.14.0
+Licence: Apache-2.0 (the OpenCV core module also contains Berkeley SoftFloat, BSD-3-Clause style)
+Copyright: the OpenCV contributors; the copyright holders named in the source files include
+Intel Corporation, Willow Garage Inc., NVIDIA Corporation, Advanced Micro Devices Inc., the
+OpenCV Foundation and others.
+Source: https://opencv.org, https://github.com/opencv/opencv (built by vcpkg, port opencv4)
+Used for: image handling (opencv_core4.dll, opencv_imgproc4.dll).
+@covers opencv_*.dll
+
+The licence file of the vcpkg port, as it is:
+
+@include {VCPKG_SHARE}/opencv4/copyright

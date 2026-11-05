@@ -1,0 +1,15 @@
+Microsoft Edge WebView2 SDK
+Version: 1.0.4258.31 (the vcpkg port webview2, the Microsoft.Web.WebView2 NuGet package)
+Licence: BSD-3-Clause
+Copyright: Copyright (C) Microsoft Corporation. All rights reserved.
+Source: https://www.nuget.org/packages/Microsoft.Web.WebView2 (built by vcpkg, port webview2)
+Used for: showing the Settings window's pages (ui\). Only the loader, WebView2Loader.dll, ships next to
+lexia.exe; the WebView2 Runtime itself is Microsoft's, is part of Windows 11 and Microsoft Edge, and is
+not part of Lexia. The installer carries Microsoft's WebView2 Runtime Evergreen Bootstrapper
+(MicrosoftEdgeWebview2Setup.exe, unchanged, signed by Microsoft) and runs it only on a PC that has no
+WebView2 Runtime; it downloads the runtime from Microsoft, under Microsoft's terms for the runtime.
+@covers WebView2Loader.dll
+
+The licence file of the vcpkg port, as it is:
+
+@include {VCPKG_SHARE}/webview2/copyright

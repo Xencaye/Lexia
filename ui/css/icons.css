@@ -1,0 +1,63 @@
+/* Line icons and engravings (D8). Every icon is a CSS mask, so its colour is currentColor: hover,
+   pressed and dark mode recolour it, although the SVG files have a fixed stroke (#6E504A).
+   An engraving (black lines on white, no alpha) is an element whose background is the tint and whose
+   mask is the inverted luminance of the picture: the lines show, the white does not.
+   Masks (unprefixed: Chromium 120 and later, as WebView2 is) are CORS fetches: on file:// they need Edge with --allow-file-access-from-files (the
+   preview script and the ui_bridge test pass it); inside WebView2 the page is same-origin. */
+.icon {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.i-Spider { --icon: url(../icons/Spider.svg); }
+.i-book-04 { --icon: url(../icons/book-04.svg); }
+.i-clock-01 { --icon: url(../icons/clock-01.svg); }
+.i-discord { --icon: url(../icons/discord.svg); }
+.i-download { --icon: url(../icons/download.svg); }
+.i-fast-forward { --icon: url(../icons/fast-forward.svg); }
+.i-github { --icon: url(../icons/github.svg); }
+.i-heart { --icon: url(../icons/heart.svg); }
+.i-help-circle-contained { --icon: url(../icons/help-circle-contained.svg); }
+.i-home-05 { --icon: url(../icons/home-05.svg); }
+.i-itch { --icon: url(../icons/itch.svg); }
+.i-mail-01 { --icon: url(../icons/mail-01.svg); }
+.i-maximise-02 { --icon: url(../icons/maximise-02.svg); }
+.i-minimise-01 { --icon: url(../icons/minimise-01.svg); }
+.i-pause-03 { --icon: url(../icons/pause-03.svg); }
+.i-play-03 { --icon: url(../icons/play-03.svg); }
+.i-refresh-01 { --icon: url(../icons/refresh-01.svg); }
+.i-save-02 { --icon: url(../icons/save-02.svg); }
+.i-settings { --icon: url(../icons/settings.svg); }
+.i-skip-forward { --icon: url(../icons/skip-forward.svg); }
+.i-stop-01 { --icon: url(../icons/stop-01.svg); }
+.i-tag { --icon: url(../icons/tag.svg); }
+.i-trash-02 { --icon: url(../icons/trash-02.svg); }
+.i-upload-04 { --icon: url(../icons/upload-04.svg); }
+.i-user-profile-03 { --icon: url(../icons/user-profile-03.svg); }
+.i-user-profile-group { --icon: url(../icons/user-profile-group.svg); }
+.i-volume-05 { --icon: url(../icons/volume-05.svg); }
+.i-volume-06 { --icon: url(../icons/volume-06.svg); }
+.i-waveform { --icon: url(../icons/waveform.svg); }
+
+.engraving {
+  display: block;
+  background: var(--tint, var(--ink));
+  mask-image: linear-gradient(#000 0 0), var(--pic);
+  mask-mode: alpha, luminance;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+/* The opacity is the tone of the design's pictures: measured on wireframe/*.png, the dog, wolf and otter are
+   lighter than their sampled tint alone gives (a thin line is anti-aliased on screen). */
+.eng-bee   { --pic: url(../img/bee.jpg);   aspect-ratio: 267 / 231; opacity: 0.9; }
+.eng-dog   { --pic: url(../img/dog.jpg);   aspect-ratio: 407 / 395; --tint: var(--tint-dog); opacity: 0.66; }
+.eng-flute { --pic: url(../img/flute.jpg); aspect-ratio: 133 / 199; --tint: var(--tint-flute); }
+.eng-otter { --pic: url(../img/otter.jpg); aspect-ratio: 162 / 76;  --tint: var(--tint-otter); opacity: 0.55; }
+.eng-wine  { --pic: url(../img/wine.jpg);  aspect-ratio: 213 / 116; --tint: var(--tint-wine); }
+.eng-wolf  { --pic: url(../img/wolf.jpg);  aspect-ratio: 286 / 314; --tint: var(--tint-dog); opacity: 0.72; }

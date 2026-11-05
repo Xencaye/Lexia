@@ -1,0 +1,11 @@
+miniz
+Version: 3.1.2
+Licence: MIT
+Copyright: Copyright 2013-2014 RAD Game Tools and Valve Software; Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
+Source: https://github.com/richgel999/miniz (built by vcpkg, port miniz)
+Used for: reading the zip file when the user adds a Voice from a zip in the Voice library (miniz.dll).
+@covers miniz.dll
+
+The licence file of the vcpkg port, as it is:
+
+@include {VCPKG_SHARE}/miniz/copyright

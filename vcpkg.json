@@ -1,0 +1,17 @@
+{
+  "name": "lexia",
+  "version": "0.5.0",
+  "builtin-baseline": "dc5988cd929e0372ef68ceaddece38a95176f761",
+  "dependencies": [
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": [ "png" ]
+    },
+    "nlohmann-json",
+    "soundtouch",
+    "miniz",
+    "doctest",
+    "webview2"
+  ]
+}

@@ -1,0 +1,10 @@
+zlib
+Version: 1.3.2
+Licence: Zlib
+Source: https://zlib.net (built by vcpkg, port zlib)
+Used for: compression inside OpenCV (z.dll).
+@covers z.dll
+
+The licence file of the vcpkg port, as it is:
+
+@include {VCPKG_SHARE}/zlib/copyright

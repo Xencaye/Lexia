@@ -1,0 +1,6 @@
+Lexia
+Licence: GPL-3.0-or-later (the file LICENSE)
+Copyright (C) 2026 Eleonora Predeva
+Source: https://github.com/Xencaye/Lexia
+Used for: the program itself (lexia.exe).
+@covers lexia.exe

@@ -1,0 +1,10 @@
+JSON for Modern C++ (nlohmann/json)
+Version: 3.12.0
+Licence: MIT
+Source: https://github.com/nlohmann/json (built by vcpkg, port nlohmann-json)
+Used for: reading settings.json and voices.json. Header-only, so it is compiled into lexia.exe.
+Piper (below) has its own copy, version 3.11.2.
+
+The licence file of the vcpkg port, as it is:
+
+@include {VCPKG_SHARE}/nlohmann-json/copyright

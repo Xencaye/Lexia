@@ -1,0 +1,4 @@
+# clangd (the C++ language server) reads the compile commands from here. Write them with
+# scripts\compile_db.ps1: the Visual Studio generator can't.
+CompileFlags:
+  CompilationDatabase: build/clangd
