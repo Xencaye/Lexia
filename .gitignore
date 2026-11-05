@@ -1,0 +1,24 @@
+# generated
+build/
+.vs/
+vcpkg_installed/
+
+# downloaded by scripts/fetch_deps.ps1
+models/
+onnxruntime/
+
+# local vcpkg clone (a tool, not part of Lexia)
+vcpkg/
+
+# Piper voices fetched by scripts/fetch_deps.ps1 (voices.json, the list of them, is tracked)
+voices/*
+!voices/voices.json
+
+# the WebView2 Runtime bootstrapper the installer ships, fetched by scripts/fetch_deps.ps1 -Installer
+installer/redist/
+
+# release files kept apart from build\ (copied there by hand for a release: the installer and the portable zip)
+release/
+
+# design hand-off video: too large for git (236 MB) and holds the owner's voice
+wireframe/*.mp4

@@ -1,0 +1,15 @@
+LEXIA - THIRD-PARTY NOTICES
+===========================
+
+Lexia is free software: you can redistribute it and modify it under the terms of the GNU
+General Public License, version 3 or (at your option) any later version. The licence text is
+in the file LICENSE next to this one. Lexia's source code is at
+https://github.com/Xencaye/Lexia.
+
+Lexia contains, or uses at run time, the components listed below. Each entry gives the
+component's name, version where known, licence, copyright holders and where its source is.
+Licence texts that several components share are printed once at the end, under LICENCE TEXTS.
+All of these licences allow redistribution with Lexia under the GPL-3.0-or-later.
+
+This file is made when the package is built, from the files in licenses/components/ in the
+source tree.

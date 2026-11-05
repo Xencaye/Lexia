@@ -1,0 +1,20 @@
+eSpeak NG (with ucd-tools)
+Version: commit 212928b394a96e8fd2096616bfd54e17845c48f6 (2025-03-22)
+Licence: GPL-3.0-or-later (the file LICENSE). Some files are under other licences, below.
+Copyright: Jonathan Duddington (2005-2013), Reece H. Dunn (2013-2017) and the eSpeak NG authors
+Source: https://github.com/espeak-ng/espeak-ng (ucd-tools: https://github.com/espeak-ng/ucd-tools)
+Used for: turning text into phonemes for Piper. It is linked into piper.dll, and its data folder
+espeak-ng-data\ is next to lexia.exe. Built unchanged from the commit pinned by Piper.
+
+espeak-ng's own notes on files under other licences:
+
+--- COPYING.BSD2 (getopt compatibility code taken from NetBSD)
+
+@include {ESPEAK_SRC}/COPYING.BSD2
+
+--- COPYING.UCD (ucd-tools and the Unicode data in it)
+
+@include {ESPEAK_SRC}/COPYING.UCD
+
+--- COPYING.APACHE is the Apache License 2.0
+@licence-text Apache-2.0

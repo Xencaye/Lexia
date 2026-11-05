@@ -1,0 +1,6 @@
+Vintage book engravings
+Licence: public domain
+Source: Old Book Illustrations, https://www.oldbookillustrations.com/ (scans of illustrations from old books)
+Used for: the pictures of the Settings window (ui\img\: bee.jpg, dog.jpg, flute.jpg, otter.jpg, wine.jpg,
+wolf.jpg; tinted by the page) and the Lexia logo (src\res\lexia_logo.png, from which scripts\make_tray_icons.ps1
+makes the exe and tray icons src\res\lexia.ico and lexia_off.ico).

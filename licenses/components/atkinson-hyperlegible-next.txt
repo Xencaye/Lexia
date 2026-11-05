@@ -1,0 +1,9 @@
+Atkinson Hyperlegible Next (font)
+Licence: SIL Open Font License 1.1
+Copyright: Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors
+Source: https://github.com/googlefonts/atkinson-hyperlegible-next
+Used for: the text of the Settings window (ui\fonts\, three .woff2 files, copied unchanged).
+
+The licence file that comes with the font, as it is:
+
+@include {SOURCE_DIR}/ui/fonts/OFL.txt

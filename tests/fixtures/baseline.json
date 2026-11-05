@@ -1,0 +1,21 @@
+{
+  "fixtures": {
+    "lovebyte_01": { "distance": 0.088889, "blockCountError": 2 },
+    "lovebyte_02": { "distance": 0.065868, "blockCountError": 5 },
+    "lovebyte_03": { "distance": 0.270916, "blockCountError": 5 },
+    "oblivion_01": { "distance": 0.286957, "blockCountError": 4 },
+    "seed-article": { "distance": 0, "blockCountError": 0 },
+    "twd_01": { "distance": 0.125, "blockCountError": 0 },
+    "twd_02": { "distance": 0.214286, "blockCountError": 4 },
+    "undertale_01": { "distance": 0.875, "blockCountError": 0 },
+    "undertale_02": { "distance": 0, "blockCountError": 0 },
+    "undertale_03": { "distance": 0, "blockCountError": 0 },
+    "undertale_04": { "distance": 0, "blockCountError": 0 },
+    "undertale_05": { "distance": 0.150235, "blockCountError": 4 },
+    "unraveled_01": { "distance": 0.057692, "blockCountError": 4 },
+    "unraveled_02": { "distance": 0, "blockCountError": 0 },
+    "unraveled_03": { "distance": 0.073171, "blockCountError": 1 },
+    "unraveled_04": { "distance": 0.018349, "blockCountError": 1 },
+    "wha_01": { "distance": 0.078431, "blockCountError": 0 }
+  }
+}

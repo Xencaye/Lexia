@@ -1,0 +1,19 @@
+Instruction
+
+[Z or ENTER] - Confirm
+
+[X or Shift] - Cancel
+
+[X or CTRL] - Menu (In-game)
+
+[F4] - Fullscreen
+
+[Hold ESC] - Quit
+
+When HP is 0, you lose. 
+
+Begin Game
+
+Settings
+
+undertale v1.08 (c) Toby Fox 2015-17

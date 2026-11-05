@@ -1,0 +1,7 @@
+Stratis UI Icons (line icons)
+Licence: CC BY 4.0, the licence of files on the Figma Community (https://creativecommons.org/licenses/by/4.0/)
+Copyright: the authors of Stratis UI
+Source: https://www.figma.com/community/file/1177180791780461401/stratis-ui-icons-1000-free-figma-icons
+Used for: the icons of the Settings window and the Control bar (ui\icons\, SVG files exported from that file;
+the colour of each icon is set by Lexia). Not from this set: discord.svg, github.svg and itch.svg, the logos of
+Discord, GitHub and itch.io, used only to link to Lexia's pages there.

@@ -1,0 +1,13 @@
+SoundTouch
+Version: 2.4.1
+Licence: LGPL-2.1-or-later
+Copyright: Copyright (c) Olli Parviainen
+Source: https://codeberg.org/soundtouch/soundtouch (built by vcpkg, port soundtouch)
+Used for: shifting the pitch of synthesised speech without changing its length (Voice control Pitch).
+SoundTouch.dll ships next to lexia.exe and is linked dynamically, so you can replace it with your own
+build of SoundTouch, as the LGPL asks.
+@covers SoundTouch.dll
+
+The licence file of the vcpkg port (the GNU Lesser General Public License, version 2.1), as it is:
+
+@include {VCPKG_SHARE}/soundtouch/copyright

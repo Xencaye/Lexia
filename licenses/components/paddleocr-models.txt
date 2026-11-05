@@ -1,0 +1,13 @@
+PaddleOCR PP-OCR models (text detection and recognition)
+Licence: Apache-2.0
+Copyright (c) PaddlePaddle Authors
+Source: https://github.com/PaddlePaddle/PaddleOCR
+Used for: finding and reading the text in a Shot (the folder models\: det.onnx,
+rec_en.onnx, rec_cyrillic.onnx, dict_en.txt, dict_cyrillic.txt).
+The files are ONNX conversions of PaddleOCR's models, not changed otherwise:
+  - det.onnx is ch_PP-OCRv4_det, from https://huggingface.co/SWHL/RapidOCR (Apache-2.0).
+  - rec_en.onnx / dict_en.txt are en_PP-OCRv3_rec and rec_cyrillic.onnx / dict_cyrillic.txt are
+    cyrillic_PP-OCRv3_rec, from https://huggingface.co/deepghs/paddleocr. That repository is
+    under the "Model Distribution Disclaimer License" (RDL), which says the original licence of
+    each model applies: PaddleOCR's Apache-2.0.
+@licence-text Apache-2.0

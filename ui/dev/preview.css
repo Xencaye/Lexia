@@ -1,0 +1,121 @@
+/* Shared by the preview pages of ui/dev (controlbar.html, tray.html): the links on top and the notes
+   under the screen. Developer chrome, not part of what is designed. */
+/* LEGACY TOKENS (D0 look) for the Control bar and tray previews only. The Settings window pages use the new
+   css/tokens.css (D8.1). controlbar.css and tray.css still draw with the old names (surface, shade, raised, ...), so
+   they are kept here, scoped to body.pv, until D8.4 redraws the Control bar preview with the new tokens and this block goes. */
+body.pv {
+  color-scheme: light;
+
+  --surface: #F3F3F3;
+  --shade: #C0C0C0;
+  --light: #FFFFFF;
+  --grad-hi: #FBFBFB;
+  --grad-lo: #E4E4E4;
+  --ink: #1F1F1F;
+  --ink-soft: #505050;
+  --edge: #808080;
+  --accent: #5e4fa2;
+  --on-accent: #FFFFFF;
+  --danger: #9e0142;
+
+  /* The 11 Spectral colours, in palette order, and the hue of each Voice control. */
+  --rainbow: #9e0142, #d53e4f, #f46d43, #fdae61, #fee08b, #ffffbf, #e6f598, #abdda4, #66c2a5, #3288bd, #5e4fa2;
+  --hue-speed: #f46d43;
+  --hue-pitch: #fdae61;
+  --hue-volume: #66c2a5;
+  --hue-expr: #3288bd;
+
+  /* Surfaces by gradient: a raised piece, a pressed-in one (the same two colours, reversed). */
+  --raised: linear-gradient(145deg, var(--grad-hi), var(--grad-lo));
+  --pressed: linear-gradient(145deg, var(--grad-lo), var(--grad-hi));
+  --raised-soft: linear-gradient(145deg, color-mix(in srgb, var(--grad-hi) 70%, var(--surface)), color-mix(in srgb, var(--grad-lo) 70%, var(--surface)));
+
+  /* Soft shadows: a raised card, a small raised piece, pressed in. */
+  --card: -8px -8px 18px var(--light), 8px 8px 18px var(--shade);
+  --raise: -4px -4px 10px var(--light), 4px 4px 10px var(--shade);
+  --press: inset 3px 3px 7px var(--shade), inset -3px -3px 7px var(--light);
+
+  /* Type: one family, base 18 px, scale 15 / 18 / 22 / 28 / 44. */
+  --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+  --text-s: 0.8333rem;   /* 15 px */
+  --text-m: 1rem;        /* 18 px */
+  --text-l: 1.2222rem;   /* 22 px */
+  --text-xl: 1.5556rem;  /* 28 px */
+  --text-xxl: 2.4444rem; /* 44 px */
+
+  /* Shape: rounded rectangles. Only the power button, the rings and the Control bar size switch are round. */
+  --radius-card: 22px;
+  --radius-tile: 16px;
+  --radius-btn: 14px;
+  --radius-chip: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.pv {
+    color-scheme: dark;
+    --surface: #2A2A2A;
+    --shade: #0F0F0F;
+    --light: #484848;
+    --grad-hi: #353535;
+    --grad-lo: #232323;
+    --ink: #EEEEEE;
+    --ink-soft: #BBBBBB;
+    --edge: #7A7A7A;
+    --accent: #A99CEB;
+    --on-accent: #1A1A1A;
+    --danger: #F08A93;
+  }
+}
+
+:root[data-theme="dark"] body.pv {
+  color-scheme: dark;
+  --surface: #2A2A2A;
+  --shade: #0F0F0F;
+  --light: #484848;
+  --grad-hi: #353535;
+  --grad-lo: #232323;
+  --ink: #EEEEEE;
+  --ink-soft: #BBBBBB;
+  --edge: #7A7A7A;
+  --accent: #A99CEB;
+  --on-accent: #1A1A1A;
+  --danger: #F08A93;
+}
+
+/* ---------- Preview page chrome (not part of the bar) ---------- */
+html:has(body.pv) { font-size: 18px; } /* the old base size: the previews are drawn in rem */
+body.pv { background: var(--surface); font-size: var(--text-m); line-height: 1.5; letter-spacing: 0.01em; }
+.pv-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: var(--text-s);
+  color: var(--ink);
+}
+.pv-nav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; }
+.pv-nav-label { color: var(--ink-soft); margin-right: 0.15rem; }
+.pv-link {
+  padding: 0.1rem 0.7rem;
+  border: 1.5px solid var(--edge);
+  border-radius: var(--radius-btn);
+  color: var(--ink);
+  text-decoration: none;
+}
+.pv-link[aria-current="true"] { box-shadow: var(--press); font-weight: 700; border-color: var(--accent); }
+
+/* ---------- The spec notes under the screen ---------- */
+.spec { max-width: 62rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+.spec h2 { margin: 2rem 0 0.6rem; font-size: var(--text-xl); }
+.spec h3 { margin: 1.4rem 0 0.4rem; font-size: var(--text-l); }
+.spec p, .spec li { max-width: 46rem; }
+.spec ul { margin: 0.4rem 0 0; padding-left: 1.3rem; list-style: disc; }
+.spec li { margin-bottom: 0.3rem; }
+.spec table { border-collapse: collapse; margin: 0.6rem 0; font-size: var(--text-s); }
+.spec th, .spec td { padding: 0.3rem 0.9rem 0.3rem 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--shade); }
+.spec code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.9em; }
+
+/* ?chrome=0: only the screen (the screenshots use this). */
+body.pv.bare .pv-nav, body.pv.bare .spec { display: none; }
+.spec a { color: var(--accent); }
+.spec a:hover { color: var(--ink); }

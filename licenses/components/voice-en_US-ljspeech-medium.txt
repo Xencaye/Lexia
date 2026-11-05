@@ -1,0 +1,13 @@
+Piper Voice en_US-ljspeech-medium (English, US, female)
+Licence: public domain (no licence is stated for the model itself; see below)
+Source: https://huggingface.co/rhasspy/piper-voices (en/en_US/ljspeech/medium)
+Used for: speaking English (voices\en_US-ljspeech-medium.onnx and .onnx.json).
+
+Trained by Bryce Beattie (https://brycebeattie.com/files/tts/) with Piper, from scratch, for
+1000 epochs, on the LJ Speech Dataset by Keith Ito (https://keithito.com/LJ-Speech-Dataset/).
+The LJ Speech Dataset is in the public domain: its texts are from public domain books and its
+audio was recorded for LibriVox, whose recordings are public domain. Its author says there are
+no restrictions on its use. The model card in rhasspy/piper-voices gives the dataset licence as
+"public domain" and states no separate licence for the model weights; Beattie's page lists the
+Voice as "License: public domain". No attribution is required. Credit is given as a courtesy.
+The Voice is provided as is, without warranty.

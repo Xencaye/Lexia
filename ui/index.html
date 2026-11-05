@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Lexia</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/icons.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/frame.css">
+<link rel="stylesheet" href="css/pages.css">
+<link rel="stylesheet" href="css/voice_library.css">
+</head>
+<body>
+<!-- The Settings window is a fixed 800 x 600 frame (D8). Six pages, one visible at a time. The top
+     links (home, voices, settings) and the bottom-left links (report, help, about) are one set of
+     pages: a <nav> of buttons, the current one has aria-current="page". -->
+<div class="window">
+
+  <nav class="topnav" id="topnav" data-aria-label="window.nav.main">
+    <button class="navlink" type="button" data-page="home"><span class="icon i-home-05" aria-hidden="true"></span><span data-text="window.nav.home" data-bold-room=""></span></button>
+    <button class="navlink" type="button" data-page="voices"><span class="icon i-user-profile-group" aria-hidden="true"></span><span data-text="window.nav.voices" data-bold-room=""></span></button>
+    <button class="navlink" type="button" data-page="settings"><span class="icon i-settings" aria-hidden="true"></span><span data-text="window.nav.settings" data-bold-room=""></span></button>
+  </nav>
+  <div class="rule rule-top" aria-hidden="true"></div>
+
+  <nav class="footnav" id="footnav" data-aria-label="window.nav.more">
+    <button class="navlink" type="button" data-page="report"><span class="icon i-Spider" aria-hidden="true"></span><span data-text="window.nav.report" data-bold-room=""></span></button>
+    <button class="navlink" type="button" data-page="help"><span class="icon i-book-04" aria-hidden="true"></span><span data-text="window.nav.help" data-bold-room=""></span></button>
+    <button class="navlink" type="button" data-page="about"><span class="icon i-heart" aria-hidden="true"></span><span data-text="window.nav.about" data-bold-room=""></span></button>
+  </nav>
+  <div class="rule rule-bottom" aria-hidden="true"></div>
+
+  <!-- Master volume (Settings::speechVolume), on every page. -->
+  <div class="volume">
+    <span class="icon i-volume-05" aria-hidden="true"></span>
+    <div class="slider" id="master-volume" role="slider" tabindex="0" aria-orientation="horizontal" data-aria-label="window.volume">
+      <span class="slider-track"></span><span class="slider-thumb"></span>
+    </div>
+  </div>
+  <span class="engraving eng-flute flute" aria-hidden="true"></span>
+
+  <main class="stage">
+
+    <!-- Home: the power circle inside the bee frame, and the enable / disable button. Both toggle. -->
+    <section class="page home" id="page-home" data-page="home" aria-labelledby="title-home">
+      <h1 class="sr-only" id="title-home" data-text="window.nav.home"></h1>
+      <span class="engraving eng-bee bee" id="bee" data-on="false" aria-hidden="true"></span>
+      <button class="power" id="power" type="button" aria-pressed="false" disabled data-aria-label="window.home.power">
+        <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" aria-hidden="true">
+          <path d="M32 7v23"/>
+          <path d="M18.6 13.2a24 24 0 1 0 26.8 0"/>
+        </svg>
+      </button>
+      <button class="enable" id="enable" type="button" data-on="false" disabled></button>
+    </section>
+
+    <!-- Voices: the Voice and its three icon buttons, then speed, pitch and volume. js/voice.js. -->
+    <section class="page voices" id="page-voices" data-page="voices" aria-labelledby="title-voices" hidden>
+      <h1 class="sr-only" id="title-voices" data-text="window.nav.voices"></h1>
+
+      <div class="vrow vrow-voice">
+        <label class="vrow-label" for="voice-voice"><span class="icon i-user-profile-03" aria-hidden="true"></span><span data-text="window.voice.voice"></span></label>
+        <span class="select-wrap"><select class="select" id="voice-voice" disabled></select></span>
+        <div class="vrow-side">
+          <button class="icon-btn" id="add-download" type="button" data-aria-label="window.voice.download" data-title="window.voice.download"><span class="icon i-download" aria-hidden="true"></span></button>
+          <button class="icon-btn" id="add-file" type="button" data-aria-label="window.voice.addFromFile" data-title="window.voice.addFromFile"><span class="icon i-upload-04" aria-hidden="true"></span></button>
+          <button class="icon-btn" id="voice-delete" type="button" data-aria-label="window.voice.delete" data-title="window.voice.delete"><span class="icon i-trash-02" aria-hidden="true"></span></button>
+        </div>
+      </div>
+      <p class="voice-none" id="voice-none" hidden></p>
+      <div class="rule rule-voices" aria-hidden="true"></div>
+
+      <div id="voice-controls" role="group" data-aria-label="window.voice.controls">
+        <div class="vrow vrow-slider" data-control="speed">
+          <span class="vrow-label"><span class="icon i-fast-forward" aria-hidden="true"></span><span data-text="window.voice.speed"></span></span>
+          <div class="slider" role="slider" tabindex="0" aria-orientation="horizontal" data-aria-label="window.voice.speed"><span class="slider-track"></span><span class="slider-thumb"></span></div>
+          <div class="vrow-side"><button class="icon-btn" type="button" hidden><span class="icon i-refresh-01" aria-hidden="true"></span></button></div>
+        </div>
+        <div class="vrow vrow-slider" data-control="pitch">
+          <span class="vrow-label"><span class="icon i-waveform" aria-hidden="true"></span><span data-text="window.voice.pitch"></span></span>
+          <div class="slider" role="slider" tabindex="0" aria-orientation="horizontal" data-aria-label="window.voice.pitch"><span class="slider-track"></span><span class="slider-thumb"></span></div>
+          <div class="vrow-side"><button class="icon-btn" type="button" hidden><span class="icon i-refresh-01" aria-hidden="true"></span></button></div>
+        </div>
+        <div class="vrow vrow-slider" data-control="volume">
+          <span class="vrow-label"><span class="icon i-volume-06" aria-hidden="true"></span><span data-text="window.voice.volume"></span></span>
+          <div class="slider" role="slider" tabindex="0" aria-orientation="horizontal" data-aria-label="window.voice.volume"><span class="slider-track"></span><span class="slider-thumb"></span></div>
+          <div class="vrow-side"><button class="icon-btn" type="button" hidden><span class="icon i-refresh-01" aria-hidden="true"></span></button></div>
+        </div>
+      </div>
+
+      <span class="engraving eng-otter otter" aria-hidden="true"></span>
+      <div class="presets">
+        <button class="text-link" id="preset-save" type="button"><span class="icon i-save-02" aria-hidden="true"></span><span data-text="window.voice.savePreset"></span></button>
+        <button class="text-link" id="preset-load" type="button"><span class="icon i-tag" aria-hidden="true"></span><span data-text="window.voice.loadPreset"></span></button>
+      </div>
+    </section>
+
+    <!-- Settings: the keys with a card that says what the selected key does, then four switches. js/settings.js. -->
+    <section class="page settings" id="page-settings" data-page="settings" aria-labelledby="title-settings" hidden>
+      <h1 class="sr-only" id="title-settings" data-text="window.nav.settings"></h1>
+      <h2 class="heading heading-keys" id="keys-title" data-text="window.keys.title"></h2>
+      <ul class="keys" id="keys" aria-labelledby="keys-title"></ul>
+      <h2 class="heading heading-misc" id="misc-title" data-text="window.settings.misc"></h2>
+      <ul class="misc" aria-labelledby="misc-title">
+        <li><button class="switch-row" type="button" role="switch" aria-checked="false" id="toggle-startup"><span class="switch-label" data-text="window.settings.runAtStartup"></span><span class="switch" aria-hidden="true"><span class="switch-knob"></span></span></button></li>
+        <li><button class="switch-row" type="button" role="switch" aria-checked="false" id="toggle-minimised"><span class="switch-label" data-text="window.settings.startMinimised"></span><span class="switch" aria-hidden="true"><span class="switch-knob"></span></span></button></li>
+        <li><button class="switch-row" type="button" role="switch" aria-checked="false" id="toggle-admin"><span class="switch-label" data-text="window.settings.runAsAdmin"></span><span class="switch" aria-hidden="true"><span class="switch-knob"></span></span></button></li>
+        <li><button class="switch-row" type="button" role="switch" aria-checked="false" id="toggle-dark"><span class="switch-label" data-text="window.settings.darkMode"></span><span class="switch" aria-hidden="true"><span class="switch-knob"></span></span></button></li>
+        <li><button class="switch-row" type="button" role="switch" aria-checked="false" id="toggle-left"><span class="switch-label" data-text="window.settings.leftHanded"></span><span class="switch" aria-hidden="true"><span class="switch-knob"></span></span></button></li>
+      </ul>
+      <div class="keycard" id="key-card">
+        <span class="engraving eng-wine wine" aria-hidden="true"></span>
+        <div class="keycard-head">
+          <h3 class="keycard-title" id="key-detail-title"></h3>
+          <button class="icon-btn" id="key-play" type="button"><span class="icon i-play-03" aria-hidden="true"></span></button>
+        </div>
+        <div class="keycard-text" id="key-detail-text"></div>
+      </div>
+      <p class="key-hint" id="key-hint" aria-live="polite"></p>
+    </section>
+
+    <!-- Report: the owner's invitation and three links. The page never sends a URL (ADR-0005): js/pages.js sends openLink { link }. -->
+    <section class="page report" id="page-report" data-page="report" aria-labelledby="report-title" hidden>
+      <span class="engraving eng-dog dog" aria-hidden="true"></span>
+      <h1 class="big" id="report-title" data-text="window.report.title"></h1>
+      <p class="report-text" data-text="window.report.text"></p>
+      <div class="links">
+        <button class="text-link" type="button" data-link="mail"><span class="icon i-mail-01" aria-hidden="true"></span><span data-text="window.report.mail"></span></button>
+        <button class="text-link" type="button" data-link="discord"><span class="icon i-discord" aria-hidden="true"></span><span data-text="window.report.discord"></span></button>
+        <button class="text-link" type="button" data-link="github"><span class="icon i-github" aria-hidden="true"></span><span data-text="window.report.github"></span></button>
+      </div>
+    </section>
+
+    <section class="page help" id="page-help" data-page="help" aria-labelledby="help-title" hidden>
+      <h1 class="big" id="help-title" data-text="window.help.title"></h1>
+      <p data-text="window.help.soon"></p>
+    </section>
+
+    <section class="page about" id="page-about" data-page="about" aria-labelledby="about-title" hidden>
+      <span class="engraving eng-wolf wolf" aria-hidden="true"></span>
+      <h1 class="about-head" id="about-title"><strong class="about-name" data-text="window.about.name"></strong><span id="about-version"></span></h1>
+      <div class="about-top">
+        <p id="about-intro"></p>
+        <p data-text="window.about.hope"></p>
+      </div>
+      <div class="about-more">
+        <span class="about-curve" aria-hidden="true"></span>
+        <p data-text="window.about.local"></p>
+        <p data-text="window.about.human"></p>
+        <p data-text="window.about.thanks"></p>
+      </div>
+      <div class="about-links">
+        <button class="icon-btn" type="button" data-link="itch" data-aria-label="window.about.itch" data-title="window.about.itch"><span class="icon i-itch" aria-hidden="true"></span></button>
+        <button class="icon-btn" type="button" data-link="github" data-aria-label="window.about.github" data-title="window.about.github"><span class="icon i-github" aria-hidden="true"></span></button>
+      </div>
+      <p class="about-legal"><span data-text="window.about.licence"></span><br><span id="about-notices-line"><button class="text-link text-link-small" type="button" id="about-notices" data-text="window.about.notices" data-aria-label="window.about.noticesLabel"></button></span></p>
+    </section>
+
+  </main>
+</div>
+
+<!-- Delete a Voice: the confirmation. The host deletes only a Voice that is not shipped. -->
+<dialog class="sheet" id="delete-voice" aria-labelledby="delete-voice-title">
+  <h2 class="sheet-title" id="delete-voice-title"></h2>
+  <p class="sheet-line" data-text="window.deleteVoice.text"></p>
+  <div class="sheet-actions">
+    <button class="btn" type="button" id="delete-voice-confirm" data-text="window.deleteVoice.confirm"></button>
+    <button class="btn btn-quiet" type="button" id="delete-voice-cancel" data-text="window.deleteVoice.cancel"></button>
+  </div>
+</dialog>
+
+<!-- Voice download: a sheet over the voices page. js/voice_library.js fills it from the
+     catalogue message and draws the progress of a download. Esc closes it; the focus goes back to the button. -->
+<dialog class="sheet sheet-wide" id="catalogue" aria-labelledby="catalogue-title">
+  <h2 class="sheet-title" id="catalogue-title" data-text="window.download.title"></h2>
+  <p class="note sheet-network" data-text="window.download.network"></p>
+  <p class="notice" id="catalogue-note" role="status" hidden></p>
+  <div class="catalogue-body" id="catalogue-body"></div>
+  <div class="sheet-actions">
+    <button class="btn" type="button" id="catalogue-close" data-text="window.download.close"></button>
+  </div>
+</dialog>
+
+<!-- The result of a native file dialog or of a delete: Add from file, Delete a Voice, a Preset file. -->
+<dialog class="sheet" id="file-result" aria-labelledby="file-result-title">
+  <h2 class="sheet-title" id="file-result-title"></h2>
+  <div class="catalogue-state"><p class="notice" id="file-result-text"></p></div>
+  <div class="sheet-actions">
+    <button class="btn" type="button" id="file-result-again" data-text="window.addFile.again" hidden></button>
+    <button class="btn" type="button" id="file-result-close" data-text="window.addFile.close"></button>
+  </div>
+</dialog>
+
+<!-- The bridge first, then the words, then the page. -->
+<script src="js/bridge.js"></script>
+<script src="js/i18n.js"></script>
+<!-- DEV ONLY: the browser preview and the tests. It does nothing inside WebView2. D3 removes this one
+     line and leaves dev/ out of the package (see ui/README.md). -->
+<script src="dev/dev_host.js"></script>
+<!-- END DEV ONLY -->
+<script src="js/controls.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/voice_library.js"></script>
+<script src="js/app.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/pages.js"></script>
+</body>
+</html>

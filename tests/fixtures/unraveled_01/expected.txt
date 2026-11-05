@@ -1,0 +1,21 @@
+Save slot 1
+
+Save slot 2
+
+Save slot 3
+
+Quit game
+
+Completed levels 3/7
+
+Completed bonus levels - 0/20
+
+Collectibles found - 12/43
+
+Medals earned 1/24
+
+[Enter] Select
+
+[Esc] Back
+
+[Space] View legal agreements

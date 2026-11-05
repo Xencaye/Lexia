@@ -1,0 +1,8 @@
+Microsoft Visual C++ runtime
+Licence: Microsoft's licence terms for the redistributable files of Visual Studio (the "REDIST" list)
+Copyright (c) Microsoft Corporation
+Source: https://visualstudio.microsoft.com/downloads/ (Microsoft Visual C++ Redistributable)
+Used for: the runtime that lexia.exe, piper.dll and the DLLs above need, so that the PC does not
+have to install it (msvcp140*.dll, vcruntime140*.dll, concrt140.dll). These files are not
+covered by Lexia's licence: they are Microsoft's, under Microsoft's terms.
+@covers msvcp140*.dll vcruntime140*.dll concrt140.dll vccorlib140.dll

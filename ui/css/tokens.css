@@ -1,0 +1,62 @@
+/* Lexia design tokens (D8: the "paper" look). Five colours and their tints, the type and the shape.
+   Light is the default. Dark applies when the page says so: js/app.js sets data-theme="dark" from the
+   host's `dark` (the effective theme), so there is no prefers-color-scheme block here.
+   Pairs are checked by scripts/ui_contrast.ps1 (text 4.5:1, edges and states 3:1). The design's own
+   colours are not changed to pass: a pair that fails is reported to the owner. */
+:root {
+  color-scheme: light;
+
+  --paper: #F5EFE8;     /* the window */
+  --card: #FBF6F0;      /* the key card, the select, text on an accent fill */
+  --ink: #6D6154;       /* text */
+  --line: #D9CFC4;      /* dotted rules, slider tracks, idle icon buttons, a disabled button's fill */
+  --accent: #6E504A;    /* the primary button, key chips, slider thumbs, toggles, icons of the links */
+  --on-accent: #FBF6F0; /* text and glyphs on an accent fill */
+  --danger: #8A3A30;    /* an error text (not in the design: the design has no error state) */
+
+  --power-off-hover: #EEE6DE; /* the power circle, Off, hovered */
+  --power-on-hover: #856A65;  /* the power circle, On, hovered */
+  --tile: #BEA991;            /* the Control bar's icon tiles (the Control bar draws its own copy) */
+
+  /* The tints of the engravings (their lines). Light mode. */
+  --tint-flute: #BBAD9F;
+  --tint-bee-off: #CBBDB0;
+  --tint-bee-on: #A87A72;
+  --tint-otter: #B3A49C;
+  --tint-wine: #E3D3C7;
+  --tint-dog: #74594F;   /* the dog and the wolf */
+
+  --scrim: rgba(60, 48, 40, 0.45); /* behind a sheet */
+
+  /* Type: one family. The sizes are px, because the window is a fixed 800 x 600 frame. */
+  --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+  --radius: 4px;
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+
+/* TODO(owner): final dark palette. These are placeholders of the same roles. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #2A2420;
+  --card: #342D28;
+  --ink: #E8DED3;
+  --line: #574C44;
+  --accent: #DABDB4;
+  --on-accent: #2A2420;
+  --danger: #F0A79B;
+
+  --power-off-hover: #3A322C;
+  --power-on-hover: #E6CEC6;
+  --tile: #BEA991;
+
+  --tint-flute: #5C4F46;
+  --tint-bee-off: #5C4F46;
+  --tint-bee-on: #D6B8AF;
+  --tint-otter: #7A6A60;
+  --tint-wine: #463B34;
+  --tint-dog: #B69A90;
+
+  --scrim: rgba(0, 0, 0, 0.55);
+}
