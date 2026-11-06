@@ -124,6 +124,13 @@ adds one from disk. Both write to `%LOCALAPPDATA%\Lexia\voices` unless `--voices
 - A change that implements or changes a plan item (a task id, an R-finding) updates `docs/Lexia — Code Review & Agent Plan.md`
   in the same PR: tick the task, fix its status, the "Status" section and the milestones, mark an R-finding fixed.
   The "Plan" section below must say the same (what is merged, what is open).
+- **Use clangd for C++.** Navigate and review C++ with the LSP tool (clangd): definitions, references,
+  hover, call hierarchy, symbols. Cross-check references with Grep until the index is complete. Run
+  `.\scripts\compile_db.ps1` after you add a source file. This applies to every subagent too.
+- **Use Security Guidance when you plan code.** The Security Guidance plugin (Anthropic directory) must be
+  enabled while you plan and write code; if it is missing, ask the owner to install it. Each code plan has a
+  Security section (input from files, network only on request (ADR-0005), path traversal, DLL search path,
+  COM and UI Automation lifetimes, links only from `LinkUrl`).
 - One task per branch (`feat/<task-id>`), one task per PR. Stop at the task boundary and summarise:
   what changed, how it was verified, what the owner must check by hand.
 
