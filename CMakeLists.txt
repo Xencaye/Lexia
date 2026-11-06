@@ -273,6 +273,7 @@ add_executable(lexia_tests
     tests/lookalike_test.cpp
     tests/md5_test.cpp
     tests/mouse_role_test.cpp
+    tests/palette_test.cpp
     tests/preset_file_test.cpp
     tests/score_test.cpp
     tests/startup_test.cpp
