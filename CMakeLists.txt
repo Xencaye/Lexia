@@ -108,6 +108,7 @@ add_library(lexia_core STATIC
     src/log.cpp
     src/lookalike.cpp
     src/mouse_role.cpp
+    src/native_ui/palette.cpp
     src/ocr.cpp
     src/recognize.cpp
     src/score.cpp
