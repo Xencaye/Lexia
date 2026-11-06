@@ -1,7 +1,7 @@
 #pragma once
 // The Control bar: the buttons that float above the Overlay during a Session (D4, redrawn in D8.4).
 // Its look is the spec in ui/dev/controlbar.html (made from wireframe/control_bar_*.png); where its
-// parts are is control_bar_layout.h; the icons are the SVG files of ui/icons (svg_icon.h).
+// parts are is control_bar_layout.h; the icons are the SVG files of ui/icons, embedded in the exe (assets.h, svg_icon.h).
 //
 // It is its own window (owned by the Overlay window, so always above it), layered with per-pixel
 // alpha so its soft shadow needs no rectangle. It never takes focus (ADR-0001): WS_EX_NOACTIVATE,
