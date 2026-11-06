@@ -35,9 +35,9 @@ want every person to run as administrator all the time, as that is a risk for li
 
 ## Consequences
 
-- An elevated Lexia can read the windows of elevated games. It also runs the WebView2 Settings
+- An elevated Lexia can read the windows of elevated games. It also runs the Settings
   window, the downloads and the Voice files with administrator rights. ADR-0005 (network only on
-  a request) and ADR-0006 (the page is only local, every other request is refused) therefore
+  a request) and ADR-0009 (a native window, its assets are resources in the exe) therefore
   matter more, and nothing in them changes. Lexia does not write outside `%LOCALAPPDATA%\Lexia`.
 - Drag and drop and the file dialogs of a non-elevated Explorer may not reach an elevated Lexia
   (UIPI again). The Voice tab's file dialogs are Lexia's own (`IFileOpenDialog`), so they work.

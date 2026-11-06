@@ -31,6 +31,7 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 is done.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -361,14 +362,35 @@ network except on request (ADR-0005), GPL-3-compatible dependencies only.
   game, and the Control bar in it. *Your check:* a game on Steam for Linux / Proton does not minimise.
 - [ ] **J5 Audio, tray and Settings window.** The audio sink (PipeWire or PulseAudio), the tray icon
   (StatusNotifierItem / AppIndicator; GNOME needs the AppIndicator extension, which Ubuntu ships), and
-  the Settings window: the same `ui/` pages in WebKitGTK instead of WebView2, with the same bridge and
-  the same request filter (ADR-0005).
+  the Settings window. Since K (ADR-0009) there are no `ui/` pages to reuse: the window reuses the
+  Win32-free widget tree of `src/native_ui/` with a Cairo/Pango canvas and AT-SPI, or is a new window.
 - [ ] **J6 Start-up and settings.** Settings and the log in `~/.config/lexia` and `~/.local/state/lexia`
   (XDG), Run at startup as a `~/.config/autostart` entry, one instance only. Run as admin has no Linux
   meaning and is not shown there.
 - [ ] **J7 Package.** A `.deb` for Ubuntu (and maybe a Flatpak or AppImage, decided in J0), with the models,
   the shipped Voices and the third-party notices.
 - [ ] **J8 Your check.** The whole of Lexia on your Ubuntu PC: a browser, a video with subtitles, and a game.
+
+### K — Native Settings window (Lexia 0.6; owns `settings_window.*`, new `src/native_ui/`; replaces `ui/`)
+
+The owner decided on Nov 7 that the Settings window becomes a native Win32 window in the D8 paper design,
+drawn with Direct2D and DirectWrite, with full UI Automation; WebView2 and `ui/` are removed (ADR-0009,
+supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings`, then one PR into `main`.
+
+- [x] **K0 Reference and ADR.** The HTML pages' screenshots (every page, state and sheet, light and dark) in
+  `wireframe/html-reference/`, the visual spec after `ui/` is gone. ADR-0009.
+- [ ] **K1 Toolkit and assets.** Icons, pictures and fonts (Atkinson Hyperlegible Next TTF) as resources in the
+  exe; one palette for the window and the Control bar (the contrast check becomes a doctest); the Win32-free
+  widget tree with a `Canvas` interface (tested with a fake canvas); the Direct2D canvas; a shared tooltip.
+- [ ] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
+  Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; `lexia_settingsshot`.
+- [ ] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
+  `VoiceTab` gets typed events.
+- [ ] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
+- [ ] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
+- [ ] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
+- [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator, dark mode,
+  150 % / 200 % and a move between monitors.
 
 ## Order and milestones
 
@@ -393,7 +415,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G done.
+5. **M5 Lexia 0.6: Read-along** — G done; K, the native Settings window, done (owner, Nov 7).
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland.
 

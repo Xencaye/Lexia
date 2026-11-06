@@ -146,6 +146,8 @@ the D8 checks and the final dark palette, A5.
 A release: build Release with `-DLEXIA_INSTALLER=ON` (after `scripts\fetch_deps.ps1 -Installer`), run `ctest` and
 `score_layout.ps1`, copy `build\package\Lexia-<v>-setup.exe` and `Lexia.zip` (as `Lexia-<v>-portable.zip`) to
 `release\<v>\`, tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
+In progress (Nov 7): stream K, the native Settings window (Direct2D, UI Automation; WebView2 and `ui/` go, ADR-0009),
+on `feat/K-native-settings` (sub-branches `feat/K.N`); K0 (the HTML reference shots in `wireframe/html-reference/`) is done.
 English only for now (ADR-0007): E1/E2 are on hold; E6 (the owner trains a Bulgarian Voice from their own voice) is for 0.8; J (Linux on Ubuntu) is for 1.0. New work branches from `main`. Status: the plan's "Status" section.
 
 Terms are in `docs/GLOSSARY.md` (use them in code and UI text); decisions in `docs/adr/`.
