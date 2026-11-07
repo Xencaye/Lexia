@@ -108,7 +108,17 @@ add_library(lexia_core STATIC
     src/log.cpp
     src/lookalike.cpp
     src/mouse_role.cpp
+    src/native_ui/animation.cpp
+    src/native_ui/controls.cpp
+    src/native_ui/display.cpp
     src/native_ui/palette.cpp
+    src/native_ui/screen.cpp
+    src/native_ui/scroll_area.cpp
+    src/native_ui/select.cpp
+    src/native_ui/sheet.cpp
+    src/native_ui/slider.cpp
+    src/native_ui/text_layout.cpp
+    src/native_ui/widget.cpp
     src/ocr.cpp
     src/recognize.cpp
     src/score.cpp
@@ -273,6 +283,11 @@ add_executable(lexia_tests
     tests/lookalike_test.cpp
     tests/md5_test.cpp
     tests/mouse_role_test.cpp
+    tests/native_ui_animation_test.cpp
+    tests/native_ui_controls_test.cpp
+    tests/native_ui_screen_test.cpp
+    tests/native_ui_slider_select_test.cpp
+    tests/native_ui_text_test.cpp
     tests/preset_file_test.cpp
     tests/score_test.cpp
     tests/startup_test.cpp
