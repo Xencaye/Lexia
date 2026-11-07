@@ -2,8 +2,10 @@
 
 Oct 23, 2026 · @Eleonora · updated Oct 25, 2026 after the design grilling (see [Decisions](#decisions-oct-25-2026)) · status updated Nov 5, 2026
 
-**Lexia 0.5.0 was released on Nov 5, 2026** (tag `v0.5.0`: the installer and a portable zip). The next
-release is **Lexia 0.6** (read-along, stream G; `vcpkg.json` says 0.6.0). Lexia 0.5 turned the console
+**Lexia 0.6.0 was released on Nov 8, 2026** (tag `v0.6.0`: the installer and a portable zip): read-along (G1, G2),
+the native Settings window (K), the owner's logo, and the final light and dark palette (K12, K13). Future changes go
+into **Lexia 0.7** (`vcpkg.json` says 0.7.0 after the release). **Lexia 0.5.0** was released on Nov 5, 2026 (tag
+`v0.5.0`). Lexia 0.5 turned the console
 prototype into an app people with dyslexia can install and use without editing files:
 - neural voices, English only (ADR-0007; language support is planned for Lexia 0.8);
 - a Reading queue with Pause / Skip / Stop;
@@ -15,9 +17,11 @@ prototype into an app people with dyslexia can install and use without editing f
 Every term below is defined in `GLOSSARY.md`, and every decision with a trade-off is in `docs/adr/`.
 On-screen wording follows the glossary.
 
-## Status (Nov 5, 2026)
+## Status (Nov 8, 2026)
 
-**Lexia 0.5.0 is released** (Nov 5, tag `v0.5.0`): `Lexia-0.5.0-setup.exe` and `Lexia-0.5.0-portable.zip`.
+**Lexia 0.6.0 is released** (Nov 8, tag `v0.6.0`): `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, from
+`main` after PRs #1 to #10 (K, G1, G2, the H5 plan, K9 to K13) and the release PR. Future changes go into **Lexia 0.7**.
+**Lexia 0.5.0 was released** (Nov 5, tag `v0.5.0`): `Lexia-0.5.0-setup.exe` and `Lexia-0.5.0-portable.zip`.
 Done and merged into `main`: Phase 0, A1–A4, B1–B6, C1–C5, D2–D6, D8, D9, D10, E3–E5, H1–H4 and I1 (D2–D8 in
 PR #31; a cleanup of unused code in #32 and a readability pass with comments in #33, the D8 fixes in #35,
 D9 the start options in #37, the About page in #38, H4 the installer in #39, D10 in #40, all Nov 5).
@@ -31,8 +35,8 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-Merged into `main` (Nov 7, PRs #1 to #8): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); G1 (the read-along bar on the Overlay, PR #2), G2 (the read-along layer after you leave the Overlay, PR #3) and the H5 plan (PR #4); K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2, PR #5); K10 (the window's own minimise and close buttons, no Windows title bar, PR #6); the final switch-card texts (PR #7); K11 (the card's read button is also a stop button, PR #8). **K12** (the owner's new logo SVGs for the icons; the feature called read-along everywhere; glossary audit) is built on `feat/K12-logo-and-names` (PR #9). **K13** (the final light and dark palette, the engravings as SVG, the logo colour) is built on `feat/K13-palette-svg`. **Your open checks:** K7 (done on `main`), and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13 (each task below has its list).
-Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
+Merged into `main` (Nov 7 and 8, PRs #1 to #10; released as 0.6.0): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); G1 (the read-along bar on the Overlay, PR #2), G2 (the read-along layer after you leave the Overlay, PR #3) and the H5 plan (PR #4); K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2, PR #5); K10 (the window's own minimise and close buttons, no Windows title bar, PR #6); the final switch-card texts (PR #7); K11 (the card's read button is also a stop button, PR #8). **K12** (the owner's new logo SVGs for the icons; the feature called read-along everywhere; glossary audit) (PR #9). **K13** (the final light and dark palette, the engravings as SVG, the logo colour; the Control bar greyed only during the Analysis) (PR #10). **Your open checks:** K7 (done on `main`), and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13 (each task below has its list).
+Next: Lexia 0.7 (future changes, owner Nov 8). Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
 ## Verdict
@@ -661,7 +665,8 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1), with K9, K10 and K11 (PRs #5 to #8; the switch-card texts, PR #7); K12 (the logo and the names, PR #9) and K13 (the final palette and SVG engravings, Nov 8); your checks are open: K7 and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13.
+5. **M5 Lexia 0.6: Read-along** (released Nov 8, 2026 as 0.6.0, tag `v0.6.0`) — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1), with K9, K10 and K11 (PRs #5 to #8; the switch-card texts, PR #7); K12 (the logo and the names, PR #9) and K13 (the final palette and SVG engravings, PR #10, Nov 8); your checks are open: K7 and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13.
+5a. **Lexia 0.7** — future changes after 0.6 (owner, Nov 8); `vcpkg.json` says 0.7.0.
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland. Also H5: the Windows files signed through SignPath Foundation, if SignPath accepts Lexia (moved from 0.6 on Nov 7).
 
