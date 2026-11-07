@@ -7,3 +7,7 @@ comes from the page (currentColor), not from the file. The Control bar recolours
 
 The tray icons src/res/lexia.ico and lexia_off.ico are not made from these icons: they come from the
 Lexia logo src/res/lexia_logo.png (see licenses/components/ui-engravings.txt and scripts/make_tray_icons.ps1).
+
+Changed from the original: user-profile-03.svg draws its two outlines as stroked ellipses instead of a 4 wide stroke
+inside an SVG <mask> (Direct2D's SVG renderer, used by the native Settings window, does not support masks); the picture
+is the same.
