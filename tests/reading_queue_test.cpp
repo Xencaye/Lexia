@@ -922,3 +922,54 @@ TEST_CASE("HasReading: a Reading is in the queue until its last Block is played,
     CHECK_FALSE(f.queue.HasReading(b));
     CHECK_FALSE(f.queue.HasReading(0));  // the "ignored" id is never a Reading
 }
+
+TEST_CASE("StopReading: stops only that Reading; the next one starts at its first Block") {
+    WordFixture f;
+    const uint64_t a = f.queue.Add({"alpha beta", "gamma"});
+    const uint64_t b = f.queue.Add({"delta epsilon"});
+    f.Settle();
+    f.queue.StopReading(a);
+    CHECK_FALSE(f.queue.HasReading(a));
+    CHECK(f.queue.HasReading(b));
+    CHECK(f.queue.Active());
+    f.Settle();
+    CHECK(f.HeardText("delta epsilon") == "delta");  // Reading b begins at its first word
+}
+
+TEST_CASE("StopReading: a Reading that has not started is dropped, the one speaking goes on") {
+    WordFixture f;
+    const uint64_t a = f.queue.Add({"alpha beta"});
+    const uint64_t b = f.queue.Add({"gamma"});
+    f.Settle();
+    f.queue.StopReading(b);
+    CHECK(f.queue.HasReading(a));
+    CHECK_FALSE(f.queue.HasReading(b));
+    CHECK(f.queue.Active());
+}
+
+TEST_CASE("StopReading: the last Reading leaves the queue idle; an unknown id or 0 changes nothing") {
+    WordFixture f;
+    f.queue.StopReading(1);  // nothing queued yet
+    const uint64_t a = f.queue.Add({"alpha"});
+    f.Settle();
+    f.queue.StopReading(0);
+    f.queue.StopReading(a + 5);
+    CHECK(f.queue.HasReading(a));
+    f.queue.StopReading(a);
+    CHECK_FALSE(f.queue.HasReading(a));
+    CHECK_FALSE(f.queue.Active());
+    f.queue.StopReading(a);  // twice: still nothing
+    CHECK_FALSE(f.queue.Active());
+}
+
+TEST_CASE("StopReading: a pause ends with the Reading it held; the next Reading plays") {
+    WordFixture f;
+    const uint64_t a = f.queue.Add({"alpha beta"});
+    const uint64_t b = f.queue.Add({"gamma"});
+    f.Settle();
+    f.queue.Pause();
+    CHECK(f.queue.Paused());
+    f.queue.StopReading(a);
+    CHECK_FALSE(f.queue.Paused());
+    CHECK(f.queue.HasReading(b));
+}

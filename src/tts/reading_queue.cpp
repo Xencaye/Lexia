@@ -113,6 +113,25 @@ void ReadingQueue::Stop() {
     StopLocked();
 }
 
+void ReadingQueue::StopReading(uint64_t id) {
+    if (id == 0) return;
+    std::lock_guard<std::mutex> lk(m_);
+    for (size_t i = 0; i < queue_.size(); ++i) {
+        if (queue_[i].id != id) continue;
+        if (i == 0) {
+            // The Reading being spoken: stop its audio, and let the next Reading begin at its first Block.
+            // CutOffLocked also ends a pause (as Stop does), so what comes next is not held by it.
+            CutOffLocked();
+            queue_.erase(queue_.begin());
+            block_ = 0;
+        } else {
+            queue_.erase(queue_.begin() + static_cast<std::ptrdiff_t>(i));  // not started: nothing to cut off
+        }
+        ReportActiveLocked();
+        return;
+    }
+}
+
 void ReadingQueue::SessionStarted() {
     std::lock_guard<std::mutex> lk(m_);
     if (paused_ || heldPause_) StopLocked();
