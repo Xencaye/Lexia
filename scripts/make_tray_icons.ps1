@@ -1,65 +1,49 @@
-# Makes the tray icons from a square picture with transparency: -Source <png>. The committed icons come from
-# the Lexia logo src/res/lexia_logo.png (a public-domain engraving, licenses/components/ui-engravings.txt).
-#   src/res/lexia.ico      the On look: the picture as it is (also the icon of lexia.exe)
-#   src/res/lexia_off.ico  the Off look: the picture in grey with a slash, so it does not rely on colour
-# Each .ico holds 16, 20, 24, 32 and 48 px frames (PNG-compressed; Windows 10 and 11 read them).
-# The .ico files are committed; run this only when the picture or the look changes:
-#   powershell -ExecutionPolicy Bypass -File scripts\make_tray_icons.ps1 -Source <picture.png>
-param([Parameter(Mandatory = $true)][string]$Source)
-Add-Type -AssemblyName System.Drawing
+# Makes the icons of lexia.exe from the Lexia logo, the owner's own drawing as two SVG files (K12):
+#   src/res/lexia.ico      the On look, src/res/lexia_logo.svg (also the icon of lexia.exe and of Setup)
+#   src/res/lexia_off.ico  the Off look, src/res/lexia_logo_off.svg (the engraving faded, with a large muted speaker;
+#                          the tray shows it while Lexia is Off). There is no grey filter and no slash any more:
+#                          the Off file is the look.
+# System.Drawing cannot read SVG, so each frame is drawn by lexia_svgshot (Direct2D, the renderer the app uses for
+# its icons; build\svgshot\Release\lexia_svgshot.exe, built with the project: `cmake --build build --config Release
+# --target lexia_svgshot`). Each .ico holds 16, 20, 24, 32, 48, 64 and 256 px frames, all PNG-compressed (Windows 10
+# and 11 read that; the 256 px frame is the sharp one for Explorer and Setup).
+# The .ico files are committed; run this only when a logo file changes:
+#   powershell -ExecutionPolicy Bypass -File scripts\make_tray_icons.ps1
+param(
+    [string]$Source = 'src\res\lexia_logo.svg',
+    [string]$OffSource = 'src\res\lexia_logo_off.svg',
+    [string]$Svgshot = 'build\svgshot\Release\lexia_svgshot.exe'
+)
+$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$picture = [System.Drawing.Image]::FromFile((Resolve-Path $Source).Path)
-$sizes = 16, 20, 24, 32, 48
-
-function New-Frame([int]$size, [bool]$off) {
-    $bmp = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.SmoothingMode = 'AntiAlias'
-    $g.InterpolationMode = 'HighQualityBicubic'
-    $g.PixelOffsetMode = 'HighQuality'
-    $g.Clear([System.Drawing.Color]::Transparent)
-    if ($off) {
-        # Grey: luminance matrix, a little lighter and see-through.
-        $m = New-Object System.Drawing.Imaging.ColorMatrix
-        $m.Matrix00 = 0.30; $m.Matrix01 = 0.30; $m.Matrix02 = 0.30
-        $m.Matrix10 = 0.59; $m.Matrix11 = 0.59; $m.Matrix12 = 0.59
-        $m.Matrix20 = 0.11; $m.Matrix21 = 0.11; $m.Matrix22 = 0.11
-        $m.Matrix33 = 0.7; $m.Matrix40 = 0.25; $m.Matrix41 = 0.25; $m.Matrix42 = 0.25
-        $attr = New-Object System.Drawing.Imaging.ImageAttributes
-        $attr.SetColorMatrix($m)
-        $rect = New-Object System.Drawing.Rectangle 0, 0, $size, $size
-        $g.DrawImage($picture, $rect, 0, 0, $picture.Width, $picture.Height, [System.Drawing.GraphicsUnit]::Pixel, $attr)
-        # The slash: a light under-stroke for contrast on a dark taskbar, a dark stroke on top.
-        $w = [Math]::Max(1.5, $size / 11.0)
-        $a = [single]($size * 0.14); $b = [single]($size * 0.86)
-        $under = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(200, 255, 255, 255)), ($w + [Math]::Max(1.0, $size / 20.0))
-        $under.StartCap = 'Round'; $under.EndCap = 'Round'
-        $top = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 40, 40, 40)), $w
-        $top.StartCap = 'Round'; $top.EndCap = 'Round'
-        $g.DrawLine($under, $a, $a, $b, $b)
-        $g.DrawLine($top, $a, $a, $b, $b)
-    } else {
-        $g.DrawImage($picture, 0, 0, $size, $size)
-    }
-    $g.Dispose()
-    return $bmp
+function Resolve-InRoot([string]$p) { if ([System.IO.Path]::IsPathRooted($p)) { $p } else { Join-Path $root $p } }
+$Source = Resolve-InRoot $Source
+$OffSource = Resolve-InRoot $OffSource
+$Svgshot = Resolve-InRoot $Svgshot
+foreach ($f in $Source, $OffSource, $Svgshot) {
+    if (-not (Test-Path $f)) { throw "Missing: $f (build lexia_svgshot first, see the header of this script)" }
 }
+$sizes = 16, 20, 24, 32, 48, 64, 256
+$work = Join-Path ([System.IO.Path]::GetTempPath()) ('lexia_icons_' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force $work | Out-Null
 
-function Write-Ico([string]$path, [bool]$off) {
+# Draws the SVG at every size and writes the .ico (a PNG frame per size).
+function Write-Ico([string]$svg, [string]$path) {
     $pngs = @()
     foreach ($s in $sizes) {
-        $bmp = New-Frame $s $off
-        $ms = New-Object System.IO.MemoryStream
-        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-        $pngs += , $ms.ToArray()
-        $bmp.Dispose()
+        $png = Join-Path $work ("f$s.png")
+        & $Svgshot --px $s $svg $png
+        if ($LASTEXITCODE -ne 0) { throw "lexia_svgshot failed for $svg at $s px" }
+        $pngs += , [System.IO.File]::ReadAllBytes($png)
     }
     $out = New-Object System.IO.MemoryStream
     $bw = New-Object System.IO.BinaryWriter $out
     $bw.Write([uint16]0); $bw.Write([uint16]1); $bw.Write([uint16]$sizes.Count)
     $offset = 6 + 16 * $sizes.Count
     for ($i = 0; $i -lt $sizes.Count; $i++) {
-        $bw.Write([byte]$sizes[$i]); $bw.Write([byte]$sizes[$i]); $bw.Write([byte]0); $bw.Write([byte]0)
+        # In an .ico directory entry the size 256 is written as 0.
+        $dim = if ($sizes[$i] -ge 256) { 0 } else { $sizes[$i] }
+        $bw.Write([byte]$dim); $bw.Write([byte]$dim); $bw.Write([byte]0); $bw.Write([byte]0)
         $bw.Write([uint16]1); $bw.Write([uint16]32)
         $bw.Write([uint32]$pngs[$i].Length); $bw.Write([uint32]$offset)
         $offset += $pngs[$i].Length
@@ -69,9 +53,12 @@ function Write-Ico([string]$path, [bool]$off) {
     [System.IO.File]::WriteAllBytes($path, $out.ToArray())
 }
 
-$dest = Join-Path $root 'src\res'
-New-Item -ItemType Directory -Force $dest | Out-Null
-Write-Ico (Join-Path $dest 'lexia.ico') $false
-Write-Ico (Join-Path $dest 'lexia_off.ico') $true
-$picture.Dispose()
-Write-Host "Wrote $dest\lexia.ico and lexia_off.ico"
+try {
+    $dest = Join-Path $root 'src\res'
+    New-Item -ItemType Directory -Force $dest | Out-Null
+    Write-Ico $Source (Join-Path $dest 'lexia.ico')
+    Write-Ico $OffSource (Join-Path $dest 'lexia_off.ico')
+    Write-Host "Wrote $dest\lexia.ico and lexia_off.ico"
+} finally {
+    Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+}

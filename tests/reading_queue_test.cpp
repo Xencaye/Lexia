@@ -910,7 +910,7 @@ TEST_CASE("HasReading: a Reading is in the queue until its last Block is played,
     CHECK(f.queue.HasReading(b));
     CHECK_FALSE(f.queue.HasReading(b + 1));
     f.Settle();
-    f.queue.Pause();  // a paused Reading is still there: the word mark keeps its word
+    f.queue.Pause();  // a paused Reading is still there: the read-along bar keeps its word
     CHECK(f.queue.HasReading(a));
     f.queue.Resume();
     f.NextWord();

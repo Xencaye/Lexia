@@ -220,7 +220,7 @@ void ReadingQueue::AppendChunkLocked(const SpeechChunk& chunk) {
 
     // Which word of the Block's text each piece says (read-along). The pieces with a spoken phoneme
     // are the spoken words, in order; SpokenWordRanges maps them to text words. A failure to map
-    // only means no word mark: the audio is cut the same either way.
+    // only means no read-along bar: the audio is cut the same either way.
     std::vector<TextRange> ranges(cut.size());
     // The Block is the one being synthesised; the epoch check in Pump's callback means a Stop or
     // Skip has not emptied the queue under it, but be safe.

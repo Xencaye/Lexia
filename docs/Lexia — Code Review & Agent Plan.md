@@ -31,7 +31,7 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-Merged into `main` (Nov 7): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); **K7, your check, is still open** and is done on `main`. G1 (the word mark on the Overlay, PR #2), G2 (the word mark layer after you leave the Overlay, PR #3) and the H5 plan (PR #4). K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2) is on `feat/K9-settings-layout`, in a PR to `main`; K10 (the window's own minimise and close buttons, no Windows title bar) is merged (PR #6), and its check is yours; K11 (the card's read button is also a stop button) is built on `feat/K11-read-button-stop` (from K9), and its check is yours.
+Merged into `main` (Nov 7, PRs #1 to #8): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); G1 (the read-along bar on the Overlay, PR #2), G2 (the read-along layer after you leave the Overlay, PR #3) and the H5 plan (PR #4); K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2, PR #5); K10 (the window's own minimise and close buttons, no Windows title bar, PR #6); the final switch-card texts (PR #7); K11 (the card's read button is also a stop button, PR #8). **K12** (the owner's new logo SVGs for the icons; the feature called read-along everywhere; glossary audit) is built on `feat/K12-logo-and-names`, in a PR to `main`. **Your open checks:** K7 (done on `main`), and the by-hand checks of G1, G2, K9, K10, K11 and K12 (each task below has its list); the colour palette (the final dark one, D8) comes next from you.
 Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -287,8 +287,8 @@ The C++ side of D2–D7 waited for your approval of D0 (Oct 28). D8 (Nov 3) repl
   - Run at startup and start minimised.
   - Theme: System / Light / Dark (a new `theme` setting). The Interface language choice and the Language key come in 0.8 (ADR-0007).
   - About: version, GPL-3.0-or-later and the third-party notices.
-- [x] **D9 Start options** (owner, Nov 5). A **start minimized** switch between run at startup and run as admin: on by default, drawn lighter and unusable while run at startup is off; on = the Run value gets `--minimised` (a start at logon stays in the tray), off = a start at logon opens the window. A manual start, and the first start after the installer, always open the Settings window, which now comes to the front (also after the elevated relaunch: `AllowSetForegroundWindow`). Every start writes the Run value again (this exe's path, the switch as the setting says). On / Off is **Off** on the very first start (no settings.json) and remembered after that.
-  *Your check:* a fresh start (delete `%LOCALAPPDATA%\Lexia\settings.json`) is Off and opens the window; turn On, Quit, start again: still On; run at startup with start minimized on and off, then sign out and in.
+- [x] **D9 Start options** (owner, Nov 5). A **start minimised** switch between run at startup and run as admin: on by default, drawn lighter and unusable while run at startup is off; on = the Run value gets `--minimised` (a start at logon stays in the tray), off = a start at logon opens the window. A manual start, and the first start after the installer, always open the Settings window, which now comes to the front (also after the elevated relaunch: `AllowSetForegroundWindow`). Every start writes the Run value again (this exe's path, the switch as the setting says). On / Off is **Off** on the very first start (no settings.json) and remembered after that.
+  *Your check:* a fresh start (delete `%LOCALAPPDATA%\Lexia\settings.json`) is Off and opens the window; turn On, Quit, start again: still On; run at startup with start minimised on and off, then sign out and in.
 - [x] **D10 Read the key card aloud** (owner, Nov 5). The key card's play button on the Settings page reads that key's description aloud (`readKeyCard { action }`: the host speaks `window.keys.<action>Desc` from the string table, one Block per line, in place of what was being spoken), so a person hears what a key does before Lexia is even On. It replaces the per-key demo clips of D7.
   *Your check:* select each key, press play, with Lexia Off and On.
 - [ ] **D7 Help tab and videos.** A tutorial: silent, with captions in the Interface language, bundled. This replaces the old first-run welcome. (The per-key clips are replaced by D10.)
@@ -297,7 +297,7 @@ The C++ side of D2–D7 waited for your approval of D0 (Oct 28). D8 (Nov 3) repl
   - Six pages: home, voices, settings, and report, help, about. The window is a fixed 800 x 600 DIPs.
   - New features: Master volume, Run as admin (ADR-0008), dark mode from Windows, left-handed mouse, Presets as files, Delete voice.
   - Removed: Expressiveness, the Start minimised setting (the Run value now gets `--minimised`), and the Close button of the Control bar.
-  - Icons: Stratis UI (CC BY 4.0). Pictures and the logo: public-domain engravings.
+  - Icons: Stratis UI (CC BY 4.0). Pictures: public-domain engravings. The logo (K12): the owner's design (rounded square, crop, Off version) made from the public-domain engraving "Faust—Scene III Headpiece" of Old Book Illustrations; the Off look also contains the Stratis UI icon volume-07 (CC BY 4.0).
 
   - Fixes after the owner's review (Nov 5): a bold menu word keeps its room, so the other menu items do not move (`components.css`, `data-bold-room`); the About text goes around the engraving (`shape-outside`, measured on `wireframe/about.png`, and 14 px as in the design); the Control bar's Pause button is as wide as the word it shows, so every gap is 18 px as in the mockup (the bar gets wider when Pause becomes Resume and keeps its left edge); the Master volume moves in steps of 5 %, like the Voice controls. The bar's colours stay: the light theme already matches the mockups, and the dark one waits for the owner's palette. Second About mockup (Nov 5): the second block and the icons 33 px higher, new line edges (27, 23, 15 / 11, 7, 0 px), and a smaller two-line notice whose "here" opens THIRD-PARTY-NOTICES.txt; the package step also copies that file and LICENSE next to the dev exe, so the link works from `build\Release` too.
 
@@ -327,7 +327,7 @@ Superseded by the Oct 25 decisions: Lexia is GPL-3.0-or-later (ADR-0003), and Pi
   - **Limits.** The word's x position is an estimate (a proportional font makes it a few pixels off inside a long Line); if espeak cuts a sentence somewhere this code does not (an abbreviation like "Mr."), the later sentences of that stretch may be one off until the Block ends.
   - *Your check:* the bar sits under the word you hear; at a hyphen at a Line end; on numbers; after Pause, Skip and Stop; with two Picks queued.
 - [x] **G2** Setting to keep the overlay up while reading for highlighting. (The Control bar currently exists only during a Session; revisit together.)
-  - **Done on `feat/G2`** (made from `feat/G1`). Owner decisions (Nov 7): a new setting (`readAlong` in settings.json since K9; on G2 it was `keepWordMark`, "keep the word mark", never released), a switch on the Settings page, Off by default. **K9: the switch is now "enable read-along" and it controls G1 too: Off = no word mark at all, as in 0.5; On = the word mark on the Overlay and the layer below.** On: when you leave the Overlay (Read key, Esc, right-click, the Control bar's Help) while a Reading of that Session is still being read (speaking or paused), the Overlay closes as before, but a **click-through layer** stays on the monitor and goes on drawing the G1 underline bar under the heard word until that Session's Readings are done. The Control bar does **not** stay (it ends with the Session). Off: as in G1.
+  - **Done on `feat/G2`** (made from `feat/G1`). Owner decisions (Nov 7): a new setting (`readAlong` in settings.json since K9; on G2 it had another name, "keep the read-along bar", never released), a switch on the Settings page, Off by default. **K9: the switch is now "enable read-along" and it controls G1 too: Off = no read-along at all, as in 0.5; On = the read-along bar on the Overlay and the layer below.** On: when you leave the Overlay (Read key, Esc, right-click, the Control bar's Help) while a Reading of that Session is still being read (speaking or paused), the Overlay closes as before, but a **click-through layer** stays on the monitor and goes on drawing the G1 underline bar under the heard word until that Session's Readings are done. The Control bar does **not** stay (it ends with the Session). Off: as in G1.
   - **How.** `read_along_layer.*` (`lexia.exe`): `ReadAlongLayer`, a top-level popup `WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST`, shown with `SWP_NOACTIVATE`, `MA_NOACTIVATE`, `HTTRANSPARENT`; it draws only the bars into a 32-bit premultiplied DIB (`UpdateLayeredWindowIndirect` with the changed rectangle), polls `Speaker::HeardWordNow()` every 30 ms, and ends itself when no Reading of its `ReadAlongTrack` is in the Reading queue (`Speaker::HasReading` / `ReadingQueue::HasReading`, `ReadAlongTrack::AnyActive`). `RunOverlay` now returns an `OverlayResult` with the Session's track; `App::OpenOverlay` starts the layer after it (only if the setting is on and a Reading is still active). `App` owns at most one; it goes on Stop, Off, Quit, turning the setting off, a new Session (destroyed and `DwmFlush`ed **before the Shot is taken**, so it is never in the screenshot) and when it ends itself (it posts `WM_APP+14` to the App window; it is never deleted inside its own window procedure).
   - **Security.** The layer only draws: no input (styles above), no file, no network, no recognised text in the log.
   - *Your check:* with the switch on, read something in a browser and in Undertale, press the Read key to leave while it is still speaking: the bar goes on under the heard word, the mouse and keys still reach the game or page (the layer never takes focus), the bar goes away when the Reading ends, on Stop (Control bar of a new Session, the Speech key triple tap), on Off and Quit, and is not in the next Shot; Pause keeps the bar on its word; with the switch off nothing stays.
@@ -487,17 +487,17 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   hears it too; after 10 s an offer to end it by force, with one UAC prompt for an elevated one; silent runs never ask);
   (4) a "Run as administrator" task in Setup, checked when the setting is on, written with
   `lexia.exe --set-run-as-admin on|off` as the installing person. *Your check:* the K8 items in the PR's test list.
-- [x] **K9 The owner's new Settings page (Nov 7).** On `feat/K9-settings-layout` (made from `feat/G2`). The owner's
+- [x] **K9 The owner's new Settings page (Nov 7).** Built on `feat/K9-settings-layout` (made from `feat/G2`), merged into `main` (PR #5). The owner's
   mockup, measured pixel by pixel at 800 x 600 DIPs: (1) **no headings** ("keybinds" and "misc" and their strings are
   gone); (2) the key rows start at y = 137 (rows at 137, 178, 219); (3) the switches start at y = 335, 28 apart, in the
-  order **enable read-along**, run at startup, start minimized, run as admin, dark mode, left-handed; (4) the card is
+  order **enable read-along**, run at startup, start minimised, run as admin, dark mode, left-handed; (4) the card is
   355 x 393 at (273, 115) and its contents keep their offsets from the card's top (the engraving moved down to keep
   its distance from the card's bottom edge; the capture hint under the card moved to y = 514). The top and bottom
-  links, the rules and the volume are unchanged (owner decision). (5) **One read-along switch**: `readAlong` is
+  links, the rules and the volume are unchanged (owner decision). (5) **One read-along switch**: the old G2 setting is
   renamed `readAlong` everywhere (settings.json, `Settings`, `UiState`, `PageMessageType::SetReadAlong`, string ids,
-  automation id `settings.readAlong`; never released, so no migration). **Off (default) = no word mark at all**
-  (`OverlayStyle::readAlong`: the Overlay does not poll the heard word, starts no word-mark timer, and no layer
-  starts after leaving), as in 0.5. **On = the G1 word mark on the Overlay and the G2 click-through layer after
+  automation id `settings.readAlong`; never released, so no migration). **Off (default) = no read-along at all**
+  (`OverlayStyle::readAlong`: the Overlay does not poll the heard word, starts no read-along timer, and no layer
+  starts after leaving), as in 0.5. **On = the G1 read-along bar on the Overlay and the G2 click-through layer after
   leaving.** (6) **Switch cards**: a switch row is selected by hover, focus or press like a Key row (the selected
   row is bold; the selection stays) and the card shows the switch's title and description (`window.switches.<name>Title`
   / `Desc`; `\n` starts a paragraph). The play button reads the card: `readKeyCard` now carries a card id, a Key's
@@ -509,7 +509,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   hover and Tab over each switch and read the card; the read button on a switch's card; Read-along off: read in a
   browser, no bar on the Overlay and none after leaving; On: the bar on the Overlay and after leaving; turn it off
   while the layer shows: the layer goes; Narrator: a switch is still read as a switch.
-- [x] **K10 The window's own minimise and close buttons (built Nov 7 on `feat/K10-window-buttons`, from the owner's mockup; owner check open).** The owner
+- [x] **K10 The window's own minimise and close buttons (built Nov 7 on `feat/K10-window-buttons`, from the owner's mockup, merged into `main` in PR #6; owner check open).** The owner
   puts minimise and close into the pages, so the Settings window has no Windows title bar. The mockup (800 x 600):
   the `dash` icon box at (726, 10), the `x-02` one at (760, 10), 24 x 24 each; idle a quiet warm grey, hover and
   pressed #6E504A; every point that is not on a widget drags the window. Then (agent):
@@ -538,13 +538,13 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
     (`native_ui/window_hit.*`, pure: Caption on paper, pictures and plain text, Client on controls, `ScrollArea`s, and
     everything while a sheet or an open list is up), the window (`WM_NCCALCSIZE`, `WM_NCHITTEST`, `WM_NCMOUSEMOVE`,
     `WM_NCACTIVATE`, `DwmExtendFrameIntoClientArea`; the DWM dark title bar code is gone), strings `window.minimise` /
-    `window.close` ("Minimize" / "Close"), `lexia_settingsshot --hover minimise|close`. Tests: `native_ui_window_hit_test`,
+    `window.close` ("Minimise" / "Close"), `lexia_settingsshot --hover minimise|close`. Tests: `native_ui_window_hit_test`,
     the new K10 cases in `native_ui_settings_ui_test` and `native_ui_access_test`, and `uia_tree` (no caption, two named
     Buttons with Invoke, Invoke on minimise minimises the window). The shot's buttons measure x 730..745 y 21 (dash) and x 765..778 y 15..28 (X).
   *Your check:* drag the window by the empty area, minimise and close with the mouse, Tab + Enter, Alt+Space and
     Alt+F4; the shadow and the corners; 100 / 150 / 200 % and a move between monitors; Narrator reads both buttons.
 
-- [x] **K11 The card's read button is also a stop button (built Nov 7 on `feat/K11-read-button-stop`, from K9; owner check open).**
+- [x] **K11 The card's read button is also a stop button (built Nov 7 on `feat/K11-read-button-stop`, from K9, merged into `main` in PR #8; owner check open).**
   The owner's request: the speaker (`volume-05`) that reads a card aloud turns into `volume-07` while the card is read;
   a press on it stops the reading and the speaker comes back; the next press reads the card again from the beginning;
   when the reading ends by itself the speaker comes back too. Then (agent):
@@ -568,12 +568,41 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   - **Security:** no new input from files or the network; the card id the page sends is only looked up in the card
     table (`CardDescId`, an unknown one is not spoken); the timer and the Reading id live on the UI thread.
   - **Status (built):** as planned. Build Release 0 warnings, `ctest` 883 of 883 (`uia_tree` ran), `score_layout.ps1`
-    OK, shot `settings-reading` looked at. `volume-07.svg` is the owner's file (it is drawn like a speaker with a slash).
+    OK, shot `settings-reading` looked at. `volume-07.svg` was supplied by the owner; it is a Stratis UI icon (CC BY 4.0, a speaker with a slash).
   *Your check:* click the speaker on a card: the speech starts and the icon changes; click it again: the speech stops
     and the speaker returns; click once more: it starts from the first sentence; let a card finish: the speaker returns;
     start a card, then hover another row: that card shows the speaker, click it: the old reading is replaced and the
     stop icon is on the new card; start a card, press F8, pick a text, stop the card with the button: the picked text
     goes on; Narrator reads "Stop reading ..." while it plays; no shaking while it shows stop; 150 % and dark.
+
+- [x] **K12 The owner's logo, and one name for the feature (built Nov 7 on `feat/K12-logo-and-names`, from `main` at PR #8; owner check open).**
+  The owner's two SVG files (a 256 x 256 rounded square #1E1E1E with the engraving in #FBF6F0; the Off version at 20 %
+  opacity with a large muted-speaker stroke) replace the old logo `lexia_logo.png` and the grey-and-slash Off look.
+  - **Logo.** `src/res/lexia_logo.svg` (On) and `lexia_logo_off.svg` (Off); `lexia_logo.png` is deleted.
+    New dev tool `lexia_svgshot` (`--px N in.svg out.png`, Direct2D `DrawSvgDocument`, transparent, not packaged):
+    System.Drawing cannot read SVG. Direct2D draws the `clipPath` and the group `opacity` of both files the same as
+    Microsoft Edge (compared at 256 px). `scripts/make_tray_icons.ps1` (rewritten: `-Source`, `-OffSource`, `-Svgshot`)
+    writes `src/res/lexia.ico` (exe icon, On tray icon, Setup icon) and `lexia_off.ico` (Off tray icon), each with 16, 20,
+    24, 32, 48, 64 and 256 px PNG frames. Licence: the engraving is "Faust—Scene III Headpiece" of Old Book Illustrations
+    (public domain; the owner's rounded square, crop and Off version are the project's own design); the Off logo also
+    contains the Stratis UI icon `volume-07` (CC BY 4.0): `licenses/components/ui-engravings.txt`, `ui-icons.txt`,
+    `docs/third-party.md`, `src/res/icons/SOURCE.txt`.
+  - **One name: read-along.** The feature of G1 and G2 is called read-along in the glossary (Read-along; its parts the
+    Heard word, the Read-along bar, the Read-along layer; "word mark" is gone), the plan, CLAUDE.md, comments, log lines
+    (`[readalong]`), the string id `ReadAlongLayerName` ("Lexia read-along", the layer's never shown window name) and
+    the identifiers `StartReadAlongLayer`, `EndReadAlongLayer`, `OnReadAlongLayerEnded`, `readAlongLayer_`,
+    `kMsgReadAlongEnded`, `kTimerReadAlong`, `PollReadAlong`. `HeardWord` / `HeardWordNow` keep their names (Heard word
+    is a defined term).
+  - **Glossary audit** (`docs/GLOSSARY.md`, against the code and `table_en.cpp`): Session ends (Help, not Close); Control
+    bar buttons (Pause/Resume, Skip, Stop, Help, Size; no Language or Close); Settings window (native, no title bar,
+    pages, Master volume in the frame); Key card (new term); Preset file (Voices page; loads into the Voice the file
+    names); Interface language (no Overlay hints); Language key (offered Languages); Run as admin (Setup task); the
+    quit note (the tray exists); UI words are British English (since K12).
+  - **Verification:** Release build with 0 warnings, `ctest` 883 of 883 (`uia_tree` and `read_along_layer` ran), `score_layout.ps1` OK (no Fixture worse). `git grep -i "word mark"` finds only the glossary's "Avoid" lists and this note. The 16, 32 and 256 px frames were looked at.
+  *Your check:* the exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and on a
+    light taskbar: the dark tile #1E1E1E can be hard to see on a dark taskbar), the Setup icon and the installer's
+    window, the Start menu entry; the Settings page card and switch text say read-along; read-along On and Off behave as in
+    G1 and G2; the glossary reads right to you.
 
 ## Order and milestones
 
@@ -598,7 +627,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1); K9 in a PR; K10 built (your check is open); K11 built on `feat/K11-read-button-stop` (your check is open); your K7 check is open (owner, Nov 7).
+5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1), with K9, K10 and K11 (PRs #5 to #8; the switch-card texts, PR #7); K12 (the logo and the names) built on `feat/K12-logo-and-names`; your checks are open: K7 and the by-hand checks of G1, G2, K9, K10, K11 and K12 (owner, Nov 7); the palette comes next from you.
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland. Also H5: the Windows files signed through SignPath Foundation, if SignPath accepts Lexia (moved from 0.6 on Nov 7).
 

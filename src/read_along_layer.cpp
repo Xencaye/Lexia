@@ -8,9 +8,9 @@
 
 namespace {
 
-const wchar_t kLayerClass[] = L"LexiaWordMarkLayer";
+const wchar_t kLayerClass[] = L"LexiaReadAlongLayer";
 const UINT_PTR kTimerId = 1;
-// The same pace as the Overlay's word mark (overlay.cpp): well under the length of a spoken word, and
+// The same pace as the Overlay's read-along bar (overlay.cpp): well under the length of a spoken word, and
 // only a changed bar is drawn.
 const UINT kPollMs = 30;
 
@@ -86,7 +86,7 @@ bool ReadAlongLayer::Impl::Make(ReadAlongLayerConfig config) {
         wc.lpfnWndProc = Proc;
         wc.lpszClassName = kLayerClass;  // no cursor, no brush: it paints nothing but the bars
         if (!RegisterClassExW(&wc)) {
-            LogError("[wordmark] Could not register the window class.");
+            LogError("[readalong] Could not register the window class.");
             return false;
         }
         registered = true;
@@ -97,7 +97,7 @@ bool ReadAlongLayer::Impl::Make(ReadAlongLayerConfig config) {
                            kLayerClass, cfg.title.c_str(), WS_POPUP, cfg.monitor.left, cfg.monitor.top, w, h,
                            nullptr, nullptr, inst, nullptr);
     if (!hwnd) {
-        LogError("[wordmark] Could not create the window (", GetLastError(), ").");
+        LogError("[readalong] Could not create the window (", GetLastError(), ").");
         return false;
     }
     const int dpi = std::max(96, static_cast<int>(GetDpiForWindow(hwnd)));
@@ -123,7 +123,7 @@ bool ReadAlongLayer::Impl::Make(ReadAlongLayerConfig config) {
         if (dib && bits) dibOld = SelectObject(memDc, dib);
     }
     if (!dibOld) {
-        LogError("[wordmark] Could not make the picture.");
+        LogError("[readalong] Could not make the picture.");
         Release();
         return false;
     }
@@ -134,7 +134,7 @@ bool ReadAlongLayer::Impl::Make(ReadAlongLayerConfig config) {
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     // A failed SetTimer would leave a layer that never ends: do not keep it.
     if (SetTimer(hwnd, kTimerId, kPollMs, nullptr) == 0) {
-        LogError("[wordmark] Could not start the timer.");
+        LogError("[readalong] Could not start the timer.");
         Release();
         return false;
     }

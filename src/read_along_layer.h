@@ -1,5 +1,5 @@
 #pragma once
-// The word mark layer (G2, "keep the word mark after I leave"). With that setting on, a Session that
+// The read-along layer (G2, "keep the read-along bar after I leave"). With that setting on, a Session that
 // ends while a Reading of it is still being read leaves this behind: a window over the monitor that
 // draws only the underline bar under the heard word (G1, read_along.h) and nothing else. It is
 // transparent to the mouse and never active, so the game or page under it works as if it were not
@@ -25,7 +25,7 @@
 struct ReadAlongLayerConfig {
     RECT monitor = {};                 // the screen area it covers: the Shot's monitor
     COLORREF color = RGB(255, 200, 0); // the bars' colour (the Overlay's hover colour, as in the Session)
-    std::wstring title;                // the window's name (strings WordMarkName); never shown
+    std::wstring title;                // the window's name (strings ReadAlongLayerName); never shown
     ReadAlongTrack track;              // the Session's Readings and their Blocks (Shot coordinates)
     // The word heard now (Speaker::HeardWordNow) and whether a Reading is still in the Reading queue
     // (Speaker::HasReading). Both are called on the UI thread, on the layer's 30 ms timer.

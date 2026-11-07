@@ -12,8 +12,9 @@ _Avoid_: enable overlay, active, armed
 
 **Session**:
 The span from pressing the Read key until the user leaves the Overlay (Read key again, Esc,
-right-click or the Control bar's Close button). One Session has one Shot, one Analysis and any number of Picks. Stopping
-speech does not end it.
+right-click, or the Control bar's Help button, which also opens the Settings window on its Help page). One Session
+has one Shot, one Analysis and any number of Picks. Stopping speech does not end it. Leaving does not stop the
+Reading queue: it goes on playing (and, with read-along, its bar stays on the screen until the Readings are done).
 _Avoid_: overlay session, selection mode
 
 **Shot**:
@@ -30,9 +31,11 @@ The full-screen window that shows the Shot during a Session and never takes focu
 _Avoid_: selector, selection overlay
 
 **Control bar**:
-The movable strip of buttons on the Overlay (Pause/Resume, Skip, Stop, Language, Close) that also
-shows whether the Analysis is still running. It has two sizes, Large (icons and labels) and Small
-(icons only), and exists only during a Session.
+The movable strip of buttons on the Overlay (Pause/Resume, Skip, Stop, Help, Size) that also
+shows whether the Analysis is still running: Pause, Skip and Stop are disabled while it runs, and while nothing
+speaks. Help ends the Session like a right-click and opens the Help page; Size switches between the two sizes,
+Large (icons and words, with Help) and Small (icons only). It exists only during a Session, and it does not stay
+with the read-along layer after the Session.
 _Avoid_: toolbar, hint bar, controls
 
 **Analysis**:
@@ -41,9 +44,18 @@ its Blocks. Switching Language during a Session runs it again on the same Shot.
 _Avoid_: scan, pre-pass
 
 **Settings window**:
-The ordinary window, opened from the tray icon, where the user changes Lexia's settings and manages
-Voices. Unlike the Overlay it takes focus.
+The ordinary window, opened from the tray icon (or by starting Lexia again, or by the Control bar's Help), where
+the user changes Lexia's settings and manages Voices. Unlike the Overlay it takes focus. It is native (Direct2D,
+ADR-0009), a fixed 800 x 600 DIPs, with no Windows title bar (it has its own minimise and close buttons, K10);
+closing it does not end Lexia. Its pages are home, voices, settings, report, help and about (the bold words of the
+frame); the Master volume is in the frame, on every page.
 _Avoid_: options, preferences, config
+
+**Key card**:
+The card on the Settings page that says what the selected Key or switch does (a Key, or one of the switches
+read-along, run at startup, start minimised, run as admin, dark mode, left-handed). Its read button (a speaker)
+reads the card aloud, and while that card is being read it is a stop button (K11).
+_Avoid_: help panel, description box
 
 ## Text
 
@@ -99,27 +111,32 @@ Session while it is paused; starting a Session while it is playing keeps it, and
 the end.
 _Avoid_: playlist, backlog, buffer
 
+**Read-along**:
+The feature that lets the user follow a Reading on the screen: a bar under the word being heard. It exists
+only with the setting "enable read-along" (`readAlong` in settings.json, Off by default: then nothing is drawn
+at all, as in 0.5). It has three parts: the Heard word (what is being heard), the Read-along bar (what is drawn)
+and the Read-along layer (what keeps drawing it after the Overlay is left). Built in G1 (the bar on the Overlay)
+and G2 (the layer).
+_Avoid_: word mark, word highlight, karaoke, follow-along
+
 **Heard word**:
 The word of a Reading that can be heard right now (the one a Pause holds). None while an
 Announcement plays, and after Skip or Stop. Lexia knows it from the timing of Piper's phonemes, not
-from the screen.
+from the screen. It is the input of the Read-along bar.
 _Avoid_: current word, spoken word
 
-**Word mark**:
+**Read-along bar**:
 The underline bar drawn under the Heard word, in the hover colour, for the Readings Picked in a
-Session. It exists only with the setting "enable read-along" (`readAlong`, Off by default: then no Word mark
-is drawn at all, as in 0.5). With it On the Overlay draws it while the Session lasts, and the
-Word mark layer goes on drawing it after the Session ends, until the Session's
-Readings are done. It sits under the part of its Line that the word takes up, which is an estimate,
-because OCR finds Lines, not words.
-_Avoid_: word highlight, karaoke, cursor
+Session. With read-along On the Overlay draws it while the Session lasts, and the Read-along layer goes on
+drawing it after the Session ends, until the Session's Readings are done. It sits under the part of its Line
+that the word takes up, which is an estimate, because OCR finds Lines, not words.
+_Avoid_: word mark, word highlight, cursor
 
-**Word mark layer**:
-The click-through window that draws the Word mark after the Overlay is left (only with the setting `readAlong`,
-Off by default). It covers the monitor of the Session, draws only the bar, never takes focus or a
-click, and ends with the last Reading of its Session, or on Stop, Off, Quit or a new Session. The
-Control bar does not stay with it.
-_Avoid_: second overlay, highlight window
+**Read-along layer**:
+The click-through window that draws the Read-along bar after the Overlay is left (only with read-along On). It
+covers the monitor of the Session, draws only the bar, never takes focus or a click, and ends with the last
+Reading of its Session, or on Stop, Off, Quit or a new Session. The Control bar does not stay with it.
+_Avoid_: word mark layer, second overlay, highlight window
 
 **Skip**:
 Jumping to the next Block in the Reading queue; past the last Block of a Reading it moves on to the
@@ -153,8 +170,9 @@ mixed-script word to the script the word mostly is.
 _Avoid_: homoglyph, confusable
 
 **Interface language**:
-The language Lexia speaks and writes its own words in (Announcements, Overlay hints). Chosen
-separately from the Language, from the same set of languages.
+The language Lexia speaks and writes its own words in (Announcements, the Control bar, the tray menu and the
+Settings window). Chosen separately from the Language (`interfaceLanguage` in settings.json, no control in the UI
+yet: English only, ADR-0007), from the same set of languages.
 _Avoid_: UI language, app language, display language
 
 **Voice**:
@@ -176,13 +194,16 @@ Voice in settings.json.
 _Avoid_: voice settings, sliders
 
 **Preset file**:
-A small `.json` file the user saves from the Voice tab to keep one Voice's controls, and loads again later
-(it replaces the current controls of the active Voice). The save dialog starts in `%LOCALAPPDATA%\Lexia\presets`.
-There are no named Presets inside Lexia any more; a Preset file is just a file.
+A small `.json` file the user saves from the Voices page ("save preset") to keep one Voice's controls, and loads
+again later ("load preset"). A loaded file replaces the controls of the Voice it names: the active Voice, or
+another installed Voice (then the active Voice stays); for a Voice that is not installed nothing changes. The
+dialogs start in `%LOCALAPPDATA%\Lexia\presets`. There are no named Presets inside Lexia any more; a Preset file
+is just a file.
 _Avoid_: profile, style, preset (alone: it means the file)
 
 **Master volume**:
-The one volume for everything Lexia says, 0 to 100, in the Settings window's footer. It is multiplied into the
+The one volume for everything Lexia says, 0 to 100, in the frame of the Settings window (on every page, at the bottom
+right; UI words "Lexia volume"). It is multiplied into the
 Volume of every Voice. Saved as `speech.volume`.
 _Avoid_: system volume, main volume
 
@@ -210,7 +231,8 @@ Tap to Skip (two taps in a row skip two Blocks), triple-tap to Stop. Only active
 _Avoid_: Stop key, Skip key, skip/stop, F6
 
 **Language key** (unbound):
-Switches to the next Language whose models are installed.
+Switches to the next offered Language whose models are installed (with only English offered, it says that no
+other language is installed).
 _Avoid_: switch key
 
 **Left-handed**:
@@ -222,10 +244,16 @@ _Avoid_: mirrored, swapped mouse
 **Run as admin**:
 A setting that makes Lexia start elevated (with administrator rights), so that it works over games that run as
 administrator (Windows blocks a normal program from them). Off by default. Turning it on, or starting Lexia with
-it on, shows the Windows UAC prompt; if the user says no, Lexia goes on without it. See ADR-0008.
+it on, shows the Windows UAC prompt; if the user says no, Lexia goes on without it. Setup has the same choice
+as a task (K8). See ADR-0008.
 _Avoid_: elevated mode, admin mode
 
-Lexia has no quit key; quitting is done from the tray menu (D2). Until the tray exists, close the console window or press Ctrl+C in it.
+Lexia has no quit key; quitting is done from the tray menu (D2). Closing the Settings window does not quit.
+(With `lexia.exe --console`, Ctrl+C also ends it, but not cleanly: speech is cut off.)
+
+Lexia uses British English everywhere: the UI words (`strings/table_en.cpp`: "minimise", "analyses", "colours"), the
+installer, this glossary and the other docs. Code identifiers and file keys that come from other APIs or older files
+keep their spelling (`SC_MINIMIZE`, `hoverColor` in settings.json).
 
 ## Testing
 
