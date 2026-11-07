@@ -1,6 +1,7 @@
-// The Settings page (K.4): the key list and its card, the key capture, the play button and the five
+// The Settings page (K.4): the key list and its card, the key capture, the play button and the six
 // switches. Driven through the Screen with a FakeCanvas, like the other native UI tests: what the page draws
 // from a state, and which PageMessage a press or a key sends to the host.
+#include "native_ui/pages/layout.h"
 #include "native_ui/pages/settings_page.h"
 #include "native_ui/settings_ui.h"
 #include "native_ui_test_util.h"
@@ -164,7 +165,7 @@ TEST_CASE("Settings: the card shows the selected Key: title, the lines of its te
     CHECK(r.Page_().CardBody()->Abs().y == doctest::Approx(228));
 }
 
-TEST_CASE("Settings: the headings and the five switches are the page's words") {
+TEST_CASE("Settings: the headings and the six switches are the page's words") {
     Rig r;
     CHECK(r.ui.canvas.FindText(r.Words(strings::id::kWindowKeysTitle)));
     CHECK(r.ui.canvas.FindText(r.Words(strings::id::kWindowSettingsMisc)));
@@ -173,9 +174,13 @@ TEST_CASE("Settings: the headings and the five switches are the page's words") {
     CHECK(r.Page_().RunAsAdmin()->Access().name == r.Words(strings::id::kWindowSettingsRunAsAdmin));
     CHECK(r.Page_().DarkMode()->Access().name == r.Words(strings::id::kWindowSettingsDarkMode));
     CHECK(r.Page_().LeftHanded()->Access().name == r.Words(strings::id::kWindowSettingsLeftHanded));
-    // 377, then 28 apart, 250 wide.
-    CHECK(r.Page_().RunAtStartup()->Abs().y == doctest::Approx(377));
-    CHECK(r.Page_().LeftHanded()->Abs().y == doctest::Approx(377 + 4 * 28));
+    CHECK(r.Page_().KeepWordMark()->Access().name == r.Words(strings::id::kWindowSettingsKeepWordMark));
+    // 349, then 28 apart, 250 wide.
+    CHECK(r.Page_().RunAtStartup()->Abs().y == doctest::Approx(349));
+    CHECK(r.Page_().LeftHanded()->Abs().y == doctest::Approx(349 + 4 * 28));
+    CHECK(r.Page_().KeepWordMark()->Abs().y == doctest::Approx(349 + 5 * 28));
+    // The last switch ends above the dotted rule of the bottom links (it crossed it before G2 moved the block up).
+    CHECK(r.Page_().KeepWordMark()->Abs().y + r.Page_().KeepWordMark()->Abs().h <= nui::layout::kRuleBottom.y);
     CHECK(r.Page_().RunAtStartup()->Abs().w == doctest::Approx(250));
 }
 
@@ -558,12 +563,14 @@ TEST_CASE("Settings: the switches show the state, and a press changes nothing un
     s.runAsAdmin = true;
     s.dark = true;
     s.leftHanded = true;
+    s.keepWordMark = true;
     r.Push(s);
     CHECK(r.Page_().RunAtStartup()->Checked());
     CHECK_FALSE(r.Page_().StartMinimised()->Checked());
     CHECK(r.Page_().RunAsAdmin()->Checked());
     CHECK(r.Page_().DarkMode()->Checked());
     CHECK(r.Page_().LeftHanded()->Checked());
+    CHECK(r.Page_().KeepWordMark()->Checked());
 }
 
 TEST_CASE("Settings: each switch sends its own message with the opposite value") {
@@ -574,6 +581,7 @@ TEST_CASE("Settings: each switch sends its own message with the opposite value")
     s.runAsAdmin = false;
     s.dark = false;
     s.leftHanded = false;
+    s.keepWordMark = false;
     r.Push(s);
     r.sent.clear();
 
@@ -586,7 +594,8 @@ TEST_CASE("Settings: each switch sends its own message with the opposite value")
     click(r.Page_().RunAsAdmin());
     click(r.Page_().DarkMode());
     click(r.Page_().LeftHanded());
-    REQUIRE(r.sent.size() == 5);
+    click(r.Page_().KeepWordMark());
+    REQUIRE(r.sent.size() == 6);
     CHECK(r.sent[0].type == PageMessageType::SetRunAtStartup);
     CHECK(r.sent[0].on == false);
     CHECK(r.sent[1].type == PageMessageType::SetStartMinimised);
@@ -597,6 +606,8 @@ TEST_CASE("Settings: each switch sends its own message with the opposite value")
     CHECK(r.sent[3].theme == "dark");
     CHECK(r.sent[4].type == PageMessageType::SetLeftHanded);
     CHECK(r.sent[4].on == true);
+    CHECK(r.sent[5].type == PageMessageType::SetKeepWordMark);
+    CHECK(r.sent[5].on == true);
     // Nothing flipped by itself.
     CHECK(r.Page_().RunAtStartup()->Checked());
     CHECK_FALSE(r.Page_().DarkMode()->Checked());

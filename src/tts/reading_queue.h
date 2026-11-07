@@ -31,12 +31,25 @@
 //    comes just as an Announcement with no Reading behind it ends has nothing to hold: it ends too.
 //  - Active() is true while an Announcement waits or plays, even with no Reading, so the keys that
 //    follow Active() stay registered.
+//
+// The heard word (G1, read-along). Each word piece the queue cuts from a chunk carries the id of
+// its Reading, its Block and the byte range of the word in the Block's text (read_along.h:
+// SpokenWordRanges). The pieces the sink holds (`sinkPieces_`) are in playing order, so the front
+// one that is not yet played is the word being heard: HeardWordNow() says which. The tags travel
+// with the piece, so a piece taken back from the sink for an Announcement keeps them. Nothing is
+// heard while an Announcement plays, when the queue is idle, after Skip or Stop (they empty the
+// sink's pieces), and for a piece with no word (silence, punctuation) or a range that could not be
+// worked out. A paused Reading still has its word: it is the one the sink holds.
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "read_along.h"
 #include "tts/audio_sink.h"
 #include "tts/speech_chunk.h"
 
@@ -64,8 +77,10 @@ public:
     ReadingQueue(AudioSink& sink, BlockSynthesizer synthesize, double aheadSeconds = 3.0,
                  double sinkSeconds = -1.0);
 
-    // A new Pick: joins the end of the queue. A Reading with no text in it is ignored.
-    void Add(Reading reading);
+    // A new Pick: joins the end of the queue. A Reading with no text in it is ignored. Returns the
+    // Reading's id (1, 2, 3 ... never reused), or 0 if it was ignored. The id names the Reading in
+    // HeardWordNow(); the Block index there is the index in `reading`.
+    uint64_t Add(Reading reading);
 
     // An Announcement: replaces any other, and is spoken as described above. Ignored if `speak`
     // is empty. The audio is made on the speech thread by `speak`; if that fails (or throws),
@@ -89,6 +104,16 @@ public:
     bool Active() const;  // something is being spoken or paused: a Reading is queued or an Announcement is
     bool Paused() const;  // the Reading is paused (also while an Announcement plays over it)
 
+    // Is the Reading with this id still in the queue (waiting, being spoken or paused)? False once its
+    // last Block has been played, and after Stop. Any thread. The click-through layer (G2) ends when
+    // none of its Readings is.
+    bool HasReading(uint64_t id) const;
+
+    // The word that is audible now (or, while paused, the one the pause holds), or nothing: see
+    // "The heard word" above. Any thread; cheap (the Overlay asks every 30 ms), and it does not
+    // change the queue.
+    std::optional<HeardWord> HeardWordNow() const;
+
     // Told whenever Active() changes (true = the queue just got something, false = it just
     // emptied), on whichever thread made the change and with the queue's lock held. So it must be
     // quick and must not call back into the queue: the App's one just posts a window message.
@@ -107,7 +132,15 @@ private:
     struct Piece {
         std::vector<float> samples;
         int sampleRate = 0;
+        // Which word it is, for HeardWordNow (set only when the word's place in the text is known).
+        bool hasWord = false;
+        HeardWord word;
         double Seconds() const { return static_cast<double>(samples.size()) / sampleRate; }
+    };
+    // A Reading in the queue, with its id.
+    struct QueuedReading {
+        Reading blocks;
+        uint64_t id = 0;
     };
     enum class AnnState {
         None,
@@ -127,8 +160,11 @@ private:
     // Tells the listener if Active() differs from what it was last told. Caller holds m_.
     void ReportActiveLocked();
 
-    // Splits a chunk into words and puts them at the end of buffer_. Caller holds m_.
+    // Splits a chunk into words and puts them at the end of buffer_, each tagged with the word of the
+    // Block's text it says. Caller holds m_.
     void AppendChunkLocked(const SpeechChunk& chunk);
+    // The Block that is being synthesised starts: forgets where its chunks were in its text.
+    void StartBlockTextLocked();
     // Gives the sink words while it holds less than sinkSeconds_ (and no Announcement is due, and
     // the Reading is not paused). Caller holds `lk`; it is released around each Write. True if it
     // wrote anything. Stops the sink again if a cut-off came during a Write.
@@ -153,8 +189,16 @@ private:
     const double sinkSeconds_;
 
     mutable std::mutex m_;
-    std::vector<Reading> queue_;  // front() is the Reading being spoken
-    size_t block_ = 0;            // index of its current Block
+    std::vector<QueuedReading> queue_;  // front() is the Reading being spoken
+    uint64_t nextId_ = 1;               // the id of the next Reading added
+    size_t block_ = 0;                  // index of its current Block
+    // Where the chunks of the Block being synthesised are in its text (AppendChunkLocked): the
+    // stretches' byte ranges (found with the first chunk), the stretch the last chunk belonged to
+    // and how many sentences of it have come. Reset by StartBlockTextLocked.
+    bool stretchesKnown_ = false;
+    std::vector<TextRange> stretches_;
+    size_t stretchOffset_ = 0;
+    size_t sentence_ = 0;
     bool speaking_ = false;       // the current Block has been started
     bool paused_ = false;
     std::deque<Piece> buffer_;      // the current Block's audio not yet given to the sink

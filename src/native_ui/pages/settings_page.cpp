@@ -215,6 +215,15 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         m.on = !last_.leftHanded;
         Emit(m);
     });
+    // G2: keep the underline under the heard word on the screen after the Overlay is left.
+    keepMark_ = AddSwitch(strings::id::kWindowSettingsKeepWordMark, 5);
+    keepMark_->SetAutomationId("settings.keepWordMark");
+    keepMark_->SetOnActivate([this] {
+        if (!haveState_) return;
+        PageMessage m = MakeMessage(PageMessageType::SetKeepWordMark, "setKeepWordMark");
+        m.on = !last_.keepWordMark;
+        Emit(m);
+    });
 
     // The card: the engraving first (the text lies over it), the head, the text.
     card_ = Add<KeyCard>();
@@ -311,6 +320,7 @@ void SettingsPage::SetState(const UiState& state) {
     admin_->SetChecked(state.runAsAdmin);
     dark_->SetChecked(state.dark);
     left_->SetChecked(state.leftHanded);
+    keepMark_->SetChecked(state.keepWordMark);
     MarkLayout();
 }
 

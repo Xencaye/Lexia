@@ -1029,3 +1029,25 @@ TEST_CASE("--set-run-as-admin leaves a settings file that is not JSON alone and 
     CHECK_FALSE(SaveSettingValue("runAsAdmin", "true"));
     CHECK(Slurp(tmp.File()) == "not json at all");
 }
+TEST_CASE("ParseSettings: keepWordMark is off by default, a boolean sets it, another value is a note (G2)") {
+    CHECK_FALSE(Parse("{}").settings.keepWordMark);
+    CHECK(Parse(R"({"keepWordMark": true})").settings.keepWordMark);
+    const Parsed p = Parse(R"({"keepWordMark": "yes"})");
+    CHECK(Mentions(p.notes, "keepWordMark"));
+    CHECK_FALSE(p.settings.keepWordMark);
+}
+
+TEST_CASE("SettingsToText round-trips keepWordMark, and UpdateSettingsText changes it alone") {
+    Settings s;
+    s.keepWordMark = true;
+    const Settings back = Parse(SettingsToText(s)).settings;
+    CHECK(back.keepWordMark);
+    CHECK(back == s);
+    Settings other = s;
+    other.keepWordMark = false;
+    CHECK_FALSE(back == other);  // the setting counts when two Settings are compared (a reload sees an edit)
+    std::string text = SettingsToText(s);
+    std::string note;
+    REQUIRE(UpdateSettingsText(text, "keepWordMark", "false", note));
+    CHECK_FALSE(Parse(text).settings.keepWordMark);
+}

@@ -145,6 +145,7 @@ static json ToJson(const Settings& s) {
     j["startMinimised"] = s.startMinimised;
     j["runAsAdmin"] = s.runAsAdmin;
     j["leftHanded"] = s.leftHanded;
+    j["keepWordMark"] = s.keepWordMark;
     j["speech"] = {{"rate", s.speechRate}, {"volume", s.speechVolume}};
     j["voices"] = VoiceControlsJson(s.voices);
     j["activeVoices"] = ActiveVoicesJson(s.activeVoices);
@@ -332,7 +333,7 @@ bool operator==(const Settings& a, const Settings& b) {
            a.switchLanguage == b.switchLanguage && a.language == b.language &&
            a.interfaceLanguage == b.interfaceLanguage &&
            a.enabled == b.enabled && a.theme == b.theme && a.runAtStartup == b.runAtStartup &&
-           a.startMinimised == b.startMinimised && a.runAsAdmin == b.runAsAdmin && a.leftHanded == b.leftHanded &&
+           a.startMinimised == b.startMinimised && a.runAsAdmin == b.runAsAdmin && a.leftHanded == b.leftHanded && a.keepWordMark == b.keepWordMark &&
            a.speechRate == b.speechRate &&
            a.speechVolume == b.speechVolume && a.hoverColor == b.hoverColor &&
            a.pickedColor == b.pickedColor && a.layout.paragraphGap == b.layout.paragraphGap &&
@@ -504,6 +505,7 @@ Settings ParseSettings(const std::string& jsonText, std::vector<std::string>& no
     boolean("startMinimised", s.startMinimised);
     boolean("runAsAdmin", s.runAsAdmin);
     boolean("leftHanded", s.leftHanded);
+    boolean("keepWordMark", s.keepWordMark);
 
     auto colour = [&](const char* key, COLORREF& dst) {
         const json* v = Find(j, "overlay", key);

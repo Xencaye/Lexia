@@ -207,7 +207,7 @@ TEST_CASE("access: Voices offers the Voice choice, its buttons and three sliders
     CHECK(r.Find(T(strings::id::kWindowVoiceLoadPreset), Role::Link));
 }
 
-TEST_CASE("access: Settings offers the key rows with their chips, the card and five switches") {
+TEST_CASE("access: Settings offers the key rows with their chips, the card and six switches") {
     Rig r;
     r.Show(Page::Settings);
     for (const char* id : {strings::id::kWindowKeysReadRow, strings::id::kWindowKeysPauseRow, strings::id::kWindowKeysSpeechRow}) {
@@ -228,7 +228,7 @@ TEST_CASE("access: Settings offers the key rows with their chips, the card and f
             CHECK(a.toggle != Toggle::None);
         }
     }
-    CHECK(switches == 5);
+    CHECK(switches == 6);
     // The Start minimised switch is off while Run at startup is off, and still offered (it explains itself).
     Widget* minimised = r.Find(T(strings::id::kWindowSettingsStartMinimised), Role::Switch);
     REQUIRE(minimised);

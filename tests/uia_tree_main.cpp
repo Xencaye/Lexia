@@ -346,7 +346,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
         }
         for (const char* id : {strings::id::kWindowSettingsRunAtStartup, strings::id::kWindowSettingsStartMinimised,
                                strings::id::kWindowSettingsRunAsAdmin, strings::id::kWindowSettingsDarkMode,
-                               strings::id::kWindowSettingsLeftHanded}) {
+                               strings::id::kWindowSettingsLeftHanded, strings::id::kWindowSettingsKeepWordMark}) {
             const Node* sw = Find(tree, T(id), UIA_ButtonControlTypeId);
             Check(sw != nullptr, "Settings: switch " + T(id));
             if (!sw) continue;
@@ -360,7 +360,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
         }
         Check(keyRows == 3, "Settings: three key rows (" + std::to_string(keyRows) + ")");
         Check(chips == 3, "Settings: three key chips (" + std::to_string(chips) + ")");
-        Check(switches == 5, "Settings: five switches");
+        Check(switches == 6, "Settings: six switches");
     }
 
     // Report, Help, About

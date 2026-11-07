@@ -99,6 +99,27 @@ Session while it is paused; starting a Session while it is playing keeps it, and
 the end.
 _Avoid_: playlist, backlog, buffer
 
+**Heard word**:
+The word of a Reading that can be heard right now (the one a Pause holds). None while an
+Announcement plays, and after Skip or Stop. Lexia knows it from the timing of Piper's phonemes, not
+from the screen.
+_Avoid_: current word, spoken word
+
+**Word mark**:
+The underline bar drawn under the Heard word, in the hover colour, for the Readings Picked in a
+Session. The Overlay draws it while the Session lasts; with the setting "keep the word mark" on, the
+Word mark layer goes on drawing it after the Session ends, until the Session's
+Readings are done. It sits under the part of its Line that the word takes up, which is an estimate,
+because OCR finds Lines, not words.
+_Avoid_: word highlight, karaoke, cursor
+
+**Word mark layer**:
+The click-through window that draws the Word mark after the Overlay is left (setting `keepWordMark`,
+Off by default). It covers the monitor of the Session, draws only the bar, never takes focus or a
+click, and ends with the last Reading of its Session, or on Stop, Off, Quit or a new Session. The
+Control bar does not stay with it.
+_Avoid_: second overlay, highlight window
+
 **Skip**:
 Jumping to the next Block in the Reading queue; past the last Block of a Reading it moves on to the
 next Reading. If paused, it resumes from there. During an Announcement it ends only the
