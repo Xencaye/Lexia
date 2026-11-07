@@ -1,6 +1,6 @@
 {
   "name": "lexia",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "builtin-baseline": "dc5988cd929e0372ef68ceaddece38a95176f761",
   "dependencies": [
     {
