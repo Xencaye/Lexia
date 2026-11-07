@@ -615,6 +615,10 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
     button, a quiet button, an unset key chip: #6E504A / #B8B8B8), `thumb` (slider thumbs: #6E504A / #B8B8B8). The
     engraving opacities are 1. A disabled switch row is drawn in the line colour (not at half opacity). Control bar:
     a dead tile and its word are the card grey in dark, Help and the size icon the line grey in dark.
+  - **Control bar states (owner, Nov 8).** The `_analysing` mockups are the bar while the Analysis runs, when the
+    Overlay has just opened; the plain ones are the bar once it is done. So Pause, Skip and Stop are disabled only
+    while the Analysis runs (`LayoutBar`); before, they were also disabled while nothing spoke. A press while nothing
+    speaks does nothing (the Reading queue ignores it).
   - **Logo.** The rounded square of both logo files is #262626 (was #1E1E1E); `lexia.ico` and `lexia_off.ico` are made
     again with `make_tray_icons.ps1`.
   - **Mockups.** `wireframe/<page>.png` (light) and `<page>_dark.png` replace the old ones, the Control bar's

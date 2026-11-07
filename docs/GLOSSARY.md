@@ -32,8 +32,8 @@ _Avoid_: selector, selection overlay
 
 **Control bar**:
 The movable strip of buttons on the Overlay (Pause/Resume, Skip, Stop, Help, Size) that also
-shows whether the Analysis is still running: Pause, Skip and Stop are disabled while it runs, and while nothing
-speaks. Help ends the Session like a right-click and opens the Help page; Size switches between the two sizes,
+shows whether the Analysis is still running: Pause, Skip and Stop are disabled only while it runs (once it is done they
+work, and a press while nothing speaks does nothing). Help ends the Session like a right-click and opens the Help page; Size switches between the two sizes,
 Large (icons and words, with Help) and Small (icons only). It exists only during a Session, and it does not stay
 with the read-along layer after the Session.
 _Avoid_: toolbar, hint bar, controls
