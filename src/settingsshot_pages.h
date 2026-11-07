@@ -21,6 +21,9 @@ struct ShotOptions {
     bool on = false;    // Lexia On (Home: the accent circle, "disable", the bee in its On tint)
     std::string hover;  // a widget to show hovered: power, enable, home|voices|settings|report|help|about (the
                         // links), volume, mail, discord, github, itch, notices
+    std::string select;   // Settings: the Key whose card shows (read | pause | speech)
+    std::string capture;  // Settings: the Key whose chip waits for a key (the card shows that Key)
+    bool switches = false;  // Settings: Run at startup, Run as admin and Left-handed on (the reference's look)
 };
 
 // Builds the page `page` into `screen` (800 x 600 DIPs). `canvas` is only used to measure text while the

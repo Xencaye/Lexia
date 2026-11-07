@@ -38,7 +38,13 @@ $shots = @(
     @('home-on-hover',  @('--page', 'home', '--on', '--hover', 'power')),
     @('help',           @('--page', 'help')),
     @('report',         @('--page', 'report')),
-    @('about',          @('--page', 'about'))
+    @('about',          @('--page', 'about')),
+    # K.4, the Settings page: each Key's card, the capture state and the switches (the owner's reference look)
+    @('settings-read',     @('--page', 'settings', '--select', 'read')),
+    @('settings-pause',    @('--page', 'settings', '--select', 'pause')),
+    @('settings-speech',   @('--page', 'settings', '--select', 'speech')),
+    @('settings-capture',  @('--page', 'settings', '--capture', 'pause')),
+    @('settings-switches', @('--page', 'settings', '--switches'))
 )
 
 $failed = 0

@@ -276,8 +276,18 @@ void BuildRightColumn(Screen& screen, Canvas& canvas) {
 // widgets belong to the Screen, which is drawn next.
 bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& options) {
     SettingsUi ui(screen, "en");
-    ui.SetState(SampleState(options.on, dark));
-    ui.ShowPage(page);
+    UiState state = SampleState(options.on, dark);
+    if (options.switches) {  // the owner's reference shot of the switches (start minimised is on by default)
+        state.runAtStartup = true;
+        state.runAsAdmin = true;
+        state.leftHanded = true;
+    }
+    ui.SetState(state);
+    // The Settings page opens on a Key and may start a capture, as the old ?select= / ?capture= did.
+    ShowOptions show;
+    show.selectAction = options.select;
+    show.capture = options.capture;
+    ui.ShowPage(page, show);
     const std::string& h = options.hover;
     if (h.empty()) return true;
     Widget* target = nullptr;
