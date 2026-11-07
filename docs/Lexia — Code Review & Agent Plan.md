@@ -384,10 +384,12 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   widget tree with a `Canvas` interface (tested with a fake canvas); the Direct2D canvas; a shared tooltip.
   *Done so far (`feat/K.1b`):* the widget tree and every control (`src/native_ui/`: `Widget`, `Screen`, sheets,
   `IconButton`, `TextLink`, `Button`, `Select`, `Slider`, `SwitchRow`, `KeyChip`, `Notice`, `ProgressBar`,
-  `ScrollArea`, `Label`, `Paragraph`, `Tween`), with 96 doctest cases on a fake canvas. Open: the Direct2D
-  canvas, the resources and fonts, the shared tooltip window.
+  `ScrollArea`, `Label`, `Paragraph`, `Tween`), with 96 doctest cases on a fake canvas. `feat/K.1a`: assets as
+  resources, the fonts, one palette, the shared tooltip. `feat/K.1c`: the Direct2D canvas (`D2dCanvas`, window and
+  off-screen) and the `lexia_settingsshot` tool with the `gallery` page and ctest `settingsshot_smoke`; one
+  `nui::FontWeight`. Nothing in K1 is open once K.1c is merged.
 - [ ] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
-  Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; `lexia_settingsshot`.
+  Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; the pages and `--sheet` of `lexia_settingsshot`.
 - [ ] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
   `VoiceTab` gets typed events.
 - [ ] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
