@@ -60,7 +60,7 @@ struct Settings {
     bool startMinimised = true;
     bool runAsAdmin = false;   // start Lexia elevated (elevation.h, ADR-0008)
     bool leftHanded = false;   // the right mouse button picks, the left one leaves (mouse_role.h)
-    bool keepWordMark = false; // G2: keep the underline bar under the heard word after the Overlay is left (read_along_layer.h)
+    bool readAlong = false; // K9 "enable read-along": off = no word mark at all; on = the G1 bar under the heard word on the Overlay and (G2) after it (read_along_layer.h)
 
     int speechRate = 0;      // -10 (slow) .. 10 (fast)
     int speechVolume = 100;  // 0 .. 100

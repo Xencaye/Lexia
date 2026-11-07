@@ -155,33 +155,29 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
     SetBounds({0, 0, layout::kWindowW, layout::kWindowH});
     SetName(T(strings::id::kWindowNavSettings));
 
-    // Tab order is the old page's order: the key chips, the switches, then the card's play button.
-    keysHeading_ = Add<Label>(T(strings::id::kWindowKeysTitle));
-    keysHeading_->SetStyle(layout::kHeadingFont, FontWeight::Bold);
-    keysHeading_->SetAlign(TextAlign::Right);
-    keysHeading_->SetBounds({0, layout::kHeadingKeysY, layout::kHeadingW, layout::kHeadingH});
-
+    // K9: no headings. Tab order is the old page's order: the key chips, the switches, then the card's play button.
     // The rows come with the first state (their number is the state's); they live in their own panel so a
     // later change of the list keeps them before the switches in the tab order.
     keysHost_ = Add<Panel>();
     keysHost_->SetBounds({0, layout::kKeysY, layout::kKeysW, layout::kKeyRowH});
 
-    miscHeading_ = Add<Label>(T(strings::id::kWindowSettingsMisc));
-    miscHeading_->SetStyle(layout::kHeadingFont, FontWeight::Bold);
-    miscHeading_->SetAlign(TextAlign::Right);
-    miscHeading_->SetBounds({0, layout::kHeadingMiscY, layout::kHeadingW, layout::kHeadingH});
-
     // A switch never flips by itself: it sends the opposite of what the last state says (HomePage's rule).
-    startup_ = AddSwitch(strings::id::kWindowSettingsRunAtStartup, 0);
-    startup_->SetAutomationId("settings.runAtStartup");
+    // The order is the owner's: read-along first, then the start-up ones, then the look and the mouse.
+    readAlong_ = AddSwitch("readAlong", strings::id::kWindowSettingsReadAlong);
+    readAlong_->SetOnActivate([this] {
+        if (!haveState_) return;
+        PageMessage m = MakeMessage(PageMessageType::SetReadAlong, "setReadAlong");
+        m.on = !last_.readAlong;
+        Emit(m);
+    });
+    startup_ = AddSwitch("runAtStartup", strings::id::kWindowSettingsRunAtStartup);
     startup_->SetOnActivate([this] {
         if (!haveState_) return;
         PageMessage m = MakeMessage(PageMessageType::SetRunAtStartup, "setRunAtStartup");
         m.on = !last_.runAtStartup;
         Emit(m);
     });
-    minimised_ = AddSwitch(strings::id::kWindowSettingsStartMinimised, 1);
-    minimised_->SetAutomationId("settings.startMinimised");
+    minimised_ = AddSwitch("startMinimised", strings::id::kWindowSettingsStartMinimised);
     minimised_->SetEnabled(false);  // usable only while Run at startup is on (D9)
     minimised_->SetOnActivate([this] {
         if (!haveState_ || !last_.runAtStartup) return;
@@ -189,16 +185,14 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         m.on = !last_.startMinimised;
         Emit(m);
     });
-    admin_ = AddSwitch(strings::id::kWindowSettingsRunAsAdmin, 2);
-    admin_->SetAutomationId("settings.runAsAdmin");
+    admin_ = AddSwitch("runAsAdmin", strings::id::kWindowSettingsRunAsAdmin);
     admin_->SetOnActivate([this] {
         if (!haveState_) return;
         PageMessage m = MakeMessage(PageMessageType::SetRunAsAdmin, "setRunAsAdmin");
         m.on = !last_.runAsAdmin;
         Emit(m);
     });
-    dark_ = AddSwitch(strings::id::kWindowSettingsDarkMode, 3);
-    dark_->SetAutomationId("settings.darkMode");
+    dark_ = AddSwitch("darkMode", strings::id::kWindowSettingsDarkMode);
     dark_->SetOnActivate([this] {
         if (!haveState_) return;
         // The switch shows the theme in use (`dark`), not the stored choice ("system" may be either): it
@@ -207,21 +201,11 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         m.theme = last_.dark ? "light" : "dark";
         Emit(m);
     });
-    left_ = AddSwitch(strings::id::kWindowSettingsLeftHanded, 4);
-    left_->SetAutomationId("settings.leftHanded");
+    left_ = AddSwitch("leftHanded", strings::id::kWindowSettingsLeftHanded);
     left_->SetOnActivate([this] {
         if (!haveState_) return;
         PageMessage m = MakeMessage(PageMessageType::SetLeftHanded, "setLeftHanded");
         m.on = !last_.leftHanded;
-        Emit(m);
-    });
-    // G2: keep the underline under the heard word on the screen after the Overlay is left.
-    keepMark_ = AddSwitch(strings::id::kWindowSettingsKeepWordMark, 5);
-    keepMark_->SetAutomationId("settings.keepWordMark");
-    keepMark_->SetOnActivate([this] {
-        if (!haveState_) return;
-        PageMessage m = MakeMessage(PageMessageType::SetKeepWordMark, "setKeepWordMark");
-        m.on = !last_.keepWordMark;
         Emit(m);
     });
 
@@ -238,7 +222,7 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
     read_->SetOnActivate([this] {
         if (selected_.empty()) return;
         PageMessage m = MakeMessage(PageMessageType::ReadKeyCard, "readKeyCard");
-        m.action = selected_;  // the host knows the words: the page sends only which key
+        m.action = selected_;  // the host knows the words: the page sends only which card (a Key or a switch)
         Emit(m);
     });
     cardBody_ = card_->Add<Paragraph>();
@@ -251,9 +235,15 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
     hint_->SetLiveRegion(true);  // aria-live="polite": "Press the new key. Esc cancels." is announced
 }
 
-SwitchRow* SettingsPage::AddSwitch(const char* labelId, float index) {
+// The index-th switch of the list: its row, its automation id ("settings.<cardId>"), and its card (a hover, a
+// focus or a press selects it, as for a Key). The card id is also the switch's name in ui_host.h.
+SwitchRow* SettingsPage::AddSwitch(const std::string& cardId, const char* labelId) {
     SwitchRow* s = Add<SwitchRow>(T(labelId));
+    const float index = static_cast<float>(switches_.size());
     s->SetBounds({0, layout::kMiscY + index * layout::kMiscRowH, layout::kMiscW, layout::kMiscRowH});
+    s->SetAutomationId("settings." + cardId);
+    s->SetOnReach([this, cardId] { Select(cardId); });
+    switches_.push_back({cardId, s});
     return s;
 }
 
@@ -262,6 +252,22 @@ KeyRow* SettingsPage::RowFor(const std::string& action) const {
         if (r->Action() == action) return r;
     }
     return nullptr;
+}
+
+SwitchRow* SettingsPage::SwitchFor(const std::string& cardId) const {
+    for (const auto& s : switches_) {
+        if (s.first == cardId) return s.second;
+    }
+    return nullptr;
+}
+
+// Does the page have a card of this id: a Key row or a switch?
+bool SettingsPage::HasCard(const std::string& cardId) const { return RowFor(cardId) || SwitchFor(cardId); }
+
+// Marks the selected card's row (bold) and no other, Keys and switches alike.
+void SettingsPage::ShowSelection() {
+    for (KeyRow* row : rows_) row->SetSelected(row->Action() == selected_);
+    for (const auto& s : switches_) s.second->SetSelected(s.first == selected_);
 }
 
 // Makes the rows again when the state's list of Keys is not the one shown (the first state; later the same).
@@ -305,14 +311,15 @@ void SettingsPage::SetState(const UiState& state) {
     BuildRows(state);
     // A Key that is gone ends its wait; a selection that points nowhere goes to the first row.
     if (!capturing_.empty() && !RowFor(capturing_)) capturing_.clear();
-    if (!RowFor(selected_)) selected_ = rows_.empty() ? std::string() : rows_.front()->Action();
+    if (!HasCard(selected_)) selected_ = rows_.empty() ? std::string() : rows_.front()->Action();
     for (KeyRow* row : rows_) {
         row->SetLabel(T(KeyId(row->Action(), "Row").c_str()));
-        row->SetSelected(row->Action() == selected_);
         ShowChip(*row);
     }
+    ShowSelection();
     ShowCard();
 
+    readAlong_->SetChecked(state.readAlong);
     startup_->SetChecked(state.runAtStartup);
     // Start minimised works only while Run at startup is on; off it is drawn lighter and does nothing.
     minimised_->SetChecked(state.startMinimised);
@@ -320,14 +327,14 @@ void SettingsPage::SetState(const UiState& state) {
     admin_->SetChecked(state.runAsAdmin);
     dark_->SetChecked(state.dark);
     left_->SetChecked(state.leftHanded);
-    keepMark_->SetChecked(state.keepWordMark);
     MarkLayout();
 }
 
 void SettingsPage::OnShow(const ShowOptions& options) {
-    if (RowFor(options.selectAction)) {
+    // The picture tool and the tests may select a Key (read | pause | speech) or a switch (runAtStartup ...).
+    if (HasCard(options.selectAction)) {
         selected_ = options.selectAction;
-        for (KeyRow* row : rows_) row->SetSelected(row->Action() == selected_);
+        ShowSelection();
         ShowCard();
     }
     if (RowFor(options.capture)) StartCapture(options.capture);
@@ -350,24 +357,27 @@ void SettingsPage::ShowChip(KeyRow& row) {
     MarkLayout();  // the chip's width follows its text
 }
 
-// The card of the selected Key: its name, the play button, and what it does (one paragraph per line).
+// The card of the selected Key or switch: its name, the play button, and what it does (one paragraph per line).
+// The ids come from ui_host.h (CardTitleId / CardDescId), the same ones the host reads aloud from.
 void SettingsPage::ShowCard() {
-    const std::string full = selected_.empty() ? std::string() : T(KeyId(selected_).c_str());
+    const std::string full = selected_.empty() ? std::string() : T(CardTitleId(selected_).c_str());
     cardTitle_->SetText(full);
-    const std::string readAloud = F(strings::id::kWindowKeysReadAloud, {{"action", full}});
+    const std::string readAloud =
+        F(IsSwitchCard(selected_) ? strings::id::kWindowSwitchesReadAloud : strings::id::kWindowKeysReadAloud,
+          {{"action", full}});
     read_->SetName(readAloud);
     read_->SetTooltip(readAloud);
-    cardBody_->SetText(selected_.empty() ? std::string() : T(KeyId(selected_, "Desc").c_str()));
+    cardBody_->SetText(selected_.empty() ? std::string() : T(CardDescId(selected_).c_str()));
     hint_->SetText(capturing_.empty() ? std::string() : T(strings::id::kWindowKeysCaptureHint));
     card_->SetName(full);
     MarkLayout();
 }
 
-void SettingsPage::Select(const std::string& action) {
+void SettingsPage::Select(const std::string& cardId) {
     // The card stays with the key that waits for a key; the same row again changes nothing.
-    if (!capturing_.empty() || selected_ == action || !RowFor(action)) return;
-    selected_ = action;
-    for (KeyRow* row : rows_) row->SetSelected(row->Action() == selected_);
+    if (!capturing_.empty() || selected_ == cardId || !HasCard(cardId)) return;
+    selected_ = cardId;
+    ShowSelection();
     ShowCard();
 }
 
@@ -377,10 +387,8 @@ void SettingsPage::StartCapture(const std::string& action) {
     if (!capturing_.empty()) EndCapture(true);  // one wait at a time: the other chip's ends first
     capturing_ = action;
     selected_ = action;
-    for (KeyRow* r : rows_) {
-        r->SetSelected(r->Action() == selected_);
-        ShowChip(*r);
-    }
+    ShowSelection();
+    for (KeyRow* r : rows_) ShowChip(*r);
     ShowCard();
     row->Chip()->Focus();  // the keys come to the chip (a press already focused it; Enter / Space did too)
     Emit([&] {

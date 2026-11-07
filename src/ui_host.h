@@ -47,7 +47,7 @@ struct UiState {
     bool runAsAdmin = false;        // the stored setting
     bool elevated = false;          // Lexia runs elevated now (D8.3 fills it)
     bool leftHanded = false;
-    bool keepWordMark = false;      // G2: the word mark stays on the screen after the Overlay is left
+    bool readAlong = false;         // K9: the word mark (G1) on the Overlay and after it (G2); off = no word mark at all
     // Settings::speechVolume, 0..100 %. Steps of 5, like the Voice Volume control (0.05), so the slider
     // moves in visible steps; a value from settings.json that is not on the grid is shown as it is.
     UiControl masterVolume{100, 0, 100, 100, 5};
@@ -77,7 +77,7 @@ enum class PageMessageType {
     SetStartMinimised,
     SetRunAsAdmin,
     SetLeftHanded,
-    SetKeepWordMark,
+    SetReadAlong,
     SetTheme,
     SetMasterVolume,
     DeleteVoice,
@@ -95,7 +95,7 @@ enum class LinkId { Mail, Discord, Github, Itch };
 struct PageMessage {
     PageMessageType type = PageMessageType::Unknown;
     std::string typeText;  // the command's name (for the log), "" if none
-    bool on = false;       // SetOn, SetRunAtStartup, SetStartMinimised, SetRunAsAdmin, SetLeftHanded, SetKeepWordMark
+    bool on = false;       // SetOn, SetRunAtStartup, SetStartMinimised, SetRunAsAdmin, SetLeftHanded, SetReadAlong
     std::string theme;     // SetTheme: system | light | dark
     std::string language;  // SetVoice: a Language id
     std::string voice;     // SetVoice, DeleteVoice
@@ -103,9 +103,24 @@ struct PageMessage {
                            // Download / CancelDownload: the Voice's name
     double value = 0;      // SetControl; SetMasterVolume (0..100)
     LinkId link = LinkId::Github;  // OpenLink
-    std::string action;    // CaptureKey, SetKey, CancelKeyCapture, ReadKeyCard: read | pause | speech
+    std::string action;    // CaptureKey, SetKey, CancelKeyCapture: read | pause | speech;
+                           // ReadKeyCard: the card's id, a Key (read | pause | speech) or a switch (see SwitchCardIds)
     std::string key;       // SetKey: the key text, "" = no key
 };
+
+// ------------------------------------------------------------------------ cards ---
+
+// The Settings page's card shows what the selected Key or the selected switch does. A card is named by an id:
+// a Key's action ("read" | "pause" | "speech") or a switch's name from `SwitchCardIds()`; the page selects by it
+// and sends it in `ReadKeyCard`, so the host (which speaks the words) and the page (which draws them) find the
+// same text. The words live in strings/: a Key's in `window.keys.<id>` (title) and `window.keys.<id>Desc`, a
+// switch's in `window.switches.<id>Title` and `window.switches.<id>Desc`.
+// The six switches in the order the page shows them (and the names of their automation ids, "settings.<name>").
+const std::vector<std::string>& SwitchCardIds();
+bool IsSwitchCard(const std::string& cardId);
+// String ids (strings/string_ids.h) of the card's title and of its description (one paragraph per line).
+std::string CardTitleId(const std::string& cardId);
+std::string CardDescId(const std::string& cardId);
 
 // ------------------------------------------------------------------------ links ---
 

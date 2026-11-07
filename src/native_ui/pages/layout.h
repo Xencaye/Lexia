@@ -34,25 +34,23 @@ constexpr float kPowerGlyphSize = 104, kPowerGlyphViewBox = 64, kPowerGlyphStrok
 constexpr RectF kEnable{331, 421, 138, 40};
 constexpr float kEnableFont = 22;
 
-// ---- Settings (pages.css `.heading` `.keys` `.misc` `.keycard` `.key-hint`, components.css) -----------------
-// Headings: right edge at 252, 24 bold, 28 high; keys at y = 120, misc at y = 307 (G2: 28 higher than the
-// HTML page's 335, so the sixth switch ends above the bottom rule at y = 538; the key list ends at 285).
-constexpr float kHeadingW = 252, kHeadingH = 28, kHeadingFont = 24, kHeadingKeysY = 120, kHeadingMiscY = 307;
-// The key list: right edge at 253 (the chips), first row at y = 179, 24 high, 17 between, name 20, 16 before the chip.
-constexpr float kKeysW = 253, kKeysY = 179, kKeyRowH = 24, kKeyRowGap = 17, kKeyNameFont = 20, kKeyNameGap = 16;
-// The six switches: 250 wide, first at y = 349 (G2: moved up 28 with the misc heading), 28 apart.
-constexpr float kMiscW = 250, kMiscY = 349, kMiscRowH = 28;
-// The key card: 355 x 342 at (273, 160), padding 18 20 20. The head is 28 high: the read button first (the
-// Master volume's speaker icon, 24, in accent, no ring, in a 28 x 28 hit area centred on the icon so the icon
-// sits on the 20 padding line), then the title (20 bold) 10 after the icon. The text is 22 under the head,
-// 20 line, paragraphs 14 apart; the wine at (72, 207) inside, 210 wide.
-constexpr RectF kKeyCard{273, 160, 355, 342};
+// ---- Settings (pages.css `.keys` `.misc` `.keycard` `.key-hint`, components.css) -----------------------
+// K9 (the owner's new page, measured on the mockup at 96 dpi): no headings. The key list: right edge at 253
+// (the chips), first row at y = 137, 24 high, 17 between, name 20, 16 before the chip.
+constexpr float kKeysW = 253, kKeysY = 137, kKeyRowH = 24, kKeyRowGap = 17, kKeyNameFont = 20, kKeyNameGap = 16;
+// The six switches: 250 wide, first at y = 335, 28 apart (the last one ends at 503, above the bottom rule).
+constexpr float kMiscW = 250, kMiscY = 335, kMiscRowH = 28;
+// The card (of a Key or of a switch): 355 x 393 at (273, 115), padding 18 20 20. The head is 28 high: the read
+// button first (the Master volume's speaker icon, 24, in accent, no ring, in a 28 x 28 hit area centred on the
+// icon so the icon sits on the 20 padding line), then the title (20 bold) 10 after the icon. The text is 22
+// under the head, 20 line, paragraphs 14 apart; the wine 210 wide at (72, 254) inside (25 above the card's bottom edge).
+constexpr RectF kKeyCard{273, 115, 355, 393};
 constexpr float kKeyCardPadX = 20, kKeyCardPadTop = 18, kKeyCardHeadH = 28, kKeyCardTitleFont = 20,
                 kKeyReadHit = 28, kKeyReadIcon = 24, kKeyReadGap = 10, kKeyCardTextGap = 22,
                 kKeyCardParaGap = 14;
-constexpr RectF kKeyCardWine{72, 207, 210, 114};  // relative to the card
-// The capture hint under the card: 13 px at (273, 508).
-constexpr RectF kKeyHint{273, 508, 355, 20};
+constexpr RectF kKeyCardWine{72, 254, 210, 114};  // relative to the card; 4 higher than a bottom-anchored guess: matched to the mockup by pixel
+// The capture hint under the card: 13 px at (273, 514), 6 under the card.
+constexpr RectF kKeyHint{273, 514, 355, 20};
 constexpr float kKeyHintFont = 13;
 
 // ---- Report, Help (pages.css) --------------------------------------------------------------------------

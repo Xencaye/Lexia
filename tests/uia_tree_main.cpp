@@ -346,7 +346,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
         }
         for (const char* id : {strings::id::kWindowSettingsRunAtStartup, strings::id::kWindowSettingsStartMinimised,
                                strings::id::kWindowSettingsRunAsAdmin, strings::id::kWindowSettingsDarkMode,
-                               strings::id::kWindowSettingsLeftHanded, strings::id::kWindowSettingsKeepWordMark}) {
+                               strings::id::kWindowSettingsLeftHanded, strings::id::kWindowSettingsReadAlong}) {
             const Node* sw = Find(tree, T(id), UIA_ButtonControlTypeId);
             Check(sw != nullptr, "Settings: switch " + T(id));
             if (!sw) continue;

@@ -100,7 +100,6 @@
     X(WindowPresetLoadedOther, "window.preset.loadedOther")  /* {voice}: a Voice that is not active */ \
     X(WindowPresetVoiceNotInstalled, "window.preset.voiceNotInstalled")  /* {voice}: from the file */ \
     /* Settings page (D0 ui 2 and 3, D8) */                                                      \
-    X(WindowKeysTitle, "window.keys.title")                                                      \
     X(WindowKeysReadRow, "window.keys.readRow")  /* the short name of a Key in the list */       \
     X(WindowKeysPauseRow, "window.keys.pauseRow")                                                \
     X(WindowKeysSpeechRow, "window.keys.speechRow")                                              \
@@ -114,13 +113,26 @@
     X(WindowKeysChipLabel, "window.keys.chipLabel")  /* accessible name of the key chip: {action}, {key} */\
     X(WindowKeysCapturing, "window.keys.capturing")  /* the key chip while it waits for a key */ \
     X(WindowKeysCaptureHint, "window.keys.captureHint")                                          \
-    X(WindowSettingsMisc, "window.settings.misc")                                                \
     X(WindowSettingsRunAtStartup, "window.settings.runAtStartup")                                \
     X(WindowSettingsStartMinimised, "window.settings.startMinimised")                            \
     X(WindowSettingsRunAsAdmin, "window.settings.runAsAdmin")                                    \
     X(WindowSettingsDarkMode, "window.settings.darkMode")                                        \
     X(WindowSettingsLeftHanded, "window.settings.leftHanded")                                    \
-    X(WindowSettingsKeepWordMark, "window.settings.keepWordMark")                                \
+    X(WindowSettingsReadAlong, "window.settings.readAlong")                                \
+    /* The switches' cards (K9): a title and a description (one paragraph per line) for each; DRAFT texts */ \
+    X(WindowSwitchesReadAlongTitle, "window.switches.readAlongTitle")                            \
+    X(WindowSwitchesReadAlongDesc, "window.switches.readAlongDesc")                              \
+    X(WindowSwitchesRunAtStartupTitle, "window.switches.runAtStartupTitle")                      \
+    X(WindowSwitchesRunAtStartupDesc, "window.switches.runAtStartupDesc")                        \
+    X(WindowSwitchesStartMinimisedTitle, "window.switches.startMinimisedTitle")                  \
+    X(WindowSwitchesStartMinimisedDesc, "window.switches.startMinimisedDesc")                    \
+    X(WindowSwitchesRunAsAdminTitle, "window.switches.runAsAdminTitle")                          \
+    X(WindowSwitchesRunAsAdminDesc, "window.switches.runAsAdminDesc")                            \
+    X(WindowSwitchesDarkModeTitle, "window.switches.darkModeTitle")                              \
+    X(WindowSwitchesDarkModeDesc, "window.switches.darkModeDesc")                                \
+    X(WindowSwitchesLeftHandedTitle, "window.switches.leftHandedTitle")                          \
+    X(WindowSwitchesLeftHandedDesc, "window.switches.leftHandedDesc")                            \
+    X(WindowSwitchesReadAloud, "window.switches.readAloud")  /* the play button of a switch's card: {action} */ \
     /* Report, Help and About pages (D8) */                                                      \
     X(WindowReportTitle, "window.report.title")  /* one line per line */                         \
     X(WindowReportText, "window.report.text")                                                    \

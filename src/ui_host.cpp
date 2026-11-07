@@ -115,3 +115,27 @@ void FillVoiceState(UiState& state, const VoiceModel& m) {
         state.controls[c.name] = UiControl{Round3(Get(shown, c.control)), r.min, r.max, r.def, c.step};
     }
 }
+
+// ---- the card ids (see ui_host.h) ----
+
+const std::vector<std::string>& SwitchCardIds() {
+    static const std::vector<std::string> ids = {"readAlong",  "runAtStartup", "startMinimised",
+                                                  "runAsAdmin", "darkMode",     "leftHanded"};
+    return ids;
+}
+
+bool IsSwitchCard(const std::string& cardId) {
+    for (const std::string& id : SwitchCardIds()) {
+        if (id == cardId) return true;
+    }
+    return false;
+}
+
+// A card id that is not a switch is taken as a Key (the page only ever offers the two kinds).
+std::string CardTitleId(const std::string& cardId) {
+    return IsSwitchCard(cardId) ? "window.switches." + cardId + "Title" : "window.keys." + cardId;
+}
+
+std::string CardDescId(const std::string& cardId) {
+    return IsSwitchCard(cardId) ? "window.switches." + cardId + "Desc" : "window.keys." + cardId + "Desc";
+}

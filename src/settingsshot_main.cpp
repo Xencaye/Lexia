@@ -5,7 +5,7 @@
 //
 //   lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] [--hover <widget>]
 //                      [--voices none|changed|user] [--sheet <name>]
-//                      [--select read|pause|speech] [--capture read|pause|speech] [--switches]
+//                      [--select read|pause|speech|readAlong|runAtStartup|startMinimised|runAsAdmin|darkMode|leftHanded] [--capture read|pause|speech] [--switches]
 //                      [--theme light|dark] [--dpi N] out.png
 //
 // The picture is 800 x 600 DIPs (the window's client area), so 1200 x 900 pixels at 144 dpi. On success

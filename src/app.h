@@ -62,7 +62,7 @@ public:
     void OnTaskbarCreated();                   // Explorer restarted: the tray icon is put back
 
 private:
-    // The word mark layer (G2, keepWordMark): a click-through window that goes on drawing the bar under the
+    // The word mark layer (G2, readAlong): a click-through window that goes on drawing the bar under the
     // heard word after a Session ends, until the Session's Readings are done. At most one.
     void StartWordMarkLayer(const RECT& mon, ReadAlongTrack track);
     void EndWordMarkLayer(bool flush);  // removes it; flush = wait until the screen is drawn without it (before a Shot)
@@ -85,7 +85,7 @@ private:
     void OpenNotices();
     void OpenLink(LinkId id);  // the page asked for one of the fixed links (ShellExecute)
     void CaptureKey();     // the page waits for a key: Lexia's keys are released meanwhile
-    void ReadKeyCard(const std::string& action);  // speaks what that key does (the key card's play button)
+    void ReadKeyCard(const std::string& cardId);  // speaks what that Key or switch does (the card's play button)
     void EndKeyCapture();  // the wait is over (cancelled, the page reloaded, or the window went)
     void SetKey(const std::string& action, const std::string& key);  // checks, saves, applies; always PushState
     void SetRunAtStartup(bool on);  // the Run key is the truth; the setting follows it
