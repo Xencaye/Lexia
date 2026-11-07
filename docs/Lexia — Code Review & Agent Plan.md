@@ -31,11 +31,7 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`: K0 to K6 and K8 (the
-owner's changes after the first look) are done and merged there. **K7, your check, is the only open step**; then K merges
-to `main`.
-G1 (the word mark on the Overlay) is built on `feat/G1` (Nov 7), made from the tip of `feat/K-native-settings`; G2 (the
-setting that keeps the word mark after you leave the Overlay) is built on `feat/G2`, made from `feat/G1`; K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2) is built on `feat/K9-settings-layout`, made from `feat/G2`. None is merged.
+Merged into `main` (Nov 7): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); **K7, your check, is still open** and is done on `main`. G1 (the word mark on the Overlay, PR #2), G2 (the word mark layer after you leave the Overlay, PR #3) and the H5 plan (PR #4). K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2) is on `feat/K9-settings-layout`, in a PR to `main`; K10 (the window's own minimise and close buttons) is planned and waits for the owner's mockups.
 Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -513,6 +509,31 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   hover and Tab over each switch and read the card; the read button on a switch's card; Read-along off: read in a
   browser, no bar on the Overlay and none after leaving; On: the bar on the Overlay and after leaving; turn it off
   while the layer shows: the layer goes; Narrator: a switch is still read as a switch.
+- [ ] **K10 The window's own minimise and close buttons (planned Nov 7; waits for the owner's mockups).** The owner
+  puts minimise and close into the pages, so the Settings window has no Windows title bar. **Owner first:** a mockup
+  of each page (or one frame) with the place, size and icons of the two buttons, their hover / pressed / focus look,
+  and which empty area drags the window. Then (agent):
+  - **Frame without a caption, Windows behaviour kept.** Keep `WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX` (taskbar
+    button, Alt+Space system menu, Alt+F4, minimise animation, Win+Down) and answer `WM_NCCALCSIZE` (wParam TRUE)
+    with 0, so the client area is the whole window; `DwmExtendFrameIntoClientArea` with a 1 px top margin keeps the
+    DWM shadow and the rounded corners of Windows 11. The window becomes 800 x 600 DIPs in all (no caption above
+    it). Not resizable and not maximisable, as now (no snap-layout flyout to support).
+  - **Drag.** `WM_NCHITTEST`: the drag area of the mockup returns `HTCAPTION` (moves the window, double-click does
+    nothing as it cannot maximise, right-click opens the system menu); a widget there (a nav link, the buttons)
+    returns `HTCLIENT`, from `Screen::WidgetAt`.
+  - **Buttons.** Two `IconButton`s in the `Frame` (every page), Stratis UI icons recoloured from the palette, tooltips
+    and UIA names from `strings/` ("minimise", "close"), in the Tab order after the top links. They send no
+    `PageMessage` to the App: the window acts itself (`WM_SYSCOMMAND` `SC_MINIMIZE` / `SC_CLOSE`), so closing goes
+    the same way as before (the window is destroyed; Lexia stays in the tray).
+  - **Removed:** the DWM dark title bar code (no title bar to colour). The window keeps its title text
+    (`SetWindowTextW`): the taskbar, Alt+Tab and Narrator read it.
+  - **Tests:** `lexia_settingsshot` draws the buttons; `native_ui_settings_ui_test` (the buttons in the Frame, Tab
+    order); `uia_tree` (two Buttons with names; Invoke on minimise minimises the off-screen window); the hit test as
+    a pure function of the frame's layout (drag area vs widgets) in `lexia_core`.
+  - **Security:** no new input from files or the network; the hit test reads only the widget tree; `SC_CLOSE` takes
+    the normal close path, so the UIA host is detached as now (`WM_DESTROY`).
+  *Your check:* drag the window by the empty area, minimise and close with the mouse, Tab + Enter, Alt+Space and
+  Alt+F4; the shadow and the corners; 100 / 150 / 200 % and a move between monitors; Narrator reads both buttons.
 
 ## Order and milestones
 
@@ -537,7 +558,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G1 and G2 done (both on their branches, not merged; since K9 one switch, "enable read-along", controls both); K, the native Settings window, built (K0 to K6); your K7 check is open (owner, Nov 7).
+5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1); K9 in a PR; K10 waits for mockups; your K7 check is open (owner, Nov 7).
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland. Also H5: the Windows files signed through SignPath Foundation, if SignPath accepts Lexia (moved from 0.6 on Nov 7).
 
