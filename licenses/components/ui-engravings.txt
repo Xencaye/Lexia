@@ -1,8 +1,8 @@
 Vintage book engravings
 Licence: public domain
 Source: Old Book Illustrations, https://www.oldbookillustrations.com/ (scans of illustrations from old books)
-Used for: the pictures of the Settings window (src\res\img\: bee.jpg, dog.jpg, flute.jpg, otter.jpg, wine.jpg,
-wolf.jpg; tinted by the window) and the Lexia logo (src\res\lexia_logo.svg, and lexia_logo_off.svg for the Off
+Used for: the pictures of the Settings window (src\res\img\: bee.svg, dog.svg, flute.svg, otter.svg, wine.svg,
+wolf.svg, vectorised from the scans by the Lexia project; tinted by the window) and the Lexia logo (src\res\lexia_logo.svg, and lexia_logo_off.svg for the Off
 look, from which scripts\make_tray_icons.ps1 makes the exe and tray icons src\res\lexia.ico and lexia_off.ico).
 The engraving in the logo is "Faust—Scene III Headpiece", https://www.oldbookillustrations.com/illustrations/headpiece-scene-3/ ;
 the logo itself (the rounded square, the crop, the Off version) is the Lexia project's own design made from it.

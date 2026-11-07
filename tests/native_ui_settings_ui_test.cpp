@@ -183,13 +183,13 @@ TEST_CASE("K10: the window buttons are quiet when idle and take the accent colou
         }
         return 0xFFFFFFFFu;
     };
-    CHECK(iconColour("dash") == r.ui.pal.tile.rgb);
-    CHECK(iconColour("x-02") == r.ui.pal.tile.rgb);
+    CHECK(iconColour("dash") == r.ui.pal.windowIcon.rgb);
+    CHECK(iconColour("x-02") == r.ui.pal.windowIcon.rgb);
     const PointF c = Centre(*r.settings.GetFrame().CloseButton());
     r.ui.Move(c.x, c.y);
     r.ui.Advance(0.5);
     CHECK(iconColour("x-02") == r.ui.pal.accent.rgb);
-    CHECK(iconColour("dash") == r.ui.pal.tile.rgb);  // the other one stays quiet
+    CHECK(iconColour("dash") == r.ui.pal.windowIcon.rgb);  // the other one stays quiet
 }
 
 TEST_CASE("Master volume: a press asks for the value under the pointer, on the grid of 5") {

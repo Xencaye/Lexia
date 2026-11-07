@@ -33,7 +33,7 @@ namespace {
 
 // ------------------------------------------------------------------ colours ---
 // The Control bar's colours, as 0xRRGGBB, all taken from the one palette (nui::PaletteFor, the design
-// of wireframe/palette_and_buttons.png and the control_bar_*.png). A tile has a state colour; the icon
+// of wireframe/control_bar_*.png, light and _dark, K13). A tile has a state colour; the icon
 // on it is "glyph"; the Help and size icons have no tile and take the accent colours.
 
 struct BarColours {
@@ -64,10 +64,9 @@ uint32_t Mix(uint32_t a, uint32_t b, double t) {
 
 // The colours of the bar in the light or the dark theme: every colour is a token of nui::Palette, but
 // the hover and pressed states are not (the design draws them as "a darker tone"), so they are derived
-// here from the token they belong to. A tile gets 10% / 20% darker (light: within 1 of 255 of the
-// design's #AB9883 and #988774; dark: the dark tile is the token's #BEA991 as well, as in the HTML
-// pages' tokens.css (deleted in K.6), where the bar used a temporary #8F7A6B before); the Help and size icons go darker in the light theme (30% / 50% towards black: within
-// 2 of 255 of the design's #4F3733 and #3A2825) and lighter in the dark one (15% / 40% towards white).
+// here from the token they belong to. A tile gets 10% / 20% darker (the D8 rule, kept for the tiles of the
+// K13 palette); the Help and size icons go darker in the light theme (30% / 50% towards black) and lighter in
+// the dark one (15% / 40% towards white).
 BarColours BarColoursFor(bool dark) {
     const nui::Palette& t = nui::PaletteFor(dark);
     BarColours c;
@@ -75,13 +74,16 @@ BarColours BarColoursFor(bool dark) {
     c.tile = t.tile.rgb;
     c.tileHot = Mix(c.tile, 0x000000, 0.10);
     c.tilePressed = Mix(c.tile, 0x000000, 0.20);
-    c.tileOff = t.line.rgb;   // a button that does not work: the quiet fill
+    // A button that does not work: the quiet fill. In the dark mockups (K13) the line colour is the tile itself,
+    // so a dead tile and its word go one step down, to the card grey.
+    c.tileOff = dark ? t.card.rgb : t.line.rgb;
     c.glyph = t.paper.rgb;    // the icon on a tile is paper-coloured, lit or greyed
     c.glyphOff = t.paper.rgb;
     c.word = t.ink.rgb;
-    c.wordOff = t.line.rgb;
+    c.wordOff = c.tileOff;
     c.dots = t.line.rgb;
-    c.accent = t.accent.rgb;
+    // Help and the size icon: the accent in light; in the dark mockups (K13) they are the line grey.
+    c.accent = dark ? t.line.rgb : t.accent.rgb;
     c.accentHot = Mix(c.accent, dark ? 0xFFFFFF : 0x000000, dark ? 0.15 : 0.30);
     c.accentPressed = Mix(c.accent, dark ? 0xFFFFFF : 0x000000, dark ? 0.40 : 0.50);
     return c;

@@ -752,17 +752,23 @@ TEST_CASE("Settings: Start minimised is disabled unless Run at startup is on, an
     CHECK(r.sent[0].on == false);
 }
 
-TEST_CASE("Settings: a switch is drawn lighter while it is disabled") {
+TEST_CASE("Settings: a switch is drawn in the line colour while it is disabled") {
+    // K13: the disabled row is the line colour (the owner's mockups), the enabled one the ink.
     Rig r;
     UiState s = Rig::State();
     s.runAtStartup = false;
     r.Push(s);
+    r.ui.canvas.Clear();
     r.ui.Frame();
-    CHECK(r.ui.canvas.HasOpacity(0.5f));
+    const std::string label = strings::Text("en", strings::id::kWindowSettingsStartMinimised);
+    REQUIRE(r.ui.canvas.FindText(label));
+    CHECK(r.ui.canvas.FindText(label)->colour.rgb == r.ui.pal.line.rgb);
     s.runAtStartup = true;
     r.Push(s);
+    r.ui.canvas.Clear();
     r.ui.Frame();
-    CHECK_FALSE(r.ui.canvas.HasOpacity(0.5f));
+    REQUIRE(r.ui.canvas.FindText(label));
+    CHECK(r.ui.canvas.FindText(label)->colour.rgb == r.ui.pal.ink.rgb);
 }
 
 TEST_CASE("Settings: the page does not add widgets when a state arrives again") {

@@ -101,7 +101,7 @@ void EnableButton::Paint(Canvas& canvas, const Palette& p) {
     st.size = layout::kEnableFont;
     st.weight = FontWeight::Bold;
     st.align = TextAlign::Centre;
-    canvas.Text(r, label_, st, Mix(p.onAccent, p.accent, on));
+    canvas.Text(r, label_, st, Mix(p.buttonText, p.quietText, on));
     if (RingVisible()) DrawFocusRing(canvas, p, r, kButtonRadius);
 }
 

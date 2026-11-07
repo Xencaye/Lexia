@@ -299,7 +299,7 @@ TEST_CASE("SwitchRow: the label is right-aligned and underlined on hover") {
     CHECK(ui.canvas.FindText("Left-handed")->style.underline);
 }
 
-TEST_CASE("SwitchRow: disabled is faded, has no hover and does nothing, but keeps the focus") {
+TEST_CASE("SwitchRow: disabled is in the line colour, has no hover and does nothing, but keeps the focus") {
     Ui ui;
     int clicks = 0;
     auto* s = ui.screen.Root().Add<SwitchRow>("Start minimised");
@@ -308,7 +308,9 @@ TEST_CASE("SwitchRow: disabled is faded, has no hover and does nothing, but keep
     s->SetEnabled(false);
     ui.Move(200, 110);
     ui.Frame();
-    CHECK(ui.canvas.HasOpacity(0.5f));
+    // K13: the whole row is in the line colour (the owner's mockups), not a faded copy.
+    CHECK(ui.canvas.FindText("Start minimised")->colour.rgb == ui.pal.line.rgb);
+    CHECK_FALSE(ui.canvas.HasOpacity(0.5f));
     CHECK_FALSE(ui.canvas.FindText("Start minimised")->style.underline);
     ui.Click(200, 110);
     CHECK(clicks == 0);

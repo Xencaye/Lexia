@@ -132,7 +132,7 @@ void WindowButton::Paint(Canvas& canvas, const Palette& p) {
     // 0 idle, 1 hover, 2 pressed: hover and pressed look the same (the owner's mockup), so the amount is
     // clamped to 1. The colour moves with the usual transition, so the change is not a flash.
     const float a = std::min(1.0f, VisualAmount());
-    const Colour glyph = Mix(p.tile, p.accent, a);
+    const Colour glyph = Mix(p.windowIcon, p.accent, a);
     const float off = (kHit - kIcon) / 2;
     canvas.Icon({r.x + off, r.y + off, kIcon, kIcon}, icon_, glyph);
     if (RingVisible()) DrawFocusRing(canvas, p, r, kIconButtonRadius);
@@ -229,7 +229,7 @@ void Button::Paint(Canvas& canvas, const Palette& p) {
     {
         OpacityScope fade(canvas, enabled_ ? 1.0f : 0.7f);
         canvas.FillRect(r, quietLook ? p.line : p.accent, kButtonRadius);
-        canvas.Text(r, text_, Style(), quietLook ? p.accent : p.onAccent);
+        canvas.Text(r, text_, Style(), quietLook ? p.quietText : p.buttonText);
     }
     if (RingVisible()) DrawFocusRing(canvas, p, r, kButtonRadius);
 }
@@ -270,18 +270,20 @@ void SwitchRow::Paint(Canvas& canvas, const Palette& p) {
     const float labelW = canvas.MeasureText(label_, st).w;
     const RectF pill{r.Right() - kSwitchW, r.y + (r.h - kSwitchH) / 2, kSwitchW, kSwitchH};
     {
-        OpacityScope fade(canvas, enabled_ ? 1.0f : 0.5f);
-        canvas.Text({r.x, r.y, pill.x - kSwitchGap - r.x, r.h}, label_, st, p.ink);
+        // A disabled row (start minimised while run at startup is off) is drawn whole in the line colour,
+        // as in the owner's mockups (K13), not as a faded copy of the enabled one.
+        const Colour ink = enabled_ ? p.ink : p.line;
+        const Colour edge = enabled_ ? p.accent : p.line;
+        canvas.Text({r.x, r.y, pill.x - kSwitchGap - r.x, r.h}, label_, st, ink);
 
-        // The pill: accent fill fades in with `on`; the 1.5 border always shows.
-        canvas.FillRect(pill, Mix(Transparent(p.accent), p.accent, t), kSwitchH / 2);
-        canvas.StrokeRect(Inset(pill, kSwitchBorder / 2), p.accent, kSwitchBorder,
-                          kSwitchH / 2 - kSwitchBorder / 2);
+        // The pill: the edge colour fills it in with `on`; the 1.5 border always shows.
+        canvas.FillRect(pill, Mix(Transparent(edge), edge, t), kSwitchH / 2);
+        canvas.StrokeRect(Inset(pill, kSwitchBorder / 2), edge, kSwitchBorder, kSwitchH / 2 - kSwitchBorder / 2);
         // The knob is a ring as tall as the pill, drawn over the pill's own edge. Off it sits at the
         // pill's left end, on it 10 DIPs to the right (CSS left -1.5 / 8.5 inside the padding box).
         const RectF knob{pill.x + kKnobTravel * t, pill.y, kSwitchH, kSwitchH};
         canvas.FillEllipse(knob, Mix(Transparent(p.onAccent), p.onAccent, t));
-        canvas.StrokeEllipse(Inset(knob, kSwitchBorder / 2), p.accent, kSwitchBorder);
+        canvas.StrokeEllipse(Inset(knob, kSwitchBorder / 2), edge, kSwitchBorder);
     }
     if (RingVisible()) {
         const float left = pill.x - kSwitchGap - labelW;
@@ -365,7 +367,7 @@ void KeyChip::Paint(Canvas& canvas, const Palette& p) {
             break;
         case State::None:
             canvas.FillRect(r, p.line, kChipRadius);
-            canvas.Text(r, text_, st, p.accent);
+            canvas.Text(r, text_, st, p.quietText);  // the word on a quiet fill (K13)
             break;
         case State::Capturing:
             // `outline: 2px solid accent; outline-offset: -2px`: the outline lies inside the chip.

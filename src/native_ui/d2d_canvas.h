@@ -16,7 +16,7 @@
 // Device loss: when Direct2D says D2DERR_RECREATE_TARGET or DXGI says the device was removed or reset,
 // every device resource (D3D device, swap chain, target, brushes, SVG documents, picture bitmaps) is
 // dropped, one line is logged, and the next BeginFrame builds them again. The device-independent things
-// (factories, fonts, text formats, the decoded pictures) stay. A Canvas call outside BeginFrame..EndFrame,
+// (factories, fonts, text formats) stay. A Canvas call outside BeginFrame..EndFrame,
 // or while no device could be made, draws nothing. MeasureText works at any time (it needs no device).
 //
 // UI thread only. COM must be initialised on it by the caller. Assets come from the exe's resources
@@ -96,13 +96,6 @@ public:
     void PopRotation() override;
 
 private:
-    // The decoded engraving: alpha = 1 - luminance, one byte per pixel. Device independent, so a lost
-    // device does not make the file decode again.
-    struct PictureAlpha {
-        int w = 0, h = 0;
-        std::vector<uint8_t> alpha;
-    };
-
     bool EnsureFactories();
     bool EnsureDevice();
     bool CreateTarget();
@@ -117,8 +110,9 @@ private:
     IDWriteTextFormat* FormatFor(const TextStyle& style);
     Microsoft::WRL::ComPtr<IDWriteTextLayout> LayoutFor(std::string_view utf8, const TextStyle& style);
     ID2D1SvgDocument* SvgFor(std::string_view name, uint32_t rgb);
-    const PictureAlpha* AlphaFor(std::string_view name);
-    ID2D1Bitmap1* PictureBitmap(std::string_view name, uint32_t rgb);
+    // The engraving `name` (an SVG file of src/res/img, K13) in colour rgb, drawn once at wPx x hPx device
+    // pixels into a bitmap of the device; null if it cannot be drawn (tried once per key).
+    ID2D1Bitmap1* PictureBitmap(std::string_view name, uint32_t rgb, uint32_t wPx, uint32_t hPx);
 
     // ---- device-independent (kept for the life of the canvas)
     bool factoriesTried_ = false;
@@ -131,7 +125,6 @@ private:
     Microsoft::WRL::ComPtr<ID2D1StrokeStyle> roundStroke_;   // round caps and joins
     Microsoft::WRL::ComPtr<ID2D1StrokeStyle> dottedStroke_;  // 1 on, 1 off (in stroke widths), flat caps
     std::map<std::pair<int, int>, Microsoft::WRL::ComPtr<IDWriteTextFormat>> formats_;
-    std::map<std::string, PictureAlpha> pictures_;
     std::map<std::tuple<std::string, int, int, bool, int>, SizeF> measured_;  // text, size, weight, underline, spacing
 
     // ---- device resources (dropped and rebuilt on device loss)
@@ -142,7 +135,8 @@ private:
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> target_;
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> brush_;
     std::map<std::pair<std::string, uint32_t>, Microsoft::WRL::ComPtr<ID2D1SvgDocument>> svgs_;
-    std::map<std::pair<std::string, uint32_t>, Microsoft::WRL::ComPtr<ID2D1Bitmap1>> pictureBitmaps_;
+    // The engravings, drawn: (name, colour, width px, height px). A new DPI or box size makes a new entry.
+    std::map<std::tuple<std::string, uint32_t, uint32_t, uint32_t>, Microsoft::WRL::ComPtr<ID2D1Bitmap1>> pictureBitmaps_;
     bool lostLogged_ = false;
     bool deviceFailedLogged_ = false;
 

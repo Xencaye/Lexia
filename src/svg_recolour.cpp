@@ -67,3 +67,98 @@ std::string RecolourSvg(std::string svg, uint32_t rgb) {
     }
     return out;
 }
+
+namespace {
+
+constexpr float kMaxSvgSide = 8192.0f;  // a larger picture is not one of ours
+
+// The value of the attribute `name` in the tag text `tag` (between its quotes), or empty. The name must stand
+// alone: "width" does not match "stroke-width".
+std::string_view AttributeValue(std::string_view tag, std::string_view name) {
+    size_t pos = 0;
+    while ((pos = tag.find(name, pos)) != std::string_view::npos) {
+        const size_t after = pos + name.size();
+        const bool alone = (pos == 0 || !IsNameChar(tag[pos - 1])) && (after >= tag.size() || !IsNameChar(tag[after]));
+        size_t i = after;
+        while (i < tag.size() && IsSpace(tag[i])) ++i;
+        if (alone && i < tag.size() && tag[i] == '=') {
+            ++i;
+            while (i < tag.size() && IsSpace(tag[i])) ++i;
+            if (i < tag.size() && (tag[i] == '"' || tag[i] == '\'')) {
+                const char quote = tag[i];
+                const size_t end = tag.find(quote, i + 1);
+                if (end == std::string_view::npos) return {};
+                return tag.substr(i + 1, end - i - 1);
+            }
+            return {};
+        }
+        pos = after;
+    }
+    return {};
+}
+
+// Reads one number (digits, one '.', no sign: a size is never negative) from `s` at `i`; false if none.
+bool ReadNumber(std::string_view s, size_t& i, float& out) {
+    while (i < s.size() && (IsSpace(s[i]) || s[i] == ',')) ++i;
+    const size_t start = i;
+    bool dot = false;
+    double value = 0.0, scale = 1.0;
+    for (; i < s.size(); ++i) {
+        const char c = s[i];
+        if (c >= '0' && c <= '9') {
+            if (dot) {
+                scale /= 10.0;
+                value += (c - '0') * scale;
+            } else {
+                value = value * 10.0 + (c - '0');
+            }
+        } else if (c == '.' && !dot) {
+            dot = true;
+        } else {
+            break;
+        }
+        if (value > kMaxSvgSide * 10.0) return false;  // no need to read a huge number to the end
+    }
+    if (i == start || (i == start + 1 && dot)) return false;
+    out = static_cast<float>(value);
+    return true;
+}
+
+bool UsableSide(float v) { return v > 0.0f && v <= kMaxSvgSide; }
+
+// A width or height attribute: a number, then nothing or "px".
+bool ReadLength(std::string_view value, float& out) {
+    size_t i = 0;
+    if (!ReadNumber(value, i, out)) return false;
+    std::string_view rest = value.substr(i);
+    while (!rest.empty() && IsSpace(rest.back())) rest.remove_suffix(1);
+    return (rest.empty() || rest == "px") && UsableSide(out);
+}
+
+}  // namespace
+
+bool SvgRootSize(std::string_view svg, float& width, float& height) {
+    const size_t open = svg.find("<svg");
+    if (open == std::string_view::npos) return false;
+    const size_t close = svg.find('>', open);
+    if (close == std::string_view::npos) return false;
+    const std::string_view tag = svg.substr(open + 4, close - open - 4);
+    float w = 0, h = 0;
+    if (ReadLength(AttributeValue(tag, "width"), w) && ReadLength(AttributeValue(tag, "height"), h)) {
+        width = w;
+        height = h;
+        return true;
+    }
+    // viewBox="minX minY width height": the two last numbers. A negative min (a '-') makes it unusable here,
+    // which is fine: Lexia's own files start at 0 0.
+    const std::string_view box = AttributeValue(tag, "viewBox");
+    float v[4] = {};
+    size_t i = 0;
+    for (float& n : v) {
+        if (!ReadNumber(box, i, n)) return false;
+    }
+    if (!UsableSide(v[2]) || !UsableSide(v[3])) return false;
+    width = v[2];
+    height = v[3];
+    return true;
+}

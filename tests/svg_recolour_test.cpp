@@ -38,3 +38,37 @@ TEST_CASE("RecolourSvg: text with no colour, or empty text, comes back as it was
     CHECK(RecolourSvg("", 0xFFFFFF).empty());
     CHECK(RecolourSvg("<svg/>", 0xFFFFFF) == "<svg/>");
 }
+
+// K13: the engravings are SVG files; the canvas needs their own size to scale them into a box.
+TEST_CASE("SvgRootSize: width and height of the root tag") {
+    float w = 0, h = 0;
+    CHECK(SvgRootSize(R"(<svg width="267" height="231" viewBox="0 0 267 231" fill="none"><path/></svg>)", w, h));
+    CHECK(w == doctest::Approx(267));
+    CHECK(h == doctest::Approx(231));
+    CHECK(SvgRootSize(R"(<?xml version="1.0"?><svg height='20.5px' width='10'></svg>)", w, h));
+    CHECK(w == doctest::Approx(10));
+    CHECK(h == doctest::Approx(20.5));
+}
+
+TEST_CASE("SvgRootSize: the viewBox when there is no usable width and height") {
+    float w = 0, h = 0;
+    CHECK(SvgRootSize(R"(<svg viewBox="0 0 162 76"></svg>)", w, h));
+    CHECK(w == doctest::Approx(162));
+    CHECK(h == doctest::Approx(76));
+    CHECK(SvgRootSize(R"(<svg width="100%" height="100%" viewBox="0,0,24,24"></svg>)", w, h));
+    CHECK(w == doctest::Approx(24));
+}
+
+TEST_CASE("SvgRootSize: refuses what it cannot use") {
+    float w = 1, h = 1;
+    CHECK_FALSE(SvgRootSize("", w, h));
+    CHECK_FALSE(SvgRootSize("<path width=\"5\" height=\"5\"/>", w, h));     // no root tag
+    CHECK_FALSE(SvgRootSize("<svg width=\"0\" height=\"5\">", w, h));        // zero, and no viewBox
+    CHECK_FALSE(SvgRootSize("<svg width=\"99999\" height=\"5\">", w, h));    // too large
+    CHECK_FALSE(SvgRootSize("<svg stroke-width=\"5\" height=\"5\">", w, h)); // stroke-width is not width
+    CHECK_FALSE(SvgRootSize("<svg viewBox=\"0 0 5\">", w, h));               // three numbers
+    CHECK_FALSE(SvgRootSize("<svg width=\"5\" height=\"5\"", w, h));         // the tag never ends
+    // A child's size does not count.
+    CHECK_FALSE(SvgRootSize("<svg><rect width=\"5\" height=\"5\"/></svg>", w, h));
+    CHECK(w == 1);  // unchanged on failure
+}

@@ -1,8 +1,9 @@
 #pragma once
 // The D8 "paper" palette: the one source of the colours of the Settings window and the Control bar
-// (K1, ADR-0009). The values are those of the HTML pages' tokens.css (deleted in K.6). The dark set is a placeholder of the
-// same roles until the owner gives the final one (TODO(owner)). Pure, Win32-free, in lexia_core; the
-// contrast of the pairs is checked by tests/palette_test.cpp (text 4.5:1, edges and states 3:1).
+// (K1, ADR-0009). The light set began as the HTML pages' tokens.css (deleted in K.6); both sets are the owner's
+// final mockups of Nov 8 (K13, the files of wireframe/: light <page>.png, dark <page>_dark.png). Pure, Win32-free,
+// in lexia_core; the contrast of the pairs is checked by tests/palette_test.cpp (text 4.5:1, edges and states 3:1;
+// a pair of the owner's design that is below that is recorded there, not changed).
 #include <cstdint>
 
 namespace nui {
@@ -24,6 +25,10 @@ struct Palette {
     Colour powerOffHover;  // the power circle, Off, hovered
     Colour powerOnHover;   // the power circle, On, hovered
     Colour tile;           // the Control bar's icon tiles
+    Colour windowIcon;     // the window's minimise and close icons, idle (K10; hover and press are accent)
+    Colour buttonText;     // the word on an accent button (enable, a sheet's main button)
+    Colour quietText;      // the word on a quiet (line) fill: the disable button, a quiet button, an unset key chip
+    Colour thumb;          // a slider's thumb (the Voices sliders, the Master volume)
     Colour tintFlute;      // the tints of the engravings (their lines)
     Colour tintBeeOff;
     Colour tintBeeOn;
