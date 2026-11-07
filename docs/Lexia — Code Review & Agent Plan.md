@@ -31,8 +31,8 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0, K1 and K2 are done
-(K2 on `feat/K.2`, not merged yet); K3 (Voices page and sheets) and K4 (Settings page) are next.
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0, K1, K2 and K3 are done
+(K2 merged; K3 on `feat/K.3`, not merged yet); K4 (Settings page) is next.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -397,8 +397,21 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   `lexia_settingsshot --page home|voices|settings|report|help|about [--on] [--hover]` and `scripts\settings_shots.ps1`
   (the `--sheet` switch comes with the sheets in K3); `native_ui_settings_ui_test.cpp` (14 cases). Compared with
   `wireframe/html-reference/` (light and dark): positions within 1 DIP; the dots of a dotted rule start one pixel later.
-- [ ] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
+- [x] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
   `VoiceTab` gets typed events.
+  *Done (`feat/K.3`):* `voices_page.*` (the Voice `Select`, Download / Add from file / Delete, the "no voice" note, Speed
+  (log2) / Pitch / Volume sliders with value text and reset buttons, the otter, Save / Load preset), `voice_sheets.*`
+  (Delete voice, `DownloadSheet` with the views loading / failed / empty / list, one download at a time, scroll offset and
+  focus kept, progress without a rebuild; `ResultSheet`), `voice_library_state.*` (the sheets' data, owned by `SettingsUi`,
+  so a download is known while another page shows), `voice_text.*`; `voice_events.*`: `VoiceTab::Host::toPage(JSON)` is
+  replaced by `Host::events` -> `VoiceEventSink` (typed), `ProblemTextId` is the port of the old `problemText`, the
+  offered-Language filter and the refusal facts are typed (the JSON builders in `ui_host.cpp` stay until K6).
+  Toolkit: `Sheet` border inset, wrapping title, title gap, per-line gaps, max height + flexible body, `Notice::Kind::Plain`,
+  notice line 1.35; `user-profile-03.svg` without an SVG mask. `lexia_settingsshot --voices` / `--sheet` and 25 pictures in
+  `scripts\settings_shots.ps1` with the reference file names; `native_ui_voices_test.cpp` (25 cases),
+  `voice_events_test.cpp` (4 cases). Compared with `wireframe/html-reference/` (light and dark): positions within 1-2 DIPs;
+  a scrolling download list leaves 10 DIPs for its scrollbar (the HTML shots had none); a few words wrap one word
+  differently (DirectWrite and the browser measure a glyph a little differently).
 - [ ] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
 - [ ] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
 - [ ] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
