@@ -4,6 +4,7 @@
 
 #include <shellapi.h>
 #include <windowsx.h>  // GET_X_LPARAM
+#include <dwmapi.h>    // DwmFlush
 
 #include <algorithm>
 #include <cmath>
@@ -34,6 +35,7 @@ static const UINT kMsgSettingsChanged = WM_APP + 10;
 static const UINT kMsgSpeechActivity = WM_APP + 11;  // the Reading queue became busy or idle
 static const UINT kMsgSettingsWindowClosed = WM_APP + 12;  // the Settings window was destroyed
 static const UINT kMsgTray = WM_APP + 13;  // the tray icon's events
+static const UINT kMsgWordMarkEnded = WM_APP + 14;  // the word mark layer ended by itself (G2): the App deletes it
 static const UINT kMsgRunOnUi = WM_APP + 20;  // lParam: a heap std::function<void()> to run on the UI thread (the Voice tab's workers)
 static const UINT_PTR kReloadTimer = 1;
 static const UINT_PTR kSpeechKeyTimer = 2;
@@ -46,6 +48,7 @@ static long long NowMs() {
 }
 
 App::~App() {
+    wordMarkLayer_.reset();  // its callbacks reach the Speaker and window_
     voiceTab_.reset();  // waits for its workers; they post to window_
     settingsWindow_.reset();  // its callbacks reach this App
     watcher_.reset();  // its thread posts to window_
@@ -72,6 +75,10 @@ LRESULT CALLBACK App::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == kMsgRunOnUi) {  // a worker thread asked for this to run here; the message owns it
         std::unique_ptr<std::function<void()>> job(reinterpret_cast<std::function<void()>*>(lp));
         if (app && job && *job) (*job)();
+        return 0;
+    }
+    if (app && msg == kMsgWordMarkEnded) {
+        app->OnWordMarkEnded();
         return 0;
     }
     if (app && msg == kMsgSettingsWindowClosed) {
@@ -155,6 +162,7 @@ void App::OnSettingsFileChanged() {
     if (s.startMinimised == fileSettings_.startMinimised) next.startMinimised = settings_.startMinimised;
     if (s.runAsAdmin == fileSettings_.runAsAdmin) next.runAsAdmin = settings_.runAsAdmin;
     if (s.leftHanded == fileSettings_.leftHanded) next.leftHanded = settings_.leftHanded;
+    if (s.keepWordMark == fileSettings_.keepWordMark) next.keepWordMark = settings_.keepWordMark;
     if (s.speechVolume == fileSettings_.speechVolume) next.speechVolume = settings_.speechVolume;
     if (s.voices == fileSettings_.voices) next.voices = settings_.voices;
     if (s.activeVoices == fileSettings_.activeVoices) next.activeVoices = settings_.activeVoices;
@@ -267,6 +275,7 @@ int App::Run() {
         }
     }
 
+    EndWordMarkLayer(/*flush=*/false);  // its window is gone before the speech it follows
     speaker_.Stop();
     UnregisterKeys();
     settingsWindow_.reset();  // the window and its Direct2D resources go before COM is shut down
@@ -275,11 +284,15 @@ int App::Run() {
 }
 
 void App::Quit() {
+    EndWordMarkLayer(/*flush=*/false);  // nothing of Lexia stays on the screen after Quit
     quit_ = true;  // not only PostQuitMessage: a key press already queued must not open a Session
     PostQuitMessage(0);
 }
 
-void App::Stop() { speaker_.Stop(); }
+void App::Stop() {
+    speaker_.Stop();
+    EndWordMarkLayer(/*flush=*/false);  // it would end by itself within a tick (no Reading is left); not later
+}
 
 void App::Skip() { speaker_.Skip(); }
 
@@ -318,6 +331,7 @@ void App::ArmSpeechKeyTimer(long long ms) {
 void App::SetOn(bool on) {
     if (on == settings_.enabled) return;
     settings_.enabled = on;
+    if (!on) EndWordMarkLayer(/*flush=*/false);  // Off: no mark of Lexia is left on the screen
     UnregisterKeys();
     RegisterKeys();  // retries a key that was taken before; Off takes none
     LogInfo(on ? "Lexia is On." : "Lexia is Off: no keys are taken until it is turned on.");
@@ -342,6 +356,7 @@ UiState App::BuildUiState() const {
     static const bool elevated = IsElevated();  // cannot change while Lexia runs
     s.elevated = elevated;
     s.leftHanded = settings_.leftHanded;
+    s.keepWordMark = settings_.keepWordMark;
     s.masterVolume.value = settings_.speechVolume;
     auto key = [](const char* action, const Hotkey& k) {
         return UiKey{action, k.IsBound() ? k.text : std::string()};
@@ -435,6 +450,10 @@ void App::HandlePageMessage(const PageMessage& m) {
     case PageMessageType::SetStartMinimised: SetStartMinimised(m.on); break;
     case PageMessageType::SetRunAsAdmin: SetRunAsAdmin(m.on); break;
     case PageMessageType::SetLeftHanded: SetBoolSetting("leftHanded", m.on, settings_.leftHanded, fileSettings_.leftHanded); break;  // read at the next Session
+    case PageMessageType::SetKeepWordMark:
+        SetBoolSetting("keepWordMark", m.on, settings_.keepWordMark, fileSettings_.keepWordMark);
+        if (!m.on) EndWordMarkLayer(/*flush=*/false);  // turned off while a mark is up: it goes now
+        break;
     case PageMessageType::SetMasterVolume: SetMasterVolume(static_cast<int>(std::lround(m.value))); break;
     case PageMessageType::OpenLink: OpenLink(m.link); break;
     case PageMessageType::OpenNotices: OpenNotices(); break;
@@ -725,6 +744,7 @@ void App::ApplySettings(const Settings& wanted) {
         RegisterKeys();
     }
 
+    if (!s.keepWordMark) EndWordMarkLayer(/*flush=*/false);  // edited off in settings.json
     ApplyWindowTheme();
     PushState();
 }
@@ -848,6 +868,10 @@ void App::PrintHelp() const {
 // queued for speech.
 void App::OpenOverlay() {
     if (!settings_.enabled) return;
+    // The word mark layer of the last Session must be gone, and the screen redrawn without it, before the
+    // Shot is taken: it would be in the picture, and its bar would be read as part of the screen. DwmFlush
+    // waits for the next composed frame (the window is destroyed first).
+    EndWordMarkLayer(/*flush=*/true);
     speaker_.SessionStarted();  // speech goes on if it is playing; a paused Reading is dropped
 
     const RECT mon = ActiveMonitorRect();
@@ -882,7 +906,7 @@ void App::OpenOverlay() {
 
     OverlayCallbacks cb;
     // Called on this thread for every click/drag while the overlay is open.
-    cb.onSelect = [&](const Selection& sel, const Recognition& picked) -> bool {
+    cb.onSelect = [&](const Selection& sel, const Recognition& picked) -> PickOutcome {
         const std::string text = BlocksToText(picked.blocks);
 
         LogInfo("\n[", sel.kind == SelKind::Drag ? "area" : "block", ", OCR ", picked.ms, " ms]");
@@ -893,15 +917,16 @@ void App::OpenOverlay() {
         if (Trim(text).empty()) {  // only spaces, tabs or line ends: nothing to say (R11)
             LogInfo("(no text found there)");
             speaker_.Announce(strings::id::kAnnouncePickNoText);
-            return false;
+            return PickOutcome{};
         }
         // One Reading of the Pick's Blocks, so Skip goes to the next Block and each Block gets
-        // its own main Voice; queued after earlier Picks.
+        // its own main Voice; queued after earlier Picks. The Block index of a heard word is the
+        // index in `blocks`, i.e. in picked.blocks, which the Overlay keeps under the returned id.
         std::vector<std::string> blocks;
         for (const TextBlock& b : picked.blocks) blocks.push_back(b.text);
-        speaker_.SpeakReading(blocks, /*append=*/true);
-        return true;
+        return PickOutcome{true, speaker_.SpeakReading(blocks, /*append=*/true)};
     };
+    cb.heardWord = [&]() { return speaker_.HeardWordNow(); };  // the word mark (G1)
     cb.onPause = [&]() { TogglePause(); };
     cb.onSkip = [&]() { Skip(); };
     cb.onStop = [&]() { Stop(); };
@@ -912,7 +937,51 @@ void App::OpenOverlay() {
     cb.onHelp = [&]() { OpenSettingsWindow("help"); };  // RunOverlay calls it after the Overlay is gone
     cb.languageEpoch = &languageEpoch_;
 
-    RunOverlay(shot, recognize, jobs_, style, cb);
+    OverlayResult result = RunOverlay(shot, recognize, jobs_, style, cb);
+
+    // "Keep the word mark after I leave" (G2): if a Reading of this Session is still being read, a
+    // click-through layer goes on drawing the bar under the heard word. The Control bar does not stay.
+    if (settings_.keepWordMark && settings_.enabled && !quit_) StartWordMarkLayer(mon, std::move(result.track));
+}
+
+// Starts the word mark layer over monitor `mon` for the Readings of `track`, if any of them is still in
+// the Reading queue. At most one layer exists: a new one replaces the old.
+void App::StartWordMarkLayer(const RECT& mon, ReadAlongTrack track) {
+    EndWordMarkLayer(/*flush=*/false);
+    if (!window_ || track.Empty()) return;
+    auto isActive = [this](uint64_t id) { return speaker_.HasReading(id); };
+    if (!track.AnyActive(isActive)) return;  // everything was read already (or Stopped): nothing to keep
+
+    ReadAlongLayerConfig cfg;
+    cfg.monitor = mon;
+    cfg.color = settings_.hoverColor;  // the colour of the Session's own word mark
+    cfg.title = Utf8ToWide(strings::Text(settings_.interfaceLanguage, strings::id::kWordMarkName));
+    cfg.track = std::move(track);
+    cfg.heardWord = [this]() { return speaker_.HeardWordNow(); };
+    cfg.isActive = std::move(isActive);
+    // Runs inside the layer's own window procedure: only post, and delete the layer from the App's.
+    cfg.onEnded = [hwnd = window_]() { PostMessageW(hwnd, kMsgWordMarkEnded, 0, 0); };
+
+    auto layer = std::make_unique<ReadAlongLayer>();
+    if (layer->Create(std::move(cfg))) {
+        wordMarkLayer_ = std::move(layer);
+    } else {
+        LogWarn("The word mark could not be kept after the Overlay; it is shown only in the Overlay.");
+    }
+}
+
+// The layer says it has ended (posted by its onEnded): drop it. A stale message (the layer it was for
+// is gone and a newer one runs) finds a layer that has not ended and leaves it alone.
+void App::OnWordMarkEnded() {
+    if (wordMarkLayer_ && wordMarkLayer_->Ended()) wordMarkLayer_.reset();
+}
+
+// Removes the word mark layer if there is one. `flush`: wait until the system has drawn the screen
+// without it (before a screenshot).
+void App::EndWordMarkLayer(bool flush) {
+    if (!wordMarkLayer_) return;
+    wordMarkLayer_.reset();
+    if (flush) DwmFlush();
 }
 
 

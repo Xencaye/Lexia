@@ -62,14 +62,15 @@ struct Speaker::Impl {
         return true;
     }
 
-    void Add(std::vector<std::string> blocks, bool append) {
-        if (!ready) return;  // Init failed: Lexia runs without speech
+    uint64_t Add(std::vector<std::string> blocks, bool append) {
+        if (!ready) return 0;  // Init failed: Lexia runs without speech
         if (!append) {
             speechKey.Cancel();
             queue.Stop();
         }
-        queue.Add(std::move(blocks));
+        const uint64_t id = queue.Add(std::move(blocks));
         wake.notify_all();
+        return id;
     }
 
     void Work() {
@@ -285,9 +286,13 @@ void Speaker::ReleaseVoices() {
     }
 }
 
-void Speaker::SpeakReading(const std::vector<std::string>& blocks, bool append) {
-    impl_->Add(blocks, append);
+uint64_t Speaker::SpeakReading(const std::vector<std::string>& blocks, bool append) {
+    return impl_->Add(blocks, append);
 }
+
+std::optional<HeardWord> Speaker::HeardWordNow() const { return impl_->queue.HeardWordNow(); }
+
+bool Speaker::HasReading(uint64_t id) const { return impl_->queue.HasReading(id); }
 
 void Speaker::SetInterfaceLanguage(const std::string& code) {
     std::lock_guard<std::mutex> lk(impl_->interfaceMutex);

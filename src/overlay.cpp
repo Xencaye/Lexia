@@ -39,6 +39,13 @@ struct Session {
     bool pending = false;   // a selection was just made and still needs handling
     bool busy = false;      // a Pick is being read (or a Click is waiting for the Analysis)
     std::vector<RECT> picked;  // areas already read on this screen (kept highlighted)
+    // The word mark (G1): the Blocks of each Reading Picked in this Session, by the Reading's id, and
+    // the bars under the word that is heard now (Shot coordinates). Only this Session's Readings are
+    // known, so a word of an earlier Session's Reading draws nothing.
+    ReadAlongTrack track;
+    const std::function<std::optional<HeardWord>()>* heardWord = nullptr;
+    std::vector<Rect> bars;
+    int barThickness = 3, barGap = 1;  // px, scaled for the DPI
     OverlayStyle style;
     ControlBar bar;         // the Control bar above the Overlay; its windows belong to this Session
     int hoverTol = 8;       // the Block hover tolerance (FindBlockAt), scaled for the DPI
@@ -59,6 +66,10 @@ struct Session {
 
 static const UINT kMsgAnalysisDone = WM_APP + 1;
 static const UINT kMsgPickDone = WM_APP + 2;  // a Drag job finished; the loop's Pump picks it up
+// A window timer that asks which word is heard. The speech thread cannot post a message at each word
+// (it would need a channel into the Session), and 30 ms is well under the length of a spoken word.
+static const UINT_PTR kTimerWordMark = 1;
+static const UINT kWordMarkMs = 30;
 
 // The Drag's rectangle from where the button went down to where the mouse is now, in either direction,
 // kept on the Shot.
@@ -108,6 +119,17 @@ static void PaintOverlay(HWND hwnd, Session& ss) {
 
     for (const RECT& pr : ss.picked) DrawHighlight(ss.backDc, s, pr, ss.style.pickedColor, 2);
 
+    // The word being read: a bar under it, over the Picked frames and under the hover / drag frame.
+    if (!ss.bars.empty()) {
+        HBRUSH bar = CreateSolidBrush(ss.style.hoverColor);
+        for (const Rect& b : ss.bars) {
+            // A word at the edge of the Shot: keep the bar on it.
+            const RECT r = ToRECT(ClipToArea(b, s.w, s.h));
+            if (r.right > r.left && r.bottom > r.top) FillRect(ss.backDc, &r, bar);
+        }
+        DeleteObject(bar);
+    }
+
     if (ss.dragging) {
         DrawHighlight(ss.backDc, s, NormalizedDragRect(ss), ss.style.hoverColor, 1);
     } else if (ss.hover >= 0 && ss.ready) {
@@ -138,6 +160,16 @@ static void RefreshHover(HWND hwnd, Session& ss) {
     InvalidateRect(hwnd, nullptr, FALSE);
 }
 
+// Asks which word is heard and moves the bars to it; repaints only when the bars changed (a word lasts
+// a fraction of a second, a timer tick much less). Nothing to do before the first Pick of the Session.
+static void PollWordMark(HWND hwnd, Session& ss) {
+    if (!ss.heardWord || !*ss.heardWord || ss.track.Empty()) return;
+    const std::vector<Rect> bars = ss.track.Bars((*ss.heardWord)(), ss.barThickness, ss.barGap);
+    if (SameRects(bars, ss.bars)) return;
+    ss.bars = bars;
+    InvalidateRect(hwnd, nullptr, FALSE);
+}
+
 // The Overlay window's procedure: painting, the mouse (Pick, Drag, Leave), and the job results that
 // come back as messages. The window never takes focus (WS_EX_NOACTIVATE, ADR-0001), so key presses
 // normally go to the game; Lexia's own keys are global hotkeys. Esc is handled for the rare case
@@ -162,6 +194,13 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_PAINT:
         PaintOverlay(hwnd, ss);
         return 0;
+
+    case WM_TIMER:
+        if (wp == kTimerWordMark) {
+            PollWordMark(hwnd, ss);
+            return 0;
+        }
+        break;
 
     // The button that Picks (click or drag) and the one that Leaves depend on the left-handed setting
     // (mouse_role.h); the handlers below are the same for both, only the role of the message differs.
@@ -274,8 +313,11 @@ static void StartAnalysis(HWND hwnd, Session& ss) {
 
 // Highlights the area of a finished Pick if the handler found text there.
 static void FinishPick(Session& ss, const Selection& sel, const Recognition& picked) {
-    if (!(*ss.onSelect)(sel, picked)) return;
+    const PickOutcome outcome = (*ss.onSelect)(sel, picked);
+    if (!outcome.found) return;
     ss.picked.push_back(sel.kind == SelKind::Drag ? sel.rect : HighlightRect(picked.blocks[0].box, *ss.shot));
+    // Keep the Blocks (Shot coordinates) under the Reading's id, to find the heard word's box in them.
+    ss.track.Add(outcome.readingId, picked.blocks);
 }
 
 // Moves the Picks along, in the order they were made: a finished Drag is handed to the handler,
@@ -326,11 +368,11 @@ static void Pump(HWND hwnd, Session& ss) {
 
 // Shows the frozen screenshot full-screen, with the Control bar above it, and keeps it up until the
 // user leaves (F8 again, right-click, Esc or the bar's Close). Each click/drag is passed to
-// `onSelect`, which reads the text aloud and returns true if it found any (the area then stays
+// `onSelect`, which reads the text aloud and says if it found any (the area then stays
 // highlighted). While the user looks at the screen, a job finds all text blocks so hovering and
 // clicking are instant.
-void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, const OverlayStyle& style,
-                const OverlayCallbacks& cb) {
+OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, const OverlayStyle& style,
+                       const OverlayCallbacks& cb) {
     static bool registered = false;
     HINSTANCE inst = GetModuleHandleW(nullptr);
     if (!registered) {
@@ -355,10 +397,13 @@ void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, c
     HWND hwnd = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"LexiaOverlay", L"Lexia",
                                 WS_POPUP, shot.ox, shot.oy, shot.w, shot.h, nullptr, nullptr, inst,
                                 nullptr);
-    if (!hwnd) return;
+    if (!hwnd) return {};
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&ss));
     const int dpi = std::max(96, static_cast<int>(GetDpiForWindow(hwnd)));
     ss.hoverTol = ScaleForDpi(8, dpi);
+    ss.barThickness = ScaleForDpi(3, dpi);
+    ss.barGap = ScaleForDpi(1, dpi);
+    ss.heardWord = &cb.heardWord;
 
     HDC winDc = GetDC(hwnd);
     ss.backDc = CreateCompatibleDC(winDc);
@@ -405,6 +450,8 @@ void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, c
     if (!ss.bar.Create(bc)) LogWarn("The Control bar could not be shown; use the keys.");
 
     StartAnalysis(hwnd, ss);
+    // A failed SetTimer only means no word mark; the Session works without it.
+    const bool wordTimer = cb.heardWord && SetTimer(hwnd, kTimerWordMark, kWordMarkMs, nullptr) != 0;
 
     MSG msg;
     while (!ss.done) {
@@ -447,6 +494,7 @@ void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, c
     }
 
     if (escHotkey) UnregisterHotKey(nullptr, HK_ESC);
+    if (wordTimer) KillTimer(hwnd, kTimerWordMark);
     ss.bar.Destroy();
     ShowWindow(hwnd, SW_HIDE);
     // A job still running reads the Shot and writes into `ss`: wait for it before they go away
@@ -459,5 +507,8 @@ void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, c
     DeleteDC(ss.backDc);
     DestroyWindow(hwnd);
     // Only now, with nothing of the Session left on screen, may another window of Lexia take focus.
+    OverlayResult result;
+    result.track = std::move(ss.track);  // for the word mark layer (G2); the Session's own copy is done with
     if (ss.helpAsked && cb.onHelp) cb.onHelp();
+    return result;
 }

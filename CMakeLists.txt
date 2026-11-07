@@ -133,6 +133,7 @@ add_library(lexia_core STATIC
     src/native_ui/pages/voice_sheets.cpp
     src/native_ui/widget.cpp
     src/ocr.cpp
+    src/read_along.cpp
     src/recognize.cpp
     src/score.cpp
     src/startup.cpp
@@ -224,6 +225,7 @@ add_executable(lexia
     src/main.cpp
     src/capture.cpp
     src/overlay.cpp
+    src/read_along_layer.cpp
     src/controlbar.cpp
     src/svg_icon.cpp
     src/assets.cpp
@@ -347,6 +349,20 @@ set_target_properties(lexia_uia_test PROPERTIES
 add_custom_command(TARGET lexia_uia_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_uia_test> "$<TARGET_FILE_DIR:lexia_uia_test>"
     COMMAND_EXPAND_LISTS)
+# A smoke test of the word mark layer (G2, src/read_along_layer.*): a real window over a small area, checks that
+# it can never take the focus or a click and that it ends when its Readings do. ctest read_along_layer runs it.
+# Own output folder, like lexia_uia_test (lexia_core pulls in the OpenCV / ONNX Runtime DLLs).
+add_executable(lexia_layer_test tests/read_along_layer_main.cpp src/read_along_layer.cpp)
+target_link_libraries(lexia_layer_test PRIVATE lexia_core user32 gdi32)
+set_target_properties(lexia_layer_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/layer_test"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/layer_test/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/layer_test/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/layer_test/RelWithDebInfo"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/layer_test/MinSizeRel")
+add_custom_command(TARGET lexia_layer_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_layer_test> "$<TARGET_FILE_DIR:lexia_layer_test>"
+    COMMAND_EXPAND_LISTS)
 # ------------------------------------------------------------------- tests ---
 # Unit tests (doctest) for the pure logic in lexia_core. Run with
 #   ctest --test-dir build -C Release --output-on-failure
@@ -386,6 +402,7 @@ add_executable(lexia_tests
     tests/stretch_speech_test.cpp
     tests/stretch_test.cpp
     tests/settings_test.cpp
+    tests/read_along_test.cpp
     tests/reading_queue_test.cpp
     tests/speech_key_test.cpp
     tests/stale_data_test.cpp
@@ -428,6 +445,8 @@ add_test(NAME settingsshot_smoke
 
 # The UI Automation tree of the real Settings window, from a client (tests/uia_tree_main.cpp). Skips with exit 0
 # and a message when the session has no interactive desktop (a service).
+add_test(NAME read_along_layer COMMAND lexia_layer_test)
+set_tests_properties(read_along_layer PROPERTIES TIMEOUT 60)
 add_test(NAME uia_tree COMMAND lexia_uia_test)
 set_tests_properties(uia_tree PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP uia_tree" TIMEOUT 120)
 
@@ -437,7 +456,7 @@ set_tests_properties(uia_tree PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP uia_tree"
 # Lexia's own targets get /WX, not the vcpkg ports.
 option(LEXIA_WARNINGS_AS_ERRORS "Treat compiler warnings in Lexia's own targets as errors" OFF)
 if(LEXIA_WARNINGS_AS_ERRORS)
-    foreach(target lexia_core lexia_net lexia lexia_cli lexia_tests lexia_uia_test)
+    foreach(target lexia_core lexia_net lexia lexia_cli lexia_tests lexia_uia_test lexia_layer_test)
         target_compile_options(${target} PRIVATE /WX)
     endforeach()
     # Linker warnings too (e.g. LNK4098 conflicting default libs). lexia_core is a static

@@ -347,6 +347,7 @@ bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& opti
         state.runAtStartup = true;
         state.runAsAdmin = true;
         state.leftHanded = true;
+        state.keepWordMark = true;
     }
     ui.SetState(state);
     // The Settings page opens on a Key and may start a capture, as the old ?select= / ?capture= did.

@@ -38,6 +38,7 @@
     X(ControlBarSizeSmall, "controlBar.sizeSmall")                                               \
     X(ControlBarSizeLarge, "controlBar.sizeLarge")                                               \
     X(ControlBarName, "controlBar.name")                                                         \
+    X(WordMarkName, "wordMark.name")                                                             \
     /* Tray menu (D2) */                                                                         \
     X(TrayOn, "tray.on")                                                                         \
     X(TrayOff, "tray.off")                                                                       \
@@ -119,6 +120,7 @@
     X(WindowSettingsRunAsAdmin, "window.settings.runAsAdmin")                                    \
     X(WindowSettingsDarkMode, "window.settings.darkMode")                                        \
     X(WindowSettingsLeftHanded, "window.settings.leftHanded")                                    \
+    X(WindowSettingsKeepWordMark, "window.settings.keepWordMark")                                \
     /* Report, Help and About pages (D8) */                                                      \
     X(WindowReportTitle, "window.report.title")  /* one line per line */                         \
     X(WindowReportText, "window.report.text")                                                    \
