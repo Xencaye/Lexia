@@ -316,9 +316,13 @@ bool ApplySheet(const std::string& name, SettingsUi& ui, Screen& screen) {
     } else if (name == "presetSaved") {
         events.PresetSaved("Slow reading.json");
     } else if (name == "presetLoaded") {
-        events.PresetLoaded("Slow reading.json");
+        events.PresetLoaded("en_US-amy-medium", true);
     } else if (name == "presetFailed") {
-        events.PresetFailed(PresetProblem::BadFile);
+        events.PresetFailed(PresetProblem::BadFile, std::string());
+    } else if (name == "presetLoadedOther") {
+        events.PresetLoaded("en_GB-alba-medium", false);  // a Voice that is not the active one
+    } else if (name == "presetNotInstalled") {
+        events.PresetFailed(PresetProblem::VoiceNotInstalled, "insert voice");
     } else {
         return false;
     }

@@ -44,4 +44,25 @@ private:
     double seconds_;
 };
 
+// ---------------------------------------------------------------------------------- Wiggle ---
+// The key card's read button shakes a little now and then, to say "press me". The rules are numbers of
+// time only, so they are tested without a window. `elapsed` is the seconds since the button was first
+// drawn. The first wiggle comes one period after that (the button is still when the page opens), then
+// one every period. A wiggle is a damped shake of kWiggleCycles swings, as long as kWiggleSeconds.
+constexpr double kWigglePeriodSeconds = 5.0;
+constexpr double kWiggleSeconds = 0.6;
+constexpr float kWiggleDegrees = 8.0f;  // the first swing
+constexpr float kWiggleCycles = 2.0f;
+
+// The rotation (degrees, clockwise) at `elapsed`: 0 outside a wiggle, and 0 at its first and last instant, so
+// the icon never jumps.
+float WiggleAngle(double elapsed);
+// Is a wiggle moving at `elapsed`?
+bool WiggleMoving(double elapsed);
+// When (in the same `elapsed` seconds) the wiggle that moves at `elapsed` ends. Meaningful only while
+// WiggleMoving; later than `elapsed`.
+double WiggleEnd(double elapsed);
+// When the next wiggle starts after `elapsed`: always later than `elapsed`, never before the first period.
+double WiggleNextStart(double elapsed);
+
 }  // namespace nui

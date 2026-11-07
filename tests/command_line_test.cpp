@@ -62,3 +62,35 @@ TEST_CASE("Command line: the relaunch arguments read back as the same switches")
     CHECK(min.elevatedRelaunch);
     CHECK(min.minimised);
 }
+
+TEST_CASE("Command line: --set-run-as-admin takes on or off as the next argument") {
+    CHECK(std::string(kSetRunAsAdminSwitch) == "--set-run-as-admin");
+    const CommandLine on = ParseCommandLine({"--set-run-as-admin", "on"});
+    REQUIRE(on.setRunAsAdmin.has_value());
+    CHECK(*on.setRunAsAdmin);
+    CHECK_FALSE(on.setRunAsAdminInvalid);
+    CHECK(on.unknown.empty());
+    const CommandLine off = ParseCommandLine({"--Set-Run-As-Admin", "OFF", "--minimised"});
+    REQUIRE(off.setRunAsAdmin.has_value());
+    CHECK_FALSE(*off.setRunAsAdmin);
+    CHECK_FALSE(off.setRunAsAdminInvalid);
+    CHECK(off.minimised);
+}
+
+TEST_CASE("Command line: without the switch there is no run-as-admin change") {
+    const CommandLine c = ParseCommandLine({"--minimised"});
+    CHECK_FALSE(c.setRunAsAdmin.has_value());
+    CHECK_FALSE(c.setRunAsAdminInvalid);
+}
+
+TEST_CASE("Command line: --set-run-as-admin with a missing or bad value is invalid, never a guess") {
+    for (const std::vector<std::string>& args : std::vector<std::vector<std::string>>{
+             {"--set-run-as-admin"}, {"--set-run-as-admin", "yes"}, {"--set-run-as-admin", "true"},
+             {"--set-run-as-admin", ""}, {"--set-run-as-admin", "--minimised"}}) {
+        const CommandLine c = ParseCommandLine(args);
+        CHECK_FALSE(c.setRunAsAdmin.has_value());
+        CHECK(c.setRunAsAdminInvalid);
+    }
+    // A switch after the bare one is not swallowed as its value.
+    CHECK(ParseCommandLine({"--set-run-as-admin", "--minimised"}).minimised);
+}

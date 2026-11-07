@@ -59,15 +59,34 @@ static void OpenConsole() {
     SetConsoleOutputCP(CP_UTF8);
 }
 
-// lexia.exe starts here. The order matters: the DLL search path, the command line, one instance only,
-// Run as admin (which may start an elevated Lexia and end this one), DPI and COM, then the App. A
-// failure to start is a message box, as there is no console to show it in.
+// lexia.exe starts here. The order matters: the DLL search path, the command line (with the one-shot
+// --set-run-as-admin), one instance only, Run as admin (which may start an elevated Lexia and end this
+// one), DPI and COM, then the App. A failure to start is a message box, as there is no console to show
+// it in.
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     // First: DLLs loaded from now on come only from the exe's folder and System32, never from
     // the current folder or PATH, where a planted DLL could be picked up.
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 
     const CommandLine cmd = ParseCommandLine(ProgramArguments());
+
+    // --set-run-as-admin on|off (K.7): the installer's way to write the Run as admin setting. It goes first,
+    // before the single-instance check (a running Lexia must not stop it), the elevation step (it must never
+    // elevate, nor ask for UAC) and any window. It saves that one key of the settings file of the person who
+    // runs it and ends: 0 = saved, 1 = bad value or not saved. A running Lexia notices the changed file itself.
+    if (cmd.setRunAsAdmin || cmd.setRunAsAdminInvalid) {
+        if (cmd.setRunAsAdminInvalid) {
+            LogError("--set-run-as-admin needs a value, on or off; nothing was saved.");
+            return 1;
+        }
+        const bool on = *cmd.setRunAsAdmin;
+        if (!SaveSettingValue("runAsAdmin", on ? "true" : "false")) {
+            LogError("--set-run-as-admin ", on ? "on" : "off", ": the setting could not be saved.");
+            return 1;
+        }
+        LogInfo("--set-run-as-admin: Run as admin is now ", on ? "on" : "off", " in the settings file.");
+        return 0;
+    }
 
     // One Lexia at a time: a second launch only asks the first to show its Settings window. An elevated
     // relaunch (ADR-0008) waits a few seconds instead: the instance that started it is ending and gives the

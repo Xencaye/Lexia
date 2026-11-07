@@ -24,9 +24,10 @@ enum class ResultKind { VoiceAdded, VoiceRefused, DeleteFailed, PresetSaved, Pre
 
 struct ResultOutcome {
     ResultKind kind = ResultKind::VoiceAdded;
-    std::string voice;      // VoiceAdded, DeleteFailed
+    std::string voice;      // VoiceAdded, DeleteFailed, PresetLoaded; PresetFailed (VoiceNotInstalled): the name from the file
     std::string language;   // VoiceAdded: a Lexia Language id
-    std::string name;       // PresetSaved / PresetLoaded: the file's name
+    std::string name;       // PresetSaved: the file's name
+    bool voiceIsActive = true;  // PresetLoaded: the Voice is the active one
     ProblemFacts facts;     // VoiceRefused
     PresetProblem preset = PresetProblem::BadFile;  // PresetFailed
 };
@@ -96,8 +97,8 @@ public:
     void VoiceRefused(const ProblemFacts& facts) override;
     void VoiceDeleteFailed(const std::string& voice, VoiceProblem problem) override;
     void PresetSaved(const std::string& fileName) override;
-    void PresetLoaded(const std::string& fileName) override;
-    void PresetFailed(PresetProblem problem) override;
+    void PresetLoaded(const std::string& voice, bool voiceIsActive) override;
+    void PresetFailed(PresetProblem problem, const std::string& voice) override;
 
 private:
     void Tell(Change c) const {

@@ -91,11 +91,13 @@
     X(WindowPresetSavedTitle, "window.preset.savedTitle")                                    \
     X(WindowPresetSaved, "window.preset.saved")  /* {name}: the file name */                 \
     X(WindowPresetLoadedTitle, "window.preset.loadedTitle")                                  \
-    X(WindowPresetLoaded, "window.preset.loaded")  /* {name}: the file name */               \
+    X(WindowPresetLoaded, "window.preset.loaded")  /* {voice}: the Voice that is active */   \
     X(WindowPresetFailedTitle, "window.preset.failedTitle")                                  \
     X(WindowPresetBadFile, "window.preset.badFile")  /* presetFailed badFile */              \
     X(WindowPresetCannotWrite, "window.preset.cannotWrite")  /* presetFailed cannotWrite */  \
     X(WindowPresetNoVoice, "window.preset.noVoice")  /* presetFailed noVoice */              \
+    X(WindowPresetLoadedOther, "window.preset.loadedOther")  /* {voice}: a Voice that is not active */ \
+    X(WindowPresetVoiceNotInstalled, "window.preset.voiceNotInstalled")  /* {voice}: from the file */ \
     /* Settings page (D0 ui 2 and 3, D8) */                                                      \
     X(WindowKeysTitle, "window.keys.title")                                                      \
     X(WindowKeysReadRow, "window.keys.readRow")  /* the short name of a Key in the list */       \

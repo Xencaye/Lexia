@@ -144,4 +144,5 @@ std::string ActiveVoiceName(const VoiceModel& m, const Language& lang);
 void FillVoiceState(UiState& state, const VoiceModel& model);
 
 // Why a Preset file could not be saved or loaded (the result sheet says it).
-enum class PresetProblem { BadFile, CannotWrite, NoVoice };
+// VoiceNotInstalled: the file is for a Voice that is not installed; the event carries its (shortened) name.
+enum class PresetProblem { BadFile, CannotWrite, NoVoice, VoiceNotInstalled };

@@ -359,6 +359,7 @@ add_executable(lexia_tests
     tests/command_line_test.cpp
     tests/control_bar_layout_test.cpp
     tests/hotkeys_test.cpp
+    tests/instance_test.cpp
     tests/jobqueue_test.cpp
     tests/key_chord_test.cpp
     tests/key_edit_test.cpp
@@ -398,6 +399,8 @@ add_executable(lexia_tests
     tests/voice_download_test.cpp
     tests/voice_library_test.cpp
     tests/voice_controls_test.cpp)
+# instance.cpp is lexia.exe's (Win32 only: a mutex and registered messages); the test checks the message names.
+target_sources(lexia_tests PRIVATE src/instance.cpp)
 target_link_libraries(lexia_tests PRIVATE lexia_core nlohmann_json::nlohmann_json miniz::miniz doctest::doctest)
 
 # lexia_core pulls in the OpenCV / ONNX Runtime DLLs; the test exe needs them next to it.

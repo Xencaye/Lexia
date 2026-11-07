@@ -29,6 +29,9 @@ const int kClientWidth = 800, kClientHeight = 600;
 const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW & ~static_cast<DWORD>(WS_THICKFRAME | WS_MAXIMIZEBOX);
 const UINT_PTR kTimerFrame = 1;  // about 60 Hz while a transition or the tooltip delay runs
 const UINT kFrameMs = 16;
+// A one-shot timer for the Screen's next wake-up (the read button's wiggle, every 5 s): between wiggles no
+// frame timer runs at all.
+const UINT_PTR kTimerWake = 2;
 
 // Device-independent pixels (96 dpi) -> pixels at `dpi`.
 int Scale(int dip, UINT dpi) { return MulDiv(dip, static_cast<int>(dpi), 96); }
@@ -75,8 +78,8 @@ public:
     void VoiceRefused(const ProblemFacts& facts) override { inner_.VoiceRefused(facts); repaint_(); }
     void VoiceDeleteFailed(const std::string& voice, VoiceProblem problem) override { inner_.VoiceDeleteFailed(voice, problem); repaint_(); }
     void PresetSaved(const std::string& fileName) override { inner_.PresetSaved(fileName); repaint_(); }
-    void PresetLoaded(const std::string& fileName) override { inner_.PresetLoaded(fileName); repaint_(); }
-    void PresetFailed(PresetProblem problem) override { inner_.PresetFailed(problem); repaint_(); }
+    void PresetLoaded(const std::string& voice, bool voiceIsActive) override { inner_.PresetLoaded(voice, voiceIsActive); repaint_(); }
+    void PresetFailed(PresetProblem problem, const std::string& voice) override { inner_.PresetFailed(problem, voice); repaint_(); }
 
 private:
     VoiceEventSink& inner_;
@@ -98,6 +101,8 @@ struct SettingsWindow::Impl {
     bool leftDown = false;       // we hold the capture for a press
     nui::PointF lastPos;
     bool timerOn = false;
+    bool wakeTimerOn = false;  // the one-shot kTimerWake is set
+    double wakeSetFor = 0;     // the Screen time it was set for (so an unchanged wake-up does not set it again)
     int lostFrames = 0;          // frames in a row that were lost (device loss); stops a retry loop
     std::string tipText;         // what the tooltip window shows now ("" = hidden)
     std::unique_ptr<RepaintingSink> events;  // the Voice library's sink, with a repaint after each answer
@@ -162,6 +167,21 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         if (im.screen.NeedsRepaint()) InvalidateRect(hwnd_, nullptr, FALSE);
         if (im.screen.NeedsTick() && !im.timerOn) {
             im.timerOn = SetTimer(hwnd_, kTimerFrame, kFrameMs, nullptr) != 0;
+        }
+        // The next wake-up of the tree (a widget that moves rarely): one one-shot timer for it, set again
+        // only when the time changed, and dropped when nothing asks for one any more (the page went).
+        const std::optional<double> wake = im.screen.NextWakeTime();
+        if (!wake) {
+            if (im.wakeTimerOn) {
+                KillTimer(hwnd_, kTimerWake);
+                im.wakeTimerOn = false;
+            }
+        } else if (!im.wakeTimerOn || *wake != im.wakeSetFor) {
+            // Milliseconds from now, rounded up so the timer never fires before the time; at least 1.
+            const double ms = std::ceil((*wake - NowSeconds()) * 1000.0);
+            const UINT delay = static_cast<UINT>(std::min(std::max(ms, 1.0), 60000.0));
+            im.wakeTimerOn = SetTimer(hwnd_, kTimerWake, delay, nullptr) != 0;  // same id: replaces the old one
+            im.wakeSetFor = *wake;
         }
         const std::optional<nui::TooltipRequest> tip = im.screen.Tooltip();
         if (!tip) {
@@ -247,6 +267,16 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     case WM_TIMER:
+        if (wp == kTimerWake) {
+            // One-shot: it is set again by sync() from the Screen's next wake-up. The Tick marks the tree
+            // dirty when the time has come (it can fire a hair early; then the Screen still has the wake-up
+            // and sync() sets the timer for the rest).
+            KillTimer(hwnd_, kTimerWake);
+            im.wakeTimerOn = false;
+            im.screen.Tick(NowSeconds());
+            sync();
+            return 0;
+        }
         if (wp == kTimerFrame) {
             im.screen.Tick(NowSeconds());
             if (!im.screen.NeedsTick()) {
@@ -405,6 +435,8 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         if (im.uia) im.uia->Detach();
         if (im.timerOn) KillTimer(hwnd_, kTimerFrame);
         im.timerOn = false;
+        if (im.wakeTimerOn) KillTimer(hwnd_, kTimerWake);
+        im.wakeTimerOn = false;
         im.tip.Destroy();
         // Nothing may draw or call the owner after this: the swap chain goes with its window.
         im.canvas.reset();

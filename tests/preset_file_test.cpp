@@ -2,6 +2,7 @@
 #include <doctest/doctest.h>
 
 #include <limits>
+#include <set>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -113,4 +114,74 @@ TEST_CASE("Preset file: ProblemId gives a stable id for the page") {
 TEST_CASE("Preset file: the folder is 'presets' in the data folder") {
     CHECK(PresetsDir(std::filesystem::path("C:/data/Lexia")) == std::filesystem::path("C:/data/Lexia") / "presets");
     CHECK(PresetsDir({}).empty());
+}
+
+// ---- loading a Preset for the right Voice --------------------------------------------------------------
+
+TEST_CASE("Preset target: a file with no Voice, or the active Voice, goes to the active Voice") {
+    const std::set<std::string> installed = {"en_US-amy-medium", "en_GB-alba-medium"};
+    PresetTarget t = ChoosePresetTarget("", "en_US-amy-medium", installed);  // an old file
+    CHECK(t.kind == PresetTargetKind::ActiveVoice);
+    CHECK(t.voice == "en_US-amy-medium");
+    t = ChoosePresetTarget("en_US-amy-medium", "en_US-amy-medium", installed);
+    CHECK(t.kind == PresetTargetKind::ActiveVoice);
+    CHECK(t.voice == "en_US-amy-medium");
+}
+
+TEST_CASE("Preset target: another installed Voice gets the controls and the active Voice stays") {
+    const std::set<std::string> installed = {"en_US-amy-medium", "en_GB-alba-medium"};
+    const PresetTarget t = ChoosePresetTarget("en_GB-alba-medium", "en_US-amy-medium", installed);
+    CHECK(t.kind == PresetTargetKind::OtherVoice);
+    CHECK(t.voice == "en_GB-alba-medium");
+}
+
+TEST_CASE("Preset target: a Voice that is not installed is refused, and the name is kept for the message") {
+    const std::set<std::string> installed = {"en_US-amy-medium"};
+    PresetTarget t = ChoosePresetTarget("insert voice", "en_US-amy-medium", installed);
+    CHECK(t.kind == PresetTargetKind::NotInstalled);
+    CHECK(t.voice == "insert voice");
+    // Names are compared as they are: no case folding, no path handling, so a name that looks like a path is
+    // simply not installed.
+    CHECK(ChoosePresetTarget("EN_US-AMY-MEDIUM", "en_US-amy-medium", installed).kind == PresetTargetKind::NotInstalled);
+    CHECK(ChoosePresetTarget("..\\..\\evil", "en_US-amy-medium", installed).kind == PresetTargetKind::NotInstalled);
+    CHECK(ChoosePresetTarget("en_US-amy-medium ", "en_US-amy-medium", installed).kind == PresetTargetKind::NotInstalled);
+}
+
+TEST_CASE("Preset target: the Voice of a saved file is found again by a load") {
+    const PresetFileOutcome r = ParsePresetFile(PresetToJson(Controls(1.25f, -2.f, 0.8f), "en_GB-alba-medium"));
+    REQUIRE(r.ok());
+    const std::set<std::string> installed = {"en_US-amy-medium", "en_GB-alba-medium"};
+    CHECK(ChoosePresetTarget(r.voice, "en_US-amy-medium", installed).kind == PresetTargetKind::OtherVoice);
+    CHECK(ChoosePresetTarget(r.voice, "en_GB-alba-medium", installed).kind == PresetTargetKind::ActiveVoice);
+    CHECK(ChoosePresetTarget(r.voice, "en_US-amy-medium", {}).kind == PresetTargetKind::NotInstalled);
+}
+
+TEST_CASE("Preset voice for display: a short name is unchanged") {
+    CHECK(PresetVoiceForDisplay("insert voice") == "insert voice");
+    CHECK(PresetVoiceForDisplay("") == "");
+    CHECK(PresetVoiceForDisplay("Ана-voice") == "Ана-voice");
+}
+
+TEST_CASE("Preset voice for display: cut to 80 code points with an ellipsis, on a code point boundary") {
+    const std::string exact(kPresetVoiceShownMax, 'a');
+    CHECK(PresetVoiceForDisplay(exact) == exact);  // exactly the limit: no ellipsis
+    CHECK(PresetVoiceForDisplay(exact + "b") == exact + "\xE2\x80\xA6");
+    std::string cyr;
+    for (size_t i = 0; i < kPresetVoiceShownMax + 5; ++i) cyr += "\xD0\xB0";  // Cyrillic a, two bytes each
+    std::string want;
+    for (size_t i = 0; i < kPresetVoiceShownMax; ++i) want += "\xD0\xB0";
+    CHECK(PresetVoiceForDisplay(cyr) == want + "\xE2\x80\xA6");
+}
+
+TEST_CASE("Preset voice for display: malformed UTF-8 from the file becomes U+FFFD, never raw bytes") {
+    // A lone continuation byte and a cut-short lead byte: each is shown as U+FFFD, so the text stays valid UTF-8.
+    CHECK(PresetVoiceForDisplay("a\x80" "b") == "a\xEF\xBF\xBD" "b");
+    CHECK(PresetVoiceForDisplay("a\xD0") == "a\xEF\xBF\xBD");
+}
+
+TEST_CASE("Preset voice for display: control characters become spaces and direction marks go") {
+    CHECK(PresetVoiceForDisplay("a\nb\r\nc\td") == "a b  c d");
+    CHECK(PresetVoiceForDisplay(std::string("a\0b", 3)) == "a b");
+    CHECK(PresetVoiceForDisplay("ab\xE2\x80\xAE" "cd") == "abcd");  // U+202E right-to-left override
+    CHECK(PresetVoiceForDisplay("ab\xE2\x80\x8F" "cd") == "abcd");  // U+200F right-to-left mark
 }

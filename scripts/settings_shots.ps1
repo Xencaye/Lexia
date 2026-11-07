@@ -58,6 +58,8 @@ $shots = @(
     @('sheet-presetSaved',       @('--page', 'voices', '--sheet', 'presetSaved')),
     @('sheet-presetLoaded',      @('--page', 'voices', '--sheet', 'presetLoaded')),
     @('sheet-presetFailed',      @('--page', 'voices', '--sheet', 'presetFailed')),
+    @('sheet-presetLoadedOther', @('--page', 'voices', '--sheet', 'presetLoadedOther')),
+    @('sheet-presetNotInstalled', @('--page', 'voices', '--sheet', 'presetNotInstalled')),
     # K.4, the Settings page: each Key's card, the capture state and the switches (the owner's reference look)
     @('settings-read',     @('--page', 'settings', '--select', 'read')),
     @('settings-pause',    @('--page', 'settings', '--select', 'pause')),

@@ -31,10 +31,24 @@ void Screen::Tick(double now) {
     const bool was = animating_;
     animating_ = now_ < animUntil_;
     if (was || animating_) dirty_ = true;
+    if (wakeAt_ > 0 && now_ >= wakeAt_) {
+        wakeAt_ = 0;  // reached: the repaint lets the widget move, or note its next wake-up
+        dirty_ = true;
+    }
 }
 
 void Screen::NoteAnimationUntil(double endTime) {
     animUntil_ = std::max(animUntil_, endTime);
+}
+
+void Screen::NoteWakeAt(double time) {
+    if (time <= now_) return;
+    if (wakeAt_ <= 0 || time < wakeAt_) wakeAt_ = time;
+}
+
+std::optional<double> Screen::NextWakeTime() const {
+    if (wakeAt_ <= 0) return std::nullopt;
+    return wakeAt_;
 }
 
 bool Screen::NeedsTick() const {
@@ -61,6 +75,7 @@ void Screen::Layout(Canvas& canvas) {
 }
 
 void Screen::Paint(Canvas& canvas, const Palette& palette) {
+    wakeAt_ = 0;  // the widgets that are drawn now note their wake-ups again
     Layout(canvas);
     root_->PaintTree(canvas, palette);
     for (const Layer& layer : layers_) {

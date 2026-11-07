@@ -77,8 +77,11 @@ public:
     virtual void VoiceRefused(const ProblemFacts& facts) = 0;
     virtual void VoiceDeleteFailed(const std::string& voice, VoiceProblem problem) = 0;
     virtual void PresetSaved(const std::string& fileName) = 0;
-    virtual void PresetLoaded(const std::string& fileName) = 0;
-    virtual void PresetFailed(PresetProblem problem) = 0;
+    // `voice`: the Voice whose controls were set. `voiceIsActive` false: it is not the active Voice, so the
+    // sound does not change until the person chooses it.
+    virtual void PresetLoaded(const std::string& voice, bool voiceIsActive) = 0;
+    // `voice`: only for VoiceNotInstalled, the name from the file, already shortened for display (empty otherwise).
+    virtual void PresetFailed(PresetProblem problem, const std::string& voice) = 0;
 };
 
 // The words of a problem in the Interface language `interfaceLanguage`: the text of ProblemTextId with {language}

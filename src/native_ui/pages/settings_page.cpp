@@ -12,7 +12,7 @@ namespace nui {
 
 namespace {
 
-constexpr float kPlayRadius = 4;  // `--radius` of the old .icon-btn
+constexpr float kReadRadius = 4;  // `--radius` of the old .icon-btn: the hover tile and the focus ring
 
 Colour Clear(Colour c) { return {c.rgb, 0.0f}; }
 
@@ -84,29 +84,51 @@ bool KeyRow::AccSelect() {
     return true;
 }
 
-// ---------------------------------------------------------------------------- KeyPlayButton ---
+// ---------------------------------------------------------------------------- KeyReadButton ---
 
-KeyPlayButton::KeyPlayButton() {
+KeyReadButton::KeyReadButton() {
     SetRole(Role::Button);
-    SetSize(layout::kKeyPlaySize, layout::kKeyPlaySize);
+    SetSize(layout::kKeyReadHit, layout::kKeyReadHit);
 }
 
-void KeyPlayButton::Paint(Canvas& canvas, const Palette& p) {
+void KeyReadButton::Paint(Canvas& canvas, const Palette& p) {
     const RectF r = Abs();
     const float a = VisualAmount();
-    // Idle: no fill on the card; hover: `line`; pressed: accent. The outline is always there.
-    const Colour fill = Ramp(Clear(p.line), p.line, p.accent, a);
-    if (fill.alpha > 0.0f) canvas.FillRect(r, fill, kPlayRadius);
-    const float half = layout::kKeyPlayBorder / 2;
-    canvas.StrokeRect({r.x + half, r.y + half, r.w - 2 * half, r.h - 2 * half}, p.accent, layout::kKeyPlayBorder,
-                      kPlayRadius - half);
-    const float off = (r.w - layout::kKeyPlayIcon) / 2;
-    canvas.Icon({r.x + off, r.y + off, layout::kKeyPlayIcon, layout::kKeyPlayIcon}, "play-03",
-                Ramp(p.accent, p.accent, p.onAccent, a));
-    if (RingVisible()) DrawFocusRing(canvas, p, r, kPlayRadius);
+    // Idle: the icon alone, in accent, on the card (no tile, no ring). Hover: the `line` tile of the design's
+    // icon buttons; pressed: an accent tile and an on-accent icon.
+    const Colour tile = Ramp(Clear(p.line), p.line, p.accent, a);
+    if (tile.alpha > 0.0f) canvas.FillRect(r, tile, kReadRadius);
+    const float off = (r.w - layout::kKeyReadIcon) / 2;
+    const RectF icon{r.x + off, r.y + (r.h - layout::kKeyReadIcon) / 2, layout::kKeyReadIcon, layout::kKeyReadIcon};
+    const Colour glyph = Ramp(p.accent, p.accent, p.onAccent, a);
+
+    // The wiggle: a short shake about the icon's centre every kWigglePeriodSeconds, counted from the first
+    // paint (so the button is still when the page opens). None with reduced motion. Between wiggles nothing
+    // ticks: the Screen is asked to wake up at the next start (NoteWakeAt), and only a wiggle that moves asks
+    // for frames (NoteAnimationUntil).
+    float angle = 0;
+    Screen* screen = GetScreen();
+    if (screen && !screen->ReducedMotion()) {
+        const double now = screen->Now();
+        if (start_ < 0) start_ = now;
+        const double elapsed = now - start_;
+        if (WiggleMoving(elapsed)) {
+            angle = WiggleAngle(elapsed);
+            screen->NoteAnimationUntil(start_ + WiggleEnd(elapsed));
+        }
+        screen->NoteWakeAt(start_ + WiggleNextStart(elapsed));
+    }
+    if (angle != 0.0f) {
+        canvas.PushRotation({icon.x + icon.w / 2, icon.y + icon.h / 2}, angle);
+        canvas.Icon(icon, "volume-05", glyph);
+        canvas.PopRotation();
+    } else {
+        canvas.Icon(icon, "volume-05", glyph);
+    }
+    if (RingVisible()) DrawFocusRing(canvas, p, r, kReadRadius);
 }
 
-AccessInfo KeyPlayButton::Access() const {
+AccessInfo KeyReadButton::Access() const {
     AccessInfo a = BaseAccess();
     a.role = Role::Button;
     return a;
@@ -201,10 +223,10 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
     cardTitle_ = card_->Add<Label>();
     cardTitle_->SetStyle(layout::kKeyCardTitleFont, FontWeight::Bold);
     cardTitle_->SetAccessHidden(true);  // the card is a group of the same name
-    play_ = card_->Add<KeyPlayButton>();
-    play_->SetAutomationId("settings.card.play");
+    read_ = card_->Add<KeyReadButton>();
+    read_->SetAutomationId("settings.card.play");
     card_->SetAutomationId("settings.card");
-    play_->SetOnActivate([this] {
+    read_->SetOnActivate([this] {
         if (selected_.empty()) return;
         PageMessage m = MakeMessage(PageMessageType::ReadKeyCard, "readKeyCard");
         m.action = selected_;  // the host knows the words: the page sends only which key
@@ -323,8 +345,8 @@ void SettingsPage::ShowCard() {
     const std::string full = selected_.empty() ? std::string() : T(KeyId(selected_).c_str());
     cardTitle_->SetText(full);
     const std::string readAloud = F(strings::id::kWindowKeysReadAloud, {{"action", full}});
-    play_->SetName(readAloud);
-    play_->SetTooltip(readAloud);
+    read_->SetName(readAloud);
+    read_->SetTooltip(readAloud);
     cardBody_->SetText(selected_.empty() ? std::string() : T(KeyId(selected_, "Desc").c_str()));
     hint_->SetText(capturing_.empty() ? std::string() : T(strings::id::kWindowKeysCaptureHint));
     card_->SetName(full);
@@ -407,12 +429,15 @@ void SettingsPage::Relayout(Canvas& canvas) {
         const SizeF s = chip->Measure(canvas, layout::kKeysW);
         chip->SetBounds({layout::kKeysW - s.w, 0, s.w, layout::kKeyRowH});
     }
-    // The head: the title, then the play button 12 after it, centred on the head's 28 DIPs.
+    // The head: the read button first, then the title. The button's hit area (28) is wider than its icon (24),
+    // so it starts 2 before the padding line and the icon itself sits on it; the title follows the icon by 10.
+    const float hitPad = (layout::kKeyReadHit - layout::kKeyReadIcon) / 2;
+    read_->SetBounds({layout::kKeyCardPadX - hitPad,
+                      layout::kKeyCardPadTop + (layout::kKeyCardHeadH - layout::kKeyReadHit) / 2,
+                      layout::kKeyReadHit, layout::kKeyReadHit});
     const float titleW = cardTitle_->Measure(canvas, 0).w;
-    cardTitle_->SetBounds({layout::kKeyCardPadX, layout::kKeyCardPadTop, titleW, layout::kKeyCardHeadH});
-    play_->SetBounds({layout::kKeyCardPadX + titleW + layout::kKeyPlayGap,
-                      layout::kKeyCardPadTop + (layout::kKeyCardHeadH - layout::kKeyPlaySize) / 2,
-                      layout::kKeyPlaySize, layout::kKeyPlaySize});
+    cardTitle_->SetBounds({layout::kKeyCardPadX + layout::kKeyReadIcon + layout::kKeyReadGap, layout::kKeyCardPadTop,
+                           titleW, layout::kKeyCardHeadH});
     const float bodyW = layout::kKeyCard.w - 2 * layout::kKeyCardPadX;
     const float bodyY = layout::kKeyCardPadTop + layout::kKeyCardHeadH + layout::kKeyCardTextGap;
     cardBody_->SetBounds({layout::kKeyCardPadX, bodyY, bodyW, cardBody_->Measure(canvas, bodyW).h});

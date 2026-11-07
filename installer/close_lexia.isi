@@ -1,0 +1,138 @@
+// Shared Pascal Script of installer/lexia.iss: closing a running Lexia (K.7). The script includes this file twice,
+// once for Setup (P = "") and once for the uninstaller (P = "un"): Inno Setup compiles Setup and the
+// uninstaller separately, and an uninstaller can only call functions whose names start with "un".
+// Q is the silent test of the one that includes it (WizardSilent / UninstallSilent), W the name that the
+// messages use for it.
+//
+// What it does when Lexia runs (its mutex exists):
+//  1. Asks (Yes / No): "Lexia is running. Setup can close it for you." No = stop.
+//  2. Posts the registered message "Lexia.Quit" to Lexia's hidden window (class LexiaApp), which ends Lexia
+//     like the tray's Quit (clean: speech stops, keys are freed, the icon goes), and waits up to 10 s for the
+//     mutex to go. Lexia lets that message through UIPI, so an elevated Lexia hears it too.
+//  3. Still running (an older Lexia, or one that hangs): asks whether to end it by force. Yes = taskkill as the
+//     user; if that fails (an elevated Lexia: access denied), taskkill with the "runas" verb, one UAC prompt,
+//     which the person can refuse. Lexia keeps no unsaved work, so the force costs only the speech in progress.
+//  4. Still running after that: back to step 1, with the words "still running". No at any question = stop.
+// Silent installs (/SILENT, /VERYSILENT) and silent uninstalls never ask: the message in step 2, then
+// (documented in lexia.iss) taskkill as the user; an elevated Lexia that survives that stops Setup, as a
+// silent run cannot show a UAC prompt.
+
+function {#P}RegisterWindowMessage(Name: String): LongWord;
+external 'RegisterWindowMessageW@user32.dll stdcall';
+
+// The second argument is the window title: 0 = NULL = any title (a String would be "" = an empty title).
+function {#P}FindWindow(ClassName: String; WindowName: Integer): LongWord;
+external 'FindWindowW@user32.dll stdcall';
+
+function {#P}PostMessage(Wnd: LongWord; Msg: LongWord; WParam: LongWord; LParam: LongWord): Integer;
+external 'PostMessageW@user32.dll stdcall';
+
+// Inno Setup's script has no Application.ProcessMessages, and a wait of 10 s without a message loop makes the
+// wizard "not respond" (ghosted after 5 s). So the wait passes the waiting messages on itself (the 32-bit MSG).
+type
+  {#P}TMsg = record
+    Wnd, Message, WParam, LParam, Time: LongWord;
+    PtX, PtY: LongInt;
+  end;
+
+function {#P}PeekMessage(var Msg: {#P}TMsg; Wnd: LongWord; MsgFilterMin, MsgFilterMax, RemoveMsg: LongWord): Integer;
+external 'PeekMessageW@user32.dll stdcall';
+
+function {#P}TranslateMessage(var Msg: {#P}TMsg): Integer;
+external 'TranslateMessage@user32.dll stdcall';
+
+function {#P}DispatchMessage(var Msg: {#P}TMsg): LongInt;
+external 'DispatchMessageW@user32.dll stdcall';
+
+// PM_REMOVE = 1: takes every message that waits and dispatches it, so windows keep painting and answering.
+procedure {#P}PumpMessages();
+var
+  msg: {#P}TMsg;
+begin
+  while {#P}PeekMessage(msg, 0, 0, 0, 1) <> 0 do
+  begin
+    {#P}TranslateMessage(msg);
+    {#P}DispatchMessage(msg);
+  end;
+end;
+
+// Lexia holds the mutex while it runs (src/instance.cpp, Local\Lexia.SingleInstance). Inno Setup opens a name
+// without a prefix in the session's namespace, which is where Local\ is.
+function {#P}LexiaIsRunning(): Boolean;
+begin
+  Result := CheckForMutexes('{#MutexName}');
+end;
+
+// Waits up to timeoutMs for Lexia to end. With askToQuit it also posts Lexia.Quit as soon as Lexia's window
+// exists (a Lexia that is still starting has no window yet, so it is looked for again every 200 ms).
+// True = Lexia has ended.
+function {#P}WaitForLexiaToEnd(timeoutMs: Integer; askToQuit: Boolean): Boolean;
+var
+  waited: Integer;
+  posted: Boolean;
+  wnd: LongWord;
+begin
+  waited := 0;
+  posted := False;
+  while {#P}LexiaIsRunning() and (waited < timeoutMs) do
+  begin
+    if askToQuit and not posted then
+    begin
+      wnd := {#P}FindWindow('{#AppWindowClass}', 0);
+      if wnd <> 0 then
+        posted := {#P}PostMessage(wnd, {#P}RegisterWindowMessage('Lexia.Quit'), 0, 0) <> 0;
+    end;
+    Sleep(200);
+    waited := waited + 200;
+    {#P}PumpMessages();  // keeps the wizard answering and repainting during the wait
+  end;
+  Result := not {#P}LexiaIsRunning();
+end;
+
+// The force step: taskkill as the user, then (not when silent) with the runas verb. True = Lexia has ended.
+function {#P}ForceEndLexia(): Boolean;
+var
+  taskkill: String;
+  rc: Integer;
+begin
+  taskkill := ExpandConstant('{sys}\taskkill.exe');
+  Log('Lexia did not end by itself: taskkill /IM {#AppExe} /F');
+  Exec(taskkill, '/IM {#AppExe} /F', '', SW_HIDE, ewWaitUntilTerminated, rc);
+  Result := {#P}WaitForLexiaToEnd(3000, False);
+  if Result or {#Q} then Exit;
+  // Access denied (an elevated Lexia): the same command once more, elevated. A refused UAC prompt just
+  // leaves Lexia running, and the caller asks again.
+  Log('taskkill as the user did not end Lexia; trying again with the runas verb');
+  ShellExec('runas', taskkill, '/IM {#AppExe} /F', '', SW_HIDE, ewWaitUntilTerminated, rc);
+  Result := {#P}WaitForLexiaToEnd(3000, False);
+end;
+
+// True when Lexia does not run (any more); False when the person chose to stop, or (silent) Lexia would not end.
+function {#P}CloseRunningLexia(): Boolean;
+var
+  asked: Boolean;
+  text: String;
+begin
+  Result := True;
+  asked := False;
+  while {#P}LexiaIsRunning() do
+  begin
+    if {#Q} then
+    begin
+      Log('Lexia is running; closing it (silent).');
+      if not ({#P}WaitForLexiaToEnd(10000, True) or {#P}ForceEndLexia()) then
+        Result := False;
+      Exit;
+    end;
+    if asked then text := CustomMessage('LexiaStillRunning') else text := CustomMessage('LexiaRunning');
+    if MsgBox(FmtMessage(text, [CustomMessage('{#W}')]), mbConfirmation, MB_YESNO) <> IDYES then
+    begin
+      Result := False;
+      Exit;
+    end;
+    asked := True;
+    if {#P}WaitForLexiaToEnd(10000, True) then Exit;
+    if MsgBox(CustomMessage('LexiaForce'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      if {#P}ForceEndLexia() then Exit;
+  end;
+end;
