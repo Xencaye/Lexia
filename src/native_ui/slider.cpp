@@ -84,7 +84,7 @@ void Slider::Paint(Canvas& canvas, const Palette& p) {
     {
         OpacityScope fade(canvas, Active() ? 1.0f : 0.5f);
         canvas.FillRect({box.x, box.y + box.h / 2 - kTrackH / 2, box.w, kTrackH}, p.line);
-        canvas.FillRect(thumb, p.accent);
+        canvas.FillRect(thumb, p.thumb);
     }
     if (RingVisible()) DrawFocusRing(canvas, p, thumb, 0);
 }

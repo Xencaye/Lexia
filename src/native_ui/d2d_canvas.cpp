@@ -9,6 +9,7 @@
 #include "common.h"
 #include "log.h"
 #include "svg_icon.h"
+#include "svg_recolour.h"
 
 namespace nui {
 
@@ -17,7 +18,8 @@ using Microsoft::WRL::ComPtr;
 namespace {
 
 constexpr float kPi = 3.14159265358979f;
-constexpr int kMaxPictureSide = 8192;     // a larger "engraving" is not one of ours: refuse it
+constexpr uint32_t kMaxPictureSidePx = 8192;   // a larger engraving bitmap is not one of ours: refuse it
+constexpr size_t kMaxPictureBytes = 4u << 20;  // the largest engraving file (wolf.svg) is about 0.6 MB
 constexpr size_t kMaxMeasureEntries = 4096;  // the measure cache is cleared when it grows past this
 constexpr float kIconViewport = 24.0f;    // every file of src/res/icons is drawn on a 24 x 24 grid
 
@@ -92,10 +94,10 @@ bool D2dCanvas::EnsureFactories() {
         if (!useAtkinson_) LogWarn("[d2d] The font collection has no family named Atkinson; the UI uses Segoe UI.");
     }
 
-    // WIC decodes the engravings and writes the shots. A failure only costs those two.
+    // WIC writes the shots (SavePng). A failure only costs that.
     const HRESULT wicHr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
                                            IID_PPV_ARGS(&wic_));
-    if (FAILED(wicHr)) LogWarn("[d2d] WIC is not available (", Hex(wicHr), "); pictures are not drawn.");
+    if (FAILED(wicHr)) LogWarn("[d2d] WIC is not available (", Hex(wicHr), "); SavePng cannot write.");
 
     factoriesOk_ = true;
     return true;
@@ -611,75 +613,52 @@ void D2dCanvas::Icon(const RectF& box, std::string_view name, Colour c) {
 
 // -------------------------------------------------------------------------- pictures ---
 
-const D2dCanvas::PictureAlpha* D2dCanvas::AlphaFor(std::string_view name) {
-    const auto found = pictures_.find(std::string(name));
-    if (found != pictures_.end()) return found->second.alpha.empty() ? nullptr : &found->second;
-    PictureAlpha pic;  // stays empty if anything fails; kept so the file is tried once
-    const std::string_view bytes = AssetBytes(AssetKind::Picture, name);
-    if (!bytes.empty() && bytes.size() <= (32u << 20) && wic_ && EnsureFactories()) {
-        ComPtr<IWICStream> stream;
-        ComPtr<IWICBitmapDecoder> decoder;
-        ComPtr<IWICBitmapFrameDecode> frame;
-        ComPtr<IWICFormatConverter> converter;
-        HRESULT hr = wic_->CreateStream(&stream);
-        if (SUCCEEDED(hr)) {
-            hr = stream->InitializeFromMemory(const_cast<BYTE*>(reinterpret_cast<const BYTE*>(bytes.data())),
-                                              static_cast<DWORD>(bytes.size()));
-        }
-        if (SUCCEEDED(hr)) hr = wic_->CreateDecoderFromStream(stream.Get(), nullptr, WICDecodeMetadataCacheOnDemand, &decoder);
-        if (SUCCEEDED(hr)) hr = decoder->GetFrame(0, &frame);
-        UINT w = 0, h = 0;
-        if (SUCCEEDED(hr)) hr = frame->GetSize(&w, &h);
-        if (SUCCEEDED(hr) && (w == 0 || h == 0 || w > kMaxPictureSide || h > kMaxPictureSide)) hr = E_FAIL;
-        if (SUCCEEDED(hr)) hr = wic_->CreateFormatConverter(&converter);
-        if (SUCCEEDED(hr)) {
-            hr = converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, nullptr, 0.0,
-                                       WICBitmapPaletteTypeCustom);
-        }
-        std::vector<uint8_t> bgra;
-        if (SUCCEEDED(hr)) {
-            bgra.resize(static_cast<size_t>(w) * h * 4);
-            hr = converter->CopyPixels(nullptr, w * 4, static_cast<UINT>(bgra.size()), bgra.data());
-        }
-        if (SUCCEEDED(hr)) {
-            // alpha = 1 - luminance, with the CSS luminance coefficients on the sRGB values: the black
-            // lines show, the white paper does not (the old `mask-mode: luminance`, inverted).
-            pic.w = static_cast<int>(w);
-            pic.h = static_cast<int>(h);
-            pic.alpha.resize(static_cast<size_t>(w) * h);
-            for (size_t i = 0; i < pic.alpha.size(); ++i) {
-                const float lum = 0.2126f * bgra[i * 4 + 2] + 0.7152f * bgra[i * 4 + 1] + 0.0722f * bgra[i * 4];
-                pic.alpha[i] = static_cast<uint8_t>(std::clamp(std::lround(255.0f - lum), 0L, 255L));
-            }
-        } else {
-            LogWarn("[d2d] Could not decode the picture ", std::string(name), " (", Hex(hr), ").");
-        }
-    }
-    const auto it = pictures_.emplace(std::string(name), std::move(pic)).first;
-    return it->second.alpha.empty() ? nullptr : &it->second;
-}
-
-ID2D1Bitmap1* D2dCanvas::PictureBitmap(std::string_view name, uint32_t rgb) {
-    const std::pair<std::string, uint32_t> key{std::string(name), rgb & 0xFFFFFFu};
+ID2D1Bitmap1* D2dCanvas::PictureBitmap(std::string_view name, uint32_t rgb, uint32_t wPx, uint32_t hPx) {
+    const auto key = std::make_tuple(std::string(name), rgb & 0xFFFFFFu, wPx, hPx);
     const auto found = pictureBitmaps_.find(key);
-    if (found != pictureBitmaps_.end()) return found->second.Get();
+    if (found != pictureBitmaps_.end()) return found->second.Get();  // one that failed is kept as null
     ComPtr<ID2D1Bitmap1> bitmap;
-    if (const PictureAlpha* pic = AlphaFor(name)) {
-        // Premultiplied BGRA: the tint scaled by the alpha of each pixel.
-        const uint32_t tr = (key.second >> 16) & 0xFF, tg = (key.second >> 8) & 0xFF, tb = key.second & 0xFF;
-        std::vector<uint32_t> px(pic->alpha.size());
-        for (size_t i = 0; i < px.size(); ++i) {
-            const uint32_t a = pic->alpha[i];
-            px[i] = (a << 24) | (((tr * a + 127) / 255) << 16) | (((tg * a + 127) / 255) << 8) | ((tb * a + 127) / 255);
+    // The engravings are SVG files of one colour (#1E1E1E, one path each, K13). Drawing such a path costs
+    // a few milliseconds, so each one is drawn once per colour and pixel size into a bitmap, and a frame
+    // only copies that bitmap. The file is the exe's own resource (assets.h): never a file of the disk.
+    const std::string_view bytes = AssetBytes(AssetKind::Picture, name);
+    float svgW = 0, svgH = 0;
+    if (bytes.empty() || bytes.size() > kMaxPictureBytes || !SvgRootSize(bytes, svgW, svgH)) {
+        if (!bytes.empty()) LogWarn("[d2d] The picture ", std::string(name), " has no usable size; it is not drawn.");
+    } else if (wPx > 0 && hPx > 0 && wPx <= kMaxPictureSidePx && hPx <= kMaxPictureSidePx && d2dDevice_) {
+        const std::string svg = RecolourSvg(std::string(bytes), std::get<1>(key));
+        // A device context of its own, so the frame being drawn on dc_ is not touched (a bitmap of the same
+        // device can be drawn by dc_ afterwards).
+        ComPtr<ID2D1DeviceContext> ctx1;
+        ComPtr<ID2D1DeviceContext5> ctx;
+        HRESULT hr = d2dDevice_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &ctx1);
+        if (SUCCEEDED(hr)) hr = ctx1.As(&ctx);
+        if (SUCCEEDED(hr)) {
+            // 96 dpi, so one DIP of this context is one pixel of the bitmap.
+            const D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
+                D2D1_BITMAP_OPTIONS_TARGET, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+                96.0f, 96.0f);
+            hr = ctx->CreateBitmap(D2D1::SizeU(wPx, hPx), nullptr, 0, props, &bitmap);
         }
-        const D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
-            D2D1_BITMAP_OPTIONS_NONE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
-            96.0f, 96.0f);
-        const HRESULT hr = dc_->CreateBitmap(D2D1::SizeU(static_cast<UINT32>(pic->w), static_cast<UINT32>(pic->h)),
-                                             px.data(), static_cast<UINT32>(pic->w) * 4, props, &bitmap);
+        ComPtr<ID2D1SvgDocument> doc;
+        if (SUCCEEDED(hr)) {
+            ComPtr<IStream> stream;
+            stream.Attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(svg.data()), static_cast<UINT>(svg.size())));
+            hr = stream ? ctx->CreateSvgDocument(stream.Get(), D2D1::SizeF(svgW, svgH), &doc) : E_OUTOFMEMORY;
+        }
+        if (SUCCEEDED(hr)) {
+            ctx->SetTarget(bitmap.Get());
+            ctx->BeginDraw();
+            ctx->Clear(D2D1::ColorF(0, 0.0f));
+            // The file's own units, stretched to the bitmap (the box already has the picture's proportions).
+            ctx->SetTransform(D2D1::Matrix3x2F::Scale(static_cast<float>(wPx) / svgW, static_cast<float>(hPx) / svgH));
+            ctx->DrawSvgDocument(doc.Get());
+            hr = ctx->EndDraw();
+            ctx->SetTarget(nullptr);
+        }
         if (FAILED(hr)) {
             bitmap.Reset();
-            LogWarn("[d2d] Could not make the bitmap of the picture ", std::string(name), " (", Hex(hr), ").");
+            LogWarn("[d2d] Could not draw the picture ", std::string(name), " (", Hex(hr), ").");
         }
     }
     return pictureBitmaps_.emplace(key, std::move(bitmap)).first->second.Get();
@@ -687,13 +666,13 @@ ID2D1Bitmap1* D2dCanvas::PictureBitmap(std::string_view name, uint32_t rgb) {
 
 void D2dCanvas::Picture(const RectF& box, std::string_view name, Colour tint, float opacity) {
     if (!Drawing() || box.w <= 0 || box.h <= 0) return;
-    ID2D1Bitmap1* bitmap = PictureBitmap(name, tint.rgb);
+    // The bitmap is made at the box's size in device pixels, so it is drawn 1:1 and stays sharp at any DPI.
+    const auto px = [this](float dips) { return static_cast<uint32_t>(std::lround(std::max(1.0f, dips * Scale()))); };
+    ID2D1Bitmap1* bitmap = PictureBitmap(name, tint.rgb, px(box.w), px(box.h));
     if (!bitmap) return;
     const D2D1_RECT_F dest = D2D1::RectF(box.x, box.y, box.Right(), box.Bottom());
-    // The mask is stretched to the box (the old `mask-size: 100% 100%`); the page gives the box the
-    // picture's own proportions. HIGH_QUALITY_CUBIC filters well when the picture is drawn smaller.
-    dc_->DrawBitmap(bitmap, &dest, std::clamp(opacity, 0.0f, 1.0f) * tint.alpha,
-                    D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC, nullptr, nullptr);
+    dc_->DrawBitmap(bitmap, &dest, std::clamp(opacity, 0.0f, 1.0f) * tint.alpha, D2D1_INTERPOLATION_MODE_LINEAR,
+                    nullptr, nullptr);
 }
 
 // ------------------------------------------------------------------------ clip, opacity ---

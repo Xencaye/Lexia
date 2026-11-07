@@ -71,7 +71,7 @@ public:
 
     // An SVG icon of src/res/icons (now resources), drawn in one colour into `box` (square).
     virtual void Icon(const RectF& box, std::string_view name, Colour c) = 0;
-    // An engraving (black lines on white JPEG) as a mask: alpha = 1 - luminance, colour = tint.
+    // An engraving (an SVG file of src/res/img in one colour, K13) drawn in `tint`, stretched to `box`.
     virtual void Picture(const RectF& box, std::string_view name, Colour tint, float opacity) = 0;
 
     // Clip and opacity layers; each Push has one Pop.

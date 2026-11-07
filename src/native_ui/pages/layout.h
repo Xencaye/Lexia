@@ -33,7 +33,7 @@ constexpr RectF kFlute{692, 444, 100, 150};
 
 // ---- Home (pages.css) --------------------------------------------------------------------------------
 constexpr RectF kBee{266, 170, 266, 230};
-constexpr float kBeeOpacity = 0.9f;
+constexpr float kBeeOpacity = 1.0f;  // K13: opaque, the palette tint is the whole look (the mockups of Nov 8)
 constexpr RectF kPower{338, 218, 124, 124};
 // The power glyph is the old SVG (viewBox 64, stroke 4.4) at 104 DIPs inside the 124 circle.
 constexpr float kPowerGlyphSize = 104, kPowerGlyphViewBox = 64, kPowerGlyphStroke = 4.4f;
@@ -61,7 +61,7 @@ constexpr float kKeyHintFont = 13;
 
 // ---- Report, Help (pages.css) --------------------------------------------------------------------------
 constexpr RectF kDog{-13, 124, 406, 394};
-constexpr float kDogOpacity = 0.66f;
+constexpr float kDogOpacity = 1.0f;  // K13: opaque, the palette tint is the whole look (the mockups of Nov 8)
 constexpr float kBigX = 273, kBigY = 155, kBigFont = 24, kBigLine = 30;  // the Report title (two lines)
 constexpr float kBigLetterSpacing = 0.01f * kBigFont;  // `letter-spacing: 0.01em` of `.big` (Report and Help titles)
 constexpr float kReportTextX = 273, kReportTextY = 231, kReportTextW = 480, kBodyLine = 20;
@@ -71,7 +71,7 @@ constexpr float kHelpTitleY = 242, kHelpTextY = 288;  // centred across the wind
 
 // ---- About (pages.css) ----------------------------------------------------------------------------------
 constexpr RectF kWolf{17, 192, 286, 314};
-constexpr float kWolfOpacity = 0.72f;
+constexpr float kWolfOpacity = 1.0f;  // K13: opaque, the palette tint is the whole look (the mockups of Nov 8)
 constexpr float kAboutHeadX = 273, kAboutHeadY = 105, kAboutHeadFont = 24, kAboutHeadLine = 30;
 constexpr float kAboutTopX = 273, kAboutTopY = 152, kAboutTopW = 300, kAboutTopGap = 11;
 // The text that goes round the wolf: 14 px, line height 17.5, 330 wide, paragraphs 17 apart. The indent of
@@ -94,7 +94,7 @@ constexpr RectF kVoiceNone{273, 170, 254, 36};
 constexpr float kVoiceNoneFont = 13, kVoiceNoneLine = 13 * 1.35f;
 constexpr RectF kVoiceRule{340, 197, 120, 1};
 constexpr RectF kOtter{318, 378, 162, 76};
-constexpr float kOtterOpacity = 0.55f;
+constexpr float kOtterOpacity = 1.0f;  // K13: opaque, the palette tint is the whole look (the mockups of Nov 8)
 // The preset links: left 274, 24 tall from y = 482, 18 apart; word 17, icon 24.
 constexpr float kPresetsX = 274, kPresetsY = 482, kPresetsH = 24, kPresetsGap = 18, kPresetsFont = 17,
                 kPresetsIcon = 24;

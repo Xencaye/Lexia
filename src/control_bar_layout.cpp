@@ -25,7 +25,10 @@ bool Contains(const Rect& r, Point p) {
 BarLayout LayoutBar(const BarState& st, int dpi) {
     auto s = [dpi](int v) { return ScaleForDpi(v, dpi); };
     const bool large = st.size == BarSize::Large;
-    const bool active = (st.speaking || st.paused) && !st.analysing;
+    // K13 (owner): Pause, Skip and Stop are greyed only while the Analysis runs (control_bar_*_analysing.png);
+    // once it is done they look and work as on (control_bar_*.png), also before anything speaks. A press then
+    // does nothing harmful: the Reading queue ignores Pause, Skip and Stop while it is empty.
+    const bool active = !st.analysing;
 
     BarLayout l;
     l.height = s(60);

@@ -16,7 +16,7 @@ enum class BarButton { Pause, Skip, Stop, Help, Size, None };
 
 struct BarState {
     BarSize size = BarSize::Large;
-    bool analysing = false;  // the Analysis job is running: Pause, Skip and Stop are disabled
+    bool analysing = false;  // the Analysis job is running: Pause, Skip and Stop are disabled (only then, K13)
     bool speaking = false;   // the Reading queue holds something and is not paused
     bool paused = false;
     // Width in device pixels of the word each of Pause, Skip and Stop shows now (Pause: Resume while

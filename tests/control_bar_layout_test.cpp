@@ -176,10 +176,11 @@ TEST_CASE("LayoutBar: a longer word widens its button and so the bar") {
     CHECK(W(Find(l, BarItemKind::Button, BarButton::Skip)->word) == 137);
 }
 
-TEST_CASE("LayoutBar: Pause, Skip and Stop work only while something speaks or is paused") {
+TEST_CASE("LayoutBar: once the Analysis is done Pause, Skip and Stop work, also before anything speaks") {
+    // K13 (owner): only the Analysis greys them; the idle bar after it looks like the speaking one.
     const BarLayout idle = LayoutBar(Idle(), 96);
     for (BarButton b : {BarButton::Pause, BarButton::Skip, BarButton::Stop}) {
-        CHECK_FALSE(Find(idle, BarItemKind::Button, b)->enabled);
+        CHECK(Find(idle, BarItemKind::Button, b)->enabled);
     }
     CHECK(Find(idle, BarItemKind::Button, BarButton::Help)->enabled);
     CHECK(Find(idle, BarItemKind::Button, BarButton::Size)->enabled);
@@ -229,7 +230,9 @@ TEST_CASE("HitTest: a point on a button is that button, on the grip is the grip"
 }
 
 TEST_CASE("HitTest: a disabled button is still a button, but not enabled") {
-    const BarLayout l = LayoutBar(WithWords(Idle()), 96);
+    BarState st = WithWords(Idle());
+    st.analysing = true;  // the only time a tile is disabled (K13)
+    const BarLayout l = LayoutBar(st, 96);
     const Rect stop = Find(l, BarItemKind::Button, BarButton::Stop)->tile;
     const BarHit hit = HitTest(l, {stop.left + 2, stop.top + 2});
     CHECK(hit.kind == BarItemKind::Button);

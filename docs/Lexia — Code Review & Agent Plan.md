@@ -27,11 +27,11 @@ numbers in this plan (#1–#42) and the tag `v0.5.0` are in the old history, now
 Carried over from 0.5 into 0.6 (the owner's):
 
 - **D7**: the owner supplies the tutorial video (the key card is read aloud instead of clips: D10).
-- **D8**: the owner's by-hand tests, the final dark palette, and the 6 colour pairs of the design that fail the contrast check.
+- **D8**: the owner's by-hand tests; the final dark palette came in K13 (Nov 8), with the colour pairs of the design that fail the contrast check listed there.
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-Merged into `main` (Nov 7, PRs #1 to #8): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); G1 (the read-along bar on the Overlay, PR #2), G2 (the read-along layer after you leave the Overlay, PR #3) and the H5 plan (PR #4); K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2, PR #5); K10 (the window's own minimise and close buttons, no Windows title bar, PR #6); the final switch-card texts (PR #7); K11 (the card's read button is also a stop button, PR #8). **K12** (the owner's new logo SVGs for the icons; the feature called read-along everywhere; glossary audit) is built on `feat/K12-logo-and-names`, in a PR to `main`. **Your open checks:** K7 (done on `main`), and the by-hand checks of G1, G2, K9, K10, K11 and K12 (each task below has its list); the colour palette (the final dark one, D8) comes next from you.
+Merged into `main` (Nov 7, PRs #1 to #8): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); G1 (the read-along bar on the Overlay, PR #2), G2 (the read-along layer after you leave the Overlay, PR #3) and the H5 plan (PR #4); K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2, PR #5); K10 (the window's own minimise and close buttons, no Windows title bar, PR #6); the final switch-card texts (PR #7); K11 (the card's read button is also a stop button, PR #8). **K12** (the owner's new logo SVGs for the icons; the feature called read-along everywhere; glossary audit) is built on `feat/K12-logo-and-names` (PR #9). **K13** (the final light and dark palette, the engravings as SVG, the logo colour) is built on `feat/K13-palette-svg`. **Your open checks:** K7 (done on `main`), and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13 (each task below has its list).
 Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -301,7 +301,7 @@ The C++ side of D2–D7 waited for your approval of D0 (Oct 28). D8 (Nov 3) repl
 
   - Fixes after the owner's review (Nov 5): a bold menu word keeps its room, so the other menu items do not move (`components.css`, `data-bold-room`); the About text goes around the engraving (`shape-outside`, measured on `wireframe/about.png`, and 14 px as in the design); the Control bar's Pause button is as wide as the word it shows, so every gap is 18 px as in the mockup (the bar gets wider when Pause becomes Resume and keeps its left edge); the Master volume moves in steps of 5 %, like the Voice controls. The bar's colours stay: the light theme already matches the mockups, and the dark one waits for the owner's palette. Second About mockup (Nov 5): the second block and the icons 33 px higher, new line edges (27, 23, 15 / 11, 7, 0 px), and a smaller two-line notice whose "here" opens THIRD-PARTY-NOTICES.txt; the package step also copies that file and LICENSE next to the dev exe, so the link works from `build\Release` too.
 
-  *Your check:* the by-hand tests, the final dark palette (the current one is temporary), and the 6 colour pairs of the design that fail `ui_contrast.ps1`.
+  *Your check:* the by-hand tests. The final dark palette came in K13 (Nov 8); its low-contrast pairs are listed there.
 
 ### E — Bulgarian (owns `language.*`; needs P0.6, B1 for E5) — on hold until 0.8
 
@@ -598,6 +598,40 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
     pages, Master volume in the frame); Key card (new term); Preset file (Voices page; loads into the Voice the file
     names); Interface language (no Overlay hints); Language key (offered Languages); Run as admin (Setup task); the
     quit note (the tray exists); UI words are British English (since K12).
+- [x] **K13 The final palette and SVG engravings (built Nov 8 on `feat/K13-palette-svg`, from `feat/K12-logo-and-names`; owner check open).**
+  The owner's final mockups for 0.6.0 (light and dark of every page and of the Control bar) and the engravings
+  vectorised as SVG.
+  - **Engravings as SVG.** `src/res/img/*.svg` (bee, dog, flute, otter, wine, wolf: one path each, fill #1E1E1E)
+    replace the JPEGs; CMake embeds `src/res/img/*.svg` as `PICTURE/<stem>`. `D2dCanvas::Picture` recolours the file to
+    the tint (`RecolourSvg`), reads its size from the root tag (`SvgRootSize`, new in `svg_recolour.*`, pure, tested) and
+    draws it once per (name, colour, pixel size) into a bitmap of the device with a device context of its own; a frame
+    only copies that bitmap. The WIC JPEG decode and the luminance mask are gone (WIC still writes the shots).
+  - **Palette (`palette.cpp`, both sets from the mockups).** Light: power On hover #897069, Control bar tile #CBBDAB,
+    the engravings opaque in the line colour #D9CFC4 (the bee #6E504A while On, the wine in the card as the paper
+    colour). Dark: paper #262626, card #333333, ink #B8B8B8, line #4B4B4B, accent #708C87, text and glyphs on the accent
+    #262626, power hovers #2B2C2C / #617874, tile #4B4B4B, engravings #4B4B4B (the wine #262626); `danger` keeps the
+    earlier dark value (no error text in the mockups). New tokens: `windowIcon` (minimise and close, idle: #D9CFC4 /
+    #E3E3E3), `buttonText` (the enable button and a sheet's main button: #FBF6F0 / #E3E3E3), `quietText` (the disable
+    button, a quiet button, an unset key chip: #6E504A / #B8B8B8), `thumb` (slider thumbs: #6E504A / #B8B8B8). The
+    engraving opacities are 1. A disabled switch row is drawn in the line colour (not at half opacity). Control bar:
+    a dead tile and its word are the card grey in dark, Help and the size icon the line grey in dark.
+  - **Control bar states (owner, Nov 8).** The `_analysing` mockups are the bar while the Analysis runs, when the
+    Overlay has just opened; the plain ones are the bar once it is done. So Pause, Skip and Stop are disabled only
+    while the Analysis runs (`LayoutBar`); before, they were also disabled while nothing spoke. A press while nothing
+    speaks does nothing (the Reading queue ignores it).
+  - **Logo.** The rounded square of both logo files is #262626 (was #1E1E1E); `lexia.ico` and `lexia_off.ico` are made
+    again with `make_tray_icons.ps1`.
+  - **Mockups.** `wireframe/<page>.png` (light) and `<page>_dark.png` replace the old ones, the Control bar's
+    `control_bar_<size>_analysing[_dark].png` too; the superseded `palette_and_buttons.png`, `settings-1.png` and
+    `settings-2.png` are deleted. `wireframe/html-reference/` stays as the layout spec (its colours are the old ones).
+  - **Contrast (`palette_test.cpp`, reported to the owner, not changed).** Dark pairs below the minimum: text on the
+    accent 4.17 (key chip, 4.5), the enable button's text 2.83, the disable button's text 4.40, an icon button's hover
+    2.41, Help / size on the bar 1.73, accent on a bar tile 2.41, the bar tile edge 1.73. Light: the idle window icons
+    1.35 (as the other line pairs).
+  - Verified: ctest (886 tests), the page shots light and dark mapped colour by colour onto the mockups (`settings_shots.ps1`),
+    the Control bar pictures (`lexia_barshot`) against `control_bar_*`.
+  - *Your check:* every page light and dark, the sheets (no mockup: they take the same tokens), the Control bar in a
+    Session, the tray icons On and Off, and the low-contrast dark pairs above.
   - **Verification:** Release build with 0 warnings, `ctest` 883 of 883 (`uia_tree` and `read_along_layer` ran), `score_layout.ps1` OK (no Fixture worse). `git grep -i "word mark"` finds only the glossary's "Avoid" lists and this note. The 16, 32 and 256 px frames were looked at.
   *Your check:* the exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and on a
     light taskbar: the dark tile #1E1E1E can be hard to see on a dark taskbar), the Setup icon and the installer's
@@ -627,7 +661,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1), with K9, K10 and K11 (PRs #5 to #8; the switch-card texts, PR #7); K12 (the logo and the names) built on `feat/K12-logo-and-names`; your checks are open: K7 and the by-hand checks of G1, G2, K9, K10, K11 and K12 (owner, Nov 7); the palette comes next from you.
+5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1), with K9, K10 and K11 (PRs #5 to #8; the switch-card texts, PR #7); K12 (the logo and the names, PR #9) and K13 (the final palette and SVG engravings, Nov 8); your checks are open: K7 and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13.
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland. Also H5: the Windows files signed through SignPath Foundation, if SignPath accepts Lexia (moved from 0.6 on Nov 7).
 

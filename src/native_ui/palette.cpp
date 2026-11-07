@@ -6,18 +6,24 @@
 namespace nui {
 
 const Palette& PaletteFor(bool dark) {
-    // Light: the owner's D8 design.
+    // Both sets are read from the owner's mockups of Nov 8 (K13). In the field order of Palette:
+    // paper, card, ink, line, accent, onAccent, danger,
+    // powerOffHover, powerOnHover, tile, windowIcon, buttonText, quietText, thumb,
+    // the six engraving tints (flute, bee Off, bee On, otter, wine, dog and wolf), scrim.
+    // The engravings are drawn opaque in their tint: in light the line colour (the bee in the accent while On),
+    // the wine in the card as the paper colour; in dark all of them in the line colour, the wine as paper.
     static const Palette kLight{
         {0xF5EFE8}, {0xFBF6F0}, {0x6D6154}, {0xD9CFC4}, {0x6E504A}, {0xFBF6F0}, {0x8A3A30},
-        {0xEEE6DE}, {0x856A65}, {0xBEA991},
-        {0xBBAD9F}, {0xCBBDB0}, {0xA87A72}, {0xB3A49C}, {0xE3D3C7}, {0x74594F},
+        {0xEEE6DE}, {0x897069}, {0xCBBDAB}, {0xD9CFC4}, {0xFBF6F0}, {0x6E504A}, {0x6E504A},
+        {0xD9CFC4}, {0xD9CFC4}, {0x6E504A}, {0xD9CFC4}, {0xF5EFE8}, {0xD9CFC4},
         {0x3C3028, 0.45f},
     };
-    // TODO(owner): the final dark palette. These are placeholders of the same roles.
+    // The dark set: neutral greys with a sea-green accent. The mockups show no error text, so `danger` is the
+    // earlier dark value (it reads on both paper and card); the scrim is unchanged.
     static const Palette kDark{
-        {0x2A2420}, {0x342D28}, {0xE8DED3}, {0x574C44}, {0xDABDB4}, {0x2A2420}, {0xF0A79B},
-        {0x3A322C}, {0xE6CEC6}, {0xBEA991},
-        {0x5C4F46}, {0x5C4F46}, {0xD6B8AF}, {0x7A6A60}, {0x463B34}, {0xB69A90},
+        {0x262626}, {0x333333}, {0xB8B8B8}, {0x4B4B4B}, {0x708C87}, {0x262626}, {0xF0A79B},
+        {0x2B2C2C}, {0x617874}, {0x4B4B4B}, {0xE3E3E3}, {0xE3E3E3}, {0xB8B8B8}, {0xB8B8B8},
+        {0x4B4B4B}, {0x4B4B4B}, {0x4B4B4B}, {0x4B4B4B}, {0x262626}, {0x4B4B4B},
         {0x000000, 0.55f},
     };
     return dark ? kDark : kLight;
