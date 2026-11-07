@@ -32,7 +32,7 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
 In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 to K4 are done and
-merged there; K5 (UI Automation) is next.
+merged there; K5 (UI Automation) is done on `feat/K.5`; K6 is next.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -421,9 +421,29 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   (light and dark): positions within 1 DIP; the card text and the switch labels sit 1 DIP lower than in the browser.
   The owner's by-hand check of the capture (F-keys, Alt and Ctrl combinations, F10, PrintScreen; Lexia's keys work
   again after a capture) is part of K7.
-- [ ] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
+- [x] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
+  *Done (`feat/K.5`):* `native_ui/access_tree.*` (pure: the accessible projection of the widget tree, the modal sheet
+  that hides the page, `CheckAccess` / `PerformAccess`, `AccessTracker` + `AccessObserver` for focus, property,
+  structure and live-region changes), the action hooks on the widgets (`AccInvoke` / `AccSetValue` / `AccExpand` /
+  `AccSelect`), automation ids on the main controls, `native_ui/uia_provider.*` (`UiaHost` + one COM `Element`: root
+  fragment, one fragment per offered widget, Invoke / Toggle / RangeValue / Value / ExpandCollapse / Selection /
+  SelectionItem / ScrollItem / Window, the events, `UseComThreading`, a shared `alive` context cleared on
+  `WM_DESTROY`, actions queued to the message loop), `SettingsWindow` forwards `WM_GETOBJECT` and the rest;
+  `native_ui_access_test.cpp` (18 cases) and the UIA client exe `lexia_uia_test` (ctest `uia_tree`: skips with exit 0
+  when there is no interactive desktop). A switch is a Button + Toggle with the control type text "switch" (strings
+  `uia.switch`); a slider offers its number (RangeValue), not its value text. **K7 must check with Narrator:** see below.
 - [ ] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
-- [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator, dark mode,
+- [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator (the K5 list: turn
+  Narrator on with Win+Ctrl+Enter; the Settings window opens at the window title; Tab through the home page and hear
+  each name and role; the power button says "Lexia On / Off" with its state, and Space or Enter changes it; the
+  six links read as links and the current page as selected; the Master volume and the Voice sliders say their name and
+  number, and the arrow keys change them; on the Voices page the Voice choice says its value and opens with Alt+Down
+  or Enter, the arrow keys read each Voice and Enter chooses; Delete voice opens a dialog that is read by its title,
+  and the page under it cannot be reached (Narrator scan mode stays inside it) until Esc; on the Settings page each
+  key says its action and key, a press starts the capture and the hint "Press the new key..." is read at once, the five
+  switches read as "switch" with on or off, and a disabled Start minimised says it is unavailable; Narrator's
+  caps lock + F5 / Insert + Space actions work on every button; the download sheet's rows are read and the
+  list scrolls to the focused one; if a switch is read badly try CheckBox in `ControlTypeOf`), dark mode,
   150 % / 200 % and a move between monitors.
 
 ## Order and milestones
