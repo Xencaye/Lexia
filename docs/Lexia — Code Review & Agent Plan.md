@@ -4,7 +4,7 @@ Oct 23, 2026 · @Eleonora · updated Oct 25, 2026 after the design grilling (see
 
 **Lexia 0.6.0 was released on Nov 8, 2026** (tag `v0.6.0`: the installer and a portable zip): read-along (G1, G2),
 the native Settings window (K), the owner's logo, and the final light and dark palette (K12, K13). Future changes go
-into **Lexia 0.7** (`vcpkg.json` says 0.7.0 after the release). **Lexia 0.5.0** was released on Nov 5, 2026 (tag
+into **Lexia 0.7** (`vcpkg.json` says 0.7.0). **Lexia 0.5.0** was released on Nov 5, 2026 (tag
 `v0.5.0`). Lexia 0.5 turned the console
 prototype into an app people with dyslexia can install and use without editing files:
 - neural voices, English only (ADR-0007; language support is planned for Lexia 0.8);
