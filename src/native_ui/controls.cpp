@@ -276,6 +276,19 @@ void KeyChip::SetState(State s) {
     Invalidate();
 }
 
+// The hover and focus flags come here through Widget::StateChanged. Compare with the last seen values so
+// each callback fires once per change, not on every redraw-driven call.
+void KeyChip::StateChanged() {
+    Clickable::StateChanged();
+    const bool reached = (hovered_ && !wasHovered_) || (focused_ && !wasFocused_);
+    const bool blurred = wasFocused_ && !focused_;
+    wasHovered_ = hovered_;
+    wasFocused_ = focused_;
+    if (reached && onReach_) onReach_();
+    // The callback runs last: it may change this chip's state (the capture ends).
+    if (blurred && state_ == State::Capturing && onBlur_) onBlur_();
+}
+
 bool KeyChip::OnKey(const KeyEvent& ev) {
     if (state_ == State::Capturing) {
         if (onKey_) onKey_(ev);

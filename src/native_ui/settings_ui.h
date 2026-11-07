@@ -38,6 +38,9 @@ public:
     SettingsUi& operator=(const SettingsUi&) = delete;
 
     void ShowPage(Page page);
+    // Also tells the page where to open (ShowOptions: the Settings page selects a key / starts a capture).
+    // App does not need it (it opens a page by name); the picture tool and the tests do.
+    void ShowPage(Page page, const ShowOptions& options);
     Page CurrentPage() const { return page_; }
     PageView* Current() const { return view_; }  // the page that shows (never null)
     Frame& GetFrame() { return *frame_; }
