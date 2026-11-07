@@ -127,6 +127,9 @@ add_library(lexia_core STATIC
     src/native_ui/sheet.cpp
     src/native_ui/slider.cpp
     src/native_ui/text_layout.cpp
+    src/native_ui/voice_library_state.cpp
+    src/native_ui/pages/voice_text.cpp
+    src/native_ui/pages/voice_sheets.cpp
     src/native_ui/widget.cpp
     src/ocr.cpp
     src/recognize.cpp
@@ -135,6 +138,7 @@ add_library(lexia_core STATIC
     src/stretch.cpp
     src/svg_recolour.cpp
     src/ui_host.cpp
+    src/voice_events.cpp
     src/settings.cpp
     src/tray_menu.cpp
     src/tts/md5.cpp
@@ -355,6 +359,7 @@ add_executable(lexia_tests
     tests/native_ui_settings_ui_test.cpp
     tests/native_ui_slider_select_test.cpp
     tests/native_ui_text_test.cpp
+    tests/native_ui_voices_test.cpp
     tests/preset_file_test.cpp
     tests/score_test.cpp
     tests/startup_test.cpp
@@ -368,6 +373,7 @@ add_executable(lexia_tests
     tests/strings_test.cpp
     tests/svg_recolour_test.cpp
     tests/ui_host_test.cpp
+    tests/voice_events_test.cpp
     tests/voice_catalogue_test.cpp
     tests/voice_download_test.cpp
     tests/voice_library_test.cpp

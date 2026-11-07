@@ -31,15 +31,6 @@ bool ControlFromName(const std::string& name, VoiceControl& out) {
     return true;
 }
 
-// A failed outcome with no Voice name (the catalogue, a bad dialog result).
-VoiceOutcome Failure(VoiceProblem problem, const std::string& detail) {
-    VoiceOutcome o;
-    o.problem = problem;
-    o.detail = detail;
-    return o;
-}
-
-
 // What a native file dialog is asked: one file type, where to start and what to suggest.
 struct FileDialog {
     bool save = false;               // a Save dialog (asks before it replaces a file), else an Open dialog
@@ -216,14 +207,14 @@ void VoiceTab::DeleteVoice(const std::string& voice) {
     if (found == model.installed.end() || found->shipped) {
         LogWarn("[voice] Delete Voice \"", voice, found == model.installed.end() ? "\": no such Voice is installed."
                                                                                 : "\": it is not a Voice the user added.");
-        host_.toPage(VoiceDeleteFailedMessage(voice, VoiceProblem::Busy));
+        Tell([&](VoiceEventSink& e) { e.VoiceDeleteFailed(voice, VoiceProblem::Busy); });
         host_.pushState();
         return;
     }
     const std::filesystem::path dir = UserVoicesDir();
     if (dir.empty()) {
         LogWarn("[voice] Delete Voice \"", voice, "\": no %LOCALAPPDATA% to find it in.");
-        host_.toPage(VoiceDeleteFailedMessage(voice, VoiceProblem::CannotWrite));
+        Tell([&](VoiceEventSink& e) { e.VoiceDeleteFailed(voice, VoiceProblem::CannotWrite); });
         host_.pushState();
         return;
     }
@@ -250,7 +241,7 @@ void VoiceTab::DeleteVoice(const std::string& voice) {
         LogWarn("[voice] The Voice ", voice, " could not be deleted (", ProblemId(outcome.problem), "): ", outcome.detail);
         settings_.activeVoices = before;
         Apply();
-        host_.toPage(VoiceDeleteFailedMessage(voice, outcome.problem));
+        Tell([&](VoiceEventSink& e) { e.VoiceDeleteFailed(voice, outcome.problem); });
         host_.pushState();
         return;
     }
@@ -266,7 +257,7 @@ void VoiceTab::DeleteVoice(const std::string& voice) {
 void VoiceTab::SavePresetFile() {
     const std::string voice = ActiveVoice();
     if (voice.empty()) {
-        host_.toPage(PresetFailedMessage(PresetProblem::NoVoice));
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::NoVoice); });
         return;
     }
     const std::filesystem::path folder = PresetsDir(LexiaDataDir());
@@ -291,18 +282,18 @@ void VoiceTab::SavePresetFile() {
     out.close();
     if (!out) {
         LogWarn("[voice] The Preset file could not be written: ", path);
-        host_.toPage(PresetFailedMessage(PresetProblem::CannotWrite));
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::CannotWrite); });
         return;
     }
     LogInfo("[voice] Saved the controls of ", voice, " to a Preset file.");
-    host_.toPage(PresetSavedMessage(path.stem().u8string()));
+    Tell([&](VoiceEventSink& e) { e.PresetSaved(path.stem().u8string()); });
 }
 
 // Loads a Preset file the person chooses: its controls become the active Voice's current ones.
 void VoiceTab::LoadPresetFile() {
     const std::string voice = ActiveVoice();
     if (voice.empty()) {
-        host_.toPage(PresetFailedMessage(PresetProblem::NoVoice));
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::NoVoice); });
         return;
     }
     const std::string& lang = settings_.interfaceLanguage;
@@ -318,19 +309,19 @@ void VoiceTab::LoadPresetFile() {
     std::string text;
     if (!ReadFileToString(path, &text, kMaxPresetFileBytes)) {
         LogWarn("[voice] The Preset file could not be read: ", path);
-        host_.toPage(PresetFailedMessage(PresetProblem::BadFile));
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::BadFile); });
         return;
     }
     const PresetFileOutcome loaded = ParsePresetFile(text);
     if (!loaded.ok()) {
         LogWarn("[voice] The file is not a Preset file (", PresetFileProblemId(loaded.problem), "): ", path);
-        host_.toPage(PresetFailedMessage(PresetProblem::BadFile));
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::BadFile); });
         return;
     }
     LogInfo("[voice] Loaded a Preset file for ", voice, ".");
     SetControls(voice, loaded.controls);
     host_.pushState();
-    host_.toPage(PresetLoadedMessage(path.stem().u8string()));
+    Tell([&](VoiceEventSink& e) { e.PresetLoaded(path.stem().u8string()); });
 }
 
 // --------------------------------------------------------- the Voice library ---
@@ -357,10 +348,10 @@ void VoiceTab::OpenCatalogue() {
         PostUi([this, result] {
             if (!result.error.ok()) {
                 LogWarn("[voice] The Voice catalogue could not be fetched: ", result.error.detail);
-                host_.toPage(CatalogueFailedMessage(VoiceProblem::Network));
+                Tell([](VoiceEventSink& e) { e.CatalogueFailed(VoiceProblem::Network); });
             } else {
                 catalogue_ = result.voices;
-                host_.toPage(CatalogueMessage(catalogue_, InstalledNames()));
+                Tell([&](VoiceEventSink& e) { e.CatalogueShown(OfferedCatalogue(catalogue_, InstalledNames())); });
             }
         });
         catalogueRunning_ = false;
@@ -371,17 +362,17 @@ void VoiceTab::Download(const std::string& name) {
     Join(workThread_, workRunning_);
     if (workRunning_) {
         LogWarn("[voice] A download or an add is running; the request for ", name, " was ignored.");
-        host_.toPage(DownloadFailedMessage(name, Failure(VoiceProblem::Busy, "another download or add is running")));
+        Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, ProblemFacts{VoiceProblem::Busy, {}, {}}); });
         return;
     }
     const auto it = std::find_if(catalogue_.begin(), catalogue_.end(), [&](const CatalogueVoice& v) { return v.name == name; });
     if (it == catalogue_.end()) {
-        host_.toPage(DownloadFailedMessage(name, Failure(VoiceProblem::NotInCatalogue, "not in the catalogue that was fetched")));
+        Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, ProblemFacts{VoiceProblem::NotInCatalogue, {}, {}}); });
         return;
     }
     const std::filesystem::path dest = UserVoicesDir();
     if (dest.empty()) {
-        host_.toPage(DownloadFailedMessage(name, Failure(VoiceProblem::CannotWrite, "no %LOCALAPPDATA% to keep Voices in")));
+        Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, ProblemFacts{VoiceProblem::CannotWrite, {}, {}}); });
         return;
     }
     cancel_ = false;
@@ -395,7 +386,7 @@ void VoiceTab::Download(const std::string& name) {
             if (now - lastPost >= std::chrono::milliseconds(100)) {  // about ten a second
                 lastPost = now;
                 PostUi([this, name = voice.name, done, total] {
-                    if (downloadName_ == name) host_.toPage(DownloadProgressMessage(name, done, total));
+                    if (downloadName_ == name) Tell([&](VoiceEventSink& e) { e.DownloadProgress(name, done, total); });
                 });
             }
             return !cancel_.load();
@@ -405,13 +396,13 @@ void VoiceTab::Download(const std::string& name) {
             downloadName_.clear();
             if (outcome.ok()) {
                 LogInfo("[voice] Downloaded the Voice ", name, ".");
-                host_.toPage(DownloadDoneMessage(name));
+                Tell([&](VoiceEventSink& e) { e.DownloadDone(name); });
                 host_.pushState();
             } else {
                 if (outcome.problem != VoiceProblem::Cancelled) {
                     LogWarn("[voice] The download of ", name, " failed (", ProblemId(outcome.problem), "): ", outcome.detail);
                 }
-                host_.toPage(DownloadFailedMessage(name, outcome));
+                Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, FactsOf(outcome)); });
             }
         });
         workRunning_ = false;
@@ -426,7 +417,7 @@ void VoiceTab::AddFromFile() {
     Join(workThread_, workRunning_);
     if (workRunning_) {
         LogWarn("[voice] A download or an add is running; Add from file was ignored.");
-        host_.toPage(VoiceRefusedMessage(Failure(VoiceProblem::Busy, "another download or add is running")));
+        Tell([](VoiceEventSink& e) { e.VoiceRefused(ProblemFacts{VoiceProblem::Busy, {}, {}}); });
         return;
     }
     const std::string& lang = settings_.interfaceLanguage;
@@ -442,7 +433,7 @@ void VoiceTab::AddFromFile() {
 void VoiceTab::AddFile(const std::wstring& path) {
     const std::filesystem::path dest = UserVoicesDir();
     if (dest.empty()) {
-        host_.toPage(VoiceRefusedMessage(Failure(VoiceProblem::CannotWrite, "no %LOCALAPPDATA% to keep Voices in")));
+        Tell([](VoiceEventSink& e) { e.VoiceRefused(ProblemFacts{VoiceProblem::CannotWrite, {}, {}}); });
         return;
     }
     cancel_ = false;
@@ -453,11 +444,11 @@ void VoiceTab::AddFile(const std::wstring& path) {
         PostUi([this, outcome] {
             if (outcome.ok()) {
                 LogInfo("[voice] Added the Voice ", outcome.voiceName, ".");
-                host_.toPage(VoiceAddedMessage(outcome));
+                Tell([&](VoiceEventSink& e) { e.VoiceAdded(AddedFactsOf(outcome)); });
                 host_.pushState();
             } else {
                 LogWarn("[voice] A Voice file was refused (", ProblemId(outcome.problem), "): ", outcome.detail);
-                host_.toPage(VoiceRefusedMessage(outcome));
+                Tell([&](VoiceEventSink& e) { e.VoiceRefused(FactsOf(outcome)); });
             }
         });
         workRunning_ = false;
@@ -471,4 +462,9 @@ void VoiceTab::PostUi(std::function<void()> job) {
     host_.runOnUi([weak = std::weak_ptr<bool>(alive_), job = std::move(job)] {
         if (weak.lock()) job();
     });
+}
+
+void VoiceTab::Tell(const std::function<void(VoiceEventSink&)>& call) const {
+    if (!host_.events) return;
+    if (VoiceEventSink* sink = host_.events()) call(*sink);
 }

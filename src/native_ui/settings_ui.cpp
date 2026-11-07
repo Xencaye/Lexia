@@ -26,6 +26,12 @@ SettingsUi::SettingsUi(Screen& screen, std::string interfaceLanguage) : screen_(
     host_->SetBounds({0, 0, layout::kWindowW, layout::kWindowH});
     root.AddChild(std::move(host));
 
+    // The Voice library tells the page what changed while the Voices page shows. Another page has nothing to
+    // draw: the state waits in library_ (a download goes on, a result is kept) until the Voices page is built.
+    library_.SetOnChange([this](VoiceLibraryState::Change change) {
+        if (page_ == Page::Voices) static_cast<VoicesPage*>(view_)->OnLibraryChange(change);
+    });
+
     frame_->SetOnNavigate([this](Page page) { ShowPage(page); });
 
     auto view = MakePage(Page::Home);
@@ -36,10 +42,10 @@ SettingsUi::SettingsUi(Screen& screen, std::string interfaceLanguage) : screen_(
 
 SettingsUi::~SettingsUi() = default;
 
-std::unique_ptr<PageView> SettingsUi::MakePage(Page page) const {
+std::unique_ptr<PageView> SettingsUi::MakePage(Page page) {
     switch (page) {
         case Page::Home: return std::make_unique<HomePage>(env_);
-        case Page::Voices: return std::make_unique<VoicesPage>(env_);
+        case Page::Voices: return std::make_unique<VoicesPage>(env_, library_);
         case Page::Settings: return std::make_unique<SettingsPage>(env_);
         case Page::Report: return std::make_unique<ReportPage>(env_);
         case Page::Help: return std::make_unique<HelpPage>(env_);
@@ -53,6 +59,10 @@ void SettingsUi::ShowPage(Page page) {
     // Not before the first state is drawn and not animated: a page that was just built must not fade in from
     // its idle look (Screen rule). The old page goes (the Screen forgets focus and hover that pointed into it).
     screen_.SkipAnimations();
+    // A sheet that is open belongs to the page that opened it (its buttons call back into it): close them
+    // all before the page goes. (A page switch with a sheet open comes from outside, e.g. Help from the
+    // Control bar; a click on a frame link cannot reach behind a sheet.)
+    for (size_t n = screen_.SheetCount(); n > 0; --n) screen_.CloseTopSheet();
     host_->ClearChildren();
     auto view = MakePage(page);
     view_ = view.get();
@@ -60,6 +70,8 @@ void SettingsUi::ShowPage(Page page) {
     page_ = page;
     frame_->SetCurrent(page);
     if (hasState_) view_->SetState(state_);
+    // A result that came while another page showed (an Add from file that ended later) opens now.
+    if (page == Page::Voices) static_cast<VoicesPage*>(view_)->ShowPendingResult();
     screen_.Invalidate();
 }
 

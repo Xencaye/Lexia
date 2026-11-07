@@ -59,6 +59,28 @@ nui::Key KeyOf(WPARAM vk) {
 
 bool KeyIsDown(int vk) { return (GetKeyState(vk) & 0x8000) != 0; }
 
+
+// The Voice library's answers reach the tree directly (no window message of their own), so each one is
+// followed by a repaint request: the window does not learn from the tree that it changed outside an event.
+class RepaintingSink : public VoiceEventSink {
+public:
+    RepaintingSink(VoiceEventSink& inner, std::function<void()> repaint) : inner_(inner), repaint_(std::move(repaint)) {}
+    void CatalogueShown(std::vector<CatalogueEntry> voices) override { inner_.CatalogueShown(std::move(voices)); repaint_(); }
+    void CatalogueFailed(VoiceProblem problem) override { inner_.CatalogueFailed(problem); repaint_(); }
+    void DownloadProgress(const std::string& name, uint64_t done, uint64_t total) override { inner_.DownloadProgress(name, done, total); repaint_(); }
+    void DownloadDone(const std::string& name) override { inner_.DownloadDone(name); repaint_(); }
+    void DownloadFailed(const std::string& name, const ProblemFacts& facts) override { inner_.DownloadFailed(name, facts); repaint_(); }
+    void VoiceAdded(const VoiceAddedFacts& added) override { inner_.VoiceAdded(added); repaint_(); }
+    void VoiceRefused(const ProblemFacts& facts) override { inner_.VoiceRefused(facts); repaint_(); }
+    void VoiceDeleteFailed(const std::string& voice, VoiceProblem problem) override { inner_.VoiceDeleteFailed(voice, problem); repaint_(); }
+    void PresetSaved(const std::string& fileName) override { inner_.PresetSaved(fileName); repaint_(); }
+    void PresetLoaded(const std::string& fileName) override { inner_.PresetLoaded(fileName); repaint_(); }
+    void PresetFailed(PresetProblem problem) override { inner_.PresetFailed(problem); repaint_(); }
+
+private:
+    VoiceEventSink& inner_;
+    std::function<void()> repaint_;
+};
 }  // namespace
 
 // Everything the window hosts: the widget tree, its canvas, the tooltip.
@@ -75,6 +97,7 @@ struct SettingsWindow::Impl {
     bool timerOn = false;
     int lostFrames = 0;          // frames in a row that were lost (device loss); stops a retry loop
     std::string tipText;         // what the tooltip window shows now ("" = hidden)
+    std::unique_ptr<RepaintingSink> events;  // the Voice library's sink, with a repaint after each answer
 
     float ToDip(int px) const { return static_cast<float>(px) * 96.0f / static_cast<float>(dpi); }
     int ToPx(float dip) const { return static_cast<int>(std::lround(dip * static_cast<float>(dpi) / 96.0f)); }
@@ -397,4 +420,13 @@ void SettingsWindow::SetDark(bool dark) {
     DwmSetWindowAttribute(hwnd_, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &value, sizeof(value));
     SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
+VoiceEventSink* SettingsWindow::VoiceEvents() {
+    if (!impl_->events) {
+        impl_->events = std::make_unique<RepaintingSink>(impl_->ui->VoiceEvents(), [this] {
+            if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+        });
+    }
+    return impl_->events.get();
 }
