@@ -37,6 +37,9 @@ public:
     const SliderRange& Range() const { return range_; }
     void SetOnValue(std::function<void(double)> fn) { onValue_ = std::move(fn); }
     bool Dragging() const { return dragging_; }
+    // The smaller slider of the Master volume: a 6 x 12 thumb that grows to 9 x 20 (frame.css `.volume`);
+    // the box height is the caller's (24). The default thumb is 6 x 14 growing to 12 x 25.
+    void SetCompact(bool compact) { compact_ = compact; Invalidate(); }
     // The thumb as drawn now (window DIPs), for the tests: centre x from the value, size from the
     // growth transition.
     RectF ThumbRect() const;
@@ -58,6 +61,7 @@ private:
 
     SliderRange range_;
     bool usable_ = false;
+    bool compact_ = false;
     bool dragging_ = false;
     bool hasLastAsked_ = false;
     double lastAsked_ = 0;

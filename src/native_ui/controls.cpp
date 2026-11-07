@@ -9,7 +9,6 @@ namespace nui {
 namespace {
 
 constexpr float kIconButtonSize = 28, kIconButtonIcon = 22, kIconButtonRadius = 4;
-constexpr float kLinkGap = 7;
 constexpr float kButtonMinHeight = 34, kButtonSmallHeight = 28, kButtonPad = 18, kButtonSmallPad = 12,
                 kButtonRadius = 4;
 constexpr float kSwitchW = 22, kSwitchH = 12, kSwitchBorder = 1.5f, kSwitchGap = 8, kSwitchRowH = 28,
@@ -101,7 +100,7 @@ void IconButton::Paint(Canvas& canvas, const Palette& p) {
     const float a = VisualAmount();
     // Idle has no tile; the tile fades in from the hover colour so the corners do not flash.
     const Colour tile = Ramp(Transparent(p.line), p.line, p.accent, a);
-    const Colour glyph = Ramp(p.line, p.accent, p.onAccent, a);
+    const Colour glyph = Ramp(idleAccent_ ? p.accent : p.line, p.accent, p.onAccent, a);
     if (tile.alpha > 0.0f) canvas.FillRect(r, tile, kIconButtonRadius);
     const float off = (kIconButtonSize - kIconButtonIcon) / 2;
     canvas.Icon({r.x + off, r.y + off, kIconButtonIcon, kIconButtonIcon}, icon_, glyph);
@@ -128,9 +127,10 @@ SizeF TextLink::Measure(Canvas& canvas, float) {
     TextStyle bold = regular;
     bold.weight = FontWeight::Bold;
     // The bold width is always reserved, so the current page's word does not push its neighbours.
-    const float word = std::max(canvas.MeasureText(text_, regular).w, canvas.MeasureText(text_, bold).w);
+    const float word = reserveBold_ ? std::max(canvas.MeasureText(text_, regular).w, canvas.MeasureText(text_, bold).w)
+                                    : canvas.MeasureText(text_, regular).w;
     const float lineH = canvas.MeasureText(text_, regular).h;
-    const float iconW = icon_.empty() ? 0.0f : iconSize_ + kLinkGap;
+    const float iconW = icon_.empty() ? 0.0f : iconSize_ + gap_;
     return {iconW + word, std::max(lineH, icon_.empty() ? 0.0f : iconSize_)};
 }
 
@@ -141,12 +141,21 @@ void TextLink::Paint(Canvas& canvas, const Palette& p) {
         float x = r.x;
         if (!icon_.empty()) {
             canvas.Icon({x, r.y + (r.h - iconSize_) / 2, iconSize_, iconSize_}, icon_, p.accent);
-            x += iconSize_ + kLinkGap;
+            x += iconSize_ + gap_;
         }
         TextStyle st;
         st.size = FontSize();
         st.weight = current_ ? FontWeight::Bold : FontWeight::Regular;
         st.underline = small_ || (hovered_ && enabled_);
+        // The word box is as wide as the bold word; a regular word sits in the middle of it (a <button>'s
+        // text is centred, and the old page did the same), so a menu of links keeps its look when the current
+        // one turns bold.
+        if (reserveBold_ && !current_) {
+            TextStyle bold = st;
+            bold.weight = FontWeight::Bold;
+            const float room = canvas.MeasureText(text_, bold).w - canvas.MeasureText(text_, st).w;
+            if (room > 0) x += room / 2;
+        }
         canvas.Text({x, r.y, std::max(0.0f, r.Right() - x), r.h}, text_, st, p.ink);
     }
     if (RingVisible()) DrawFocusRing(canvas, p, r, 2);

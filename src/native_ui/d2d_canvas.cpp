@@ -532,13 +532,21 @@ ComPtr<IDWriteTextLayout> D2dCanvas::LayoutFor(std::string_view utf8, const Text
         return nullptr;
     }
     if (style.underline && !wide.empty()) layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{0, static_cast<UINT32>(wide.size())});
+    if (style.letterSpacing != 0.0f && !wide.empty()) {
+        // The space is added after each character (the trailing space of the last one too: harmless).
+        ComPtr<IDWriteTextLayout1> layout1;
+        if (SUCCEEDED(layout.As(&layout1))) {
+            layout1->SetCharacterSpacing(0.0f, style.letterSpacing, 0.0f, DWRITE_TEXT_RANGE{0, static_cast<UINT32>(wide.size())});
+        }
+    }
     return layout;
 }
 
 SizeF D2dCanvas::MeasureText(std::string_view utf8, const TextStyle& style) {
     // Wrapping asks for the same words over and over: keep the answers.
     const auto key = std::make_tuple(std::string(utf8), static_cast<int>(std::lround(style.size * 100)),
-                                     static_cast<int>(style.weight), style.underline);
+                                     static_cast<int>(style.weight), style.underline,
+                                     static_cast<int>(std::lround(style.letterSpacing * 100)));
     const auto found = measured_.find(key);
     if (found != measured_.end()) return found->second;
     if (!EnsureFactories()) return {};

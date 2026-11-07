@@ -44,6 +44,9 @@ public:
     // accessibility. SetPressed is how the page shows the host's state.
     void SetPressed(bool pressed);
     bool Pressed() const { return pressed_; }
+    // The idle glyph in accent instead of `line` (the About page's itch and GitHub buttons: `color:
+    // var(--accent)` on an .icon-btn). Hover and press look as ever.
+    void SetIdleAccent(bool accent) { idleAccent_ = accent; Invalidate(); }
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;
 
@@ -54,6 +57,7 @@ private:
     std::string icon_;
     bool pressed_ = false;
     bool toggle_ = false;
+    bool idleAccent_ = false;
 };
 
 // -------------------------------------------------------------------------------- TextLink ---
@@ -67,18 +71,28 @@ public:
     void SetIcon(std::string icon) { icon_ = std::move(icon); Invalidate(); }
     void SetCurrent(bool current) { current_ = current; Invalidate(); }
     bool Current() const { return current_; }
-    void SetSmall(bool small) { small_ = small; Invalidate(); }
+    void SetSmall(bool isSmall) { small_ = isSmall; Invalidate(); }  // not `small`: windows.h defines it as a macro
     void SetIconSize(float s) { iconSize_ = s; Invalidate(); }
+    // The size of the word (the frame's links are 24 / 16 / 18 px, the About page's inline link 10 px);
+    // 0 = the default of the link (16, or 13 when small). The gap between icon and word: default 7.
+    void SetFontSize(float size) { fontSize_ = size; Invalidate(); }
+    void SetGap(float gap) { gap_ = gap; Invalidate(); }
+    // The width of the bold word is reserved by default, so a row of NavLinks does not shift when the current
+    // one turns bold. Links that are never bold (the Report page's, the inline one) turn that off.
+    void SetReserveBold(bool reserve) { reserveBold_ = reserve; Invalidate(); }
     SizeF Measure(Canvas& canvas, float maxWidth) override;
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;
 
 private:
-    float FontSize() const { return small_ ? 13.0f : 16.0f; }
+    float FontSize() const { return fontSize_ > 0 ? fontSize_ : (small_ ? 13.0f : 16.0f); }
     std::string text_, icon_;
     bool current_ = false;
     bool small_ = false;
     float iconSize_ = 22;
+    float fontSize_ = 0;
+    float gap_ = 7;  // the design's `gap: 7px` between the icon and the word
+    bool reserveBold_ = true;
 };
 using NavLink = TextLink;
 
@@ -92,7 +106,7 @@ public:
     void SetText(std::string text) { text_ = std::move(text); SetName(text_); Invalidate(); }
     const std::string& Text() const { return text_; }
     void SetQuiet(bool quiet) { quiet_ = quiet; Invalidate(); }
-    void SetSmall(bool small) { small_ = small; Invalidate(); }
+    void SetSmall(bool isSmall) { small_ = isSmall; Invalidate(); }  // not `small`: windows.h defines it as a macro
     SizeF Measure(Canvas& canvas, float maxWidth) override;
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;

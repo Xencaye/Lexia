@@ -41,6 +41,7 @@ struct TextStyle {
     FontWeight weight = FontWeight::Regular;
     bool underline = false;
     TextAlign align = TextAlign::Left;       // inside the box given to Text
+    float letterSpacing = 0;                 // DIPs added after every character (the design's `letter-spacing: 0.01em` on titles)
 };
 
 class Canvas {

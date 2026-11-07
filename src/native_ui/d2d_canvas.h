@@ -130,7 +130,7 @@ private:
     Microsoft::WRL::ComPtr<ID2D1StrokeStyle> dottedStroke_;  // 1 on, 1 off (in stroke widths), flat caps
     std::map<std::pair<int, int>, Microsoft::WRL::ComPtr<IDWriteTextFormat>> formats_;
     std::map<std::string, PictureAlpha> pictures_;
-    std::map<std::tuple<std::string, int, int, bool>, SizeF> measured_;
+    std::map<std::tuple<std::string, int, int, bool, int>, SizeF> measured_;  // text, size, weight, underline, spacing
 
     // ---- device resources (dropped and rebuilt on device loss)
     Microsoft::WRL::ComPtr<ID3D11Device> d3d_;
