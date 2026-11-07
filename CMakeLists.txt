@@ -111,8 +111,17 @@ add_library(lexia_core STATIC
     src/native_ui/animation.cpp
     src/native_ui/controls.cpp
     src/native_ui/display.cpp
+    src/native_ui/pages/about_page.cpp
+    src/native_ui/pages/frame.cpp
+    src/native_ui/pages/help_page.cpp
+    src/native_ui/pages/home_page.cpp
+    src/native_ui/pages/page.cpp
+    src/native_ui/pages/report_page.cpp
+    src/native_ui/pages/settings_page.cpp
+    src/native_ui/pages/voices_page.cpp
     src/native_ui/palette.cpp
     src/native_ui/screen.cpp
+    src/native_ui/settings_ui.cpp
     src/native_ui/scroll_area.cpp
     src/native_ui/select.cpp
     src/native_ui/sheet.cpp
@@ -302,9 +311,10 @@ add_custom_command(TARGET lexia_barshot POST_BUILD
 # lexia_settingsshot: a developer tool, not packaged. It draws a page of the native Settings window
 # (the same widget tree and Direct2D canvas as the window) off-screen and writes a PNG, to compare the
 # look with wireframe/html-reference/ without a window. Own output folder, like lexia_barshot.
-#   build/settingsshot/<Config>/lexia_settingsshot.exe --page gallery [--theme light|dark] [--dpi 96] out.png
+#   build/settingsshot/<Config>/lexia_settingsshot.exe --page gallery|home|voices|settings|report|help|about
+#       [--on] [--hover power|enable|<link>...] [--theme light|dark] [--dpi 96] out.png
 # It carries the asset resources like lexia.exe. ctest settingsshot_smoke runs it (WARP is enough).
-add_executable(lexia_settingsshot src/settingsshot_main.cpp src/settingsshot_pages.cpp
+add_executable(lexia_settingsshot src/settingsshot_main.cpp src/settingsshot_pages.cpp src/settingsshot_sample.cpp
     src/native_ui/d2d_canvas.cpp src/svg_icon.cpp src/assets.cpp src/native_ui/fonts.cpp "${LEXIA_ASSETS_RC}")
 target_link_libraries(lexia_settingsshot PRIVATE lexia_core
     user32 gdi32 ole32 uuid d2d1 d3d11 dxgi dwrite windowscodecs shlwapi)
@@ -342,6 +352,7 @@ add_executable(lexia_tests
     tests/native_ui_animation_test.cpp
     tests/native_ui_controls_test.cpp
     tests/native_ui_screen_test.cpp
+    tests/native_ui_settings_ui_test.cpp
     tests/native_ui_slider_select_test.cpp
     tests/native_ui_text_test.cpp
     tests/preset_file_test.cpp
