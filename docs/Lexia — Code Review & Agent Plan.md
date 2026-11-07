@@ -504,8 +504,8 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   action or a switch name (`SwitchCardIds()`, `CardTitleId`, `CardDescId` in `ui_host.*`; `App::ReadKeyCard` finds the
   words with them). The switch rows keep their Toggle pattern; the card is the same group and its name follows the
   selection. `lexia_settingsshot --select` takes a switch name too; `settings_shots.ps1` writes
-  `settings-switch-<name>` shots. **The six descriptions are DRAFTS** (`table_en.cpp`, marked `DRAFT (owner)`): replace
-  them with your own words; the facts in them are true. *Your check:* the page against your mockup (light and dark);
+  `settings-switch-<name>` shots. The six descriptions were drafts; the owner wrote the final texts on Nov 7
+  (`table_en.cpp`). *Your check:* the page against your mockup (light and dark);
   hover and Tab over each switch and read the card; the read button on a switch's card; Read-along off: read in a
   browser, no bar on the Overlay and none after leaving; On: the bar on the Overlay and after leaving; turn it off
   while the layer shows: the layer goes; Narrator: a switch is still read as a switch.

@@ -121,7 +121,7 @@
     X(WindowSettingsDarkMode, "window.settings.darkMode")                                        \
     X(WindowSettingsLeftHanded, "window.settings.leftHanded")                                    \
     X(WindowSettingsReadAlong, "window.settings.readAlong")                                \
-    /* The switches' cards (K9): a title and a description (one paragraph per line) for each; DRAFT texts */ \
+    /* The switches' cards (K9): a title and a description (one paragraph per line) for each; the owner's texts */ \
     X(WindowSwitchesReadAlongTitle, "window.switches.readAlongTitle")                            \
     X(WindowSwitchesReadAlongDesc, "window.switches.readAlongDesc")                              \
     X(WindowSwitchesRunAtStartupTitle, "window.switches.runAtStartupTitle")                      \
