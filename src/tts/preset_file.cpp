@@ -102,6 +102,10 @@ std::string PresetVoiceForDisplay(std::string_view voice) {
         ++shown;
         if (cp < 0x20 || (cp >= 0x7F && cp <= 0x9F)) {
             out += ' ';  // a control character: a newline must not break a log line or a sheet
+        } else if (cp == 0xFFFD) {
+            // A malformed byte (or a real U+FFFD): write U+FFFD itself, never the source bytes, so the shown
+            // name is always valid UTF-8 whatever the file holds.
+            out += "\xEF\xBF\xBD";
         } else {
             out.append(text, begin, i - begin);
         }

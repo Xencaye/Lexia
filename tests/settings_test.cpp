@@ -978,6 +978,13 @@ std::string Slurp(const std::filesystem::path& p) {
 }  // namespace
 
 TEST_CASE("--set-run-as-admin on a PC with no settings file: the file is made, runAsAdmin is on") {
+    // With no file in the data folder, ChooseSettingsFile takes a settings.json next to the exe (the portable
+    // layout). A developer can have one beside build\Release\lexia_tests.exe; the save would then go into it,
+    // outside the temporary folder. So the case is checked only where the exe folder has none.
+    if (std::filesystem::exists(ExeDir() / "settings.json")) {
+        MESSAGE("Skipped: a settings.json is next to the test exe, and this case must not write into it.");
+        return;
+    }
     TempLocalAppData tmp;
     REQUIRE_FALSE(std::filesystem::exists(tmp.File()));
     CHECK_FALSE(RunAsAdminSetting());

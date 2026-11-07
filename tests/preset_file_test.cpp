@@ -173,6 +173,12 @@ TEST_CASE("Preset voice for display: cut to 80 code points with an ellipsis, on 
     CHECK(PresetVoiceForDisplay(cyr) == want + "\xE2\x80\xA6");
 }
 
+TEST_CASE("Preset voice for display: malformed UTF-8 from the file becomes U+FFFD, never raw bytes") {
+    // A lone continuation byte and a cut-short lead byte: each is shown as U+FFFD, so the text stays valid UTF-8.
+    CHECK(PresetVoiceForDisplay("a\x80" "b") == "a\xEF\xBF\xBD" "b");
+    CHECK(PresetVoiceForDisplay("a\xD0") == "a\xEF\xBF\xBD");
+}
+
 TEST_CASE("Preset voice for display: control characters become spaces and direction marks go") {
     CHECK(PresetVoiceForDisplay("a\nb\r\nc\td") == "a b  c d");
     CHECK(PresetVoiceForDisplay(std::string("a\0b", 3)) == "a b");
