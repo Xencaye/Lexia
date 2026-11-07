@@ -109,6 +109,7 @@ add_library(lexia_core STATIC
     src/log.cpp
     src/lookalike.cpp
     src/mouse_role.cpp
+    src/native_ui/access_tree.cpp
     src/native_ui/animation.cpp
     src/native_ui/controls.cpp
     src/native_ui/display.cpp
@@ -228,6 +229,7 @@ add_executable(lexia
     src/assets.cpp
     src/native_ui/fonts.cpp
     src/native_ui/d2d_canvas.cpp
+    src/native_ui/uia_provider.cpp
     src/tooltip_window.cpp
     src/speech.cpp
     src/app.cpp
@@ -252,7 +254,7 @@ target_link_libraries(lexia PRIVATE
     lexia_core lexia_net
     opencv_core opencv_imgproc
     unofficial::webview2::webview2
-    user32 gdi32 gdiplus ole32 uuid winmm dwmapi shcore advapi32 shell32 d2d1 d3d11 dxgi dwrite windowscodecs shlwapi)
+    user32 gdi32 gdiplus ole32 uuid winmm dwmapi shcore advapi32 shell32 d2d1 d3d11 dxgi dwrite windowscodecs shlwapi uiautomationcore oleaut32)
 
 # Speech data next to the dev exe too (the package step copies it again, selectively)
 add_custom_command(TARGET lexia POST_BUILD
@@ -332,6 +334,26 @@ set_target_properties(lexia_settingsshot PROPERTIES
 add_custom_command(TARGET lexia_settingsshot POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_settingsshot> "$<TARGET_FILE_DIR:lexia_settingsshot>"
     COMMAND_EXPAND_LISTS)
+
+# lexia_uia_test: a UI Automation CLIENT test of the real Settings window (K.5), not packaged. It makes the
+# window off-screen with a sample state, walks the tree of every page with IUIAutomation, invokes controls, and
+# checks the PageMessages and the late-call failure after the window is destroyed. ctest uia_tree runs it; it
+# skips (exit 0, says why) when there is no interactive desktop. Own output folder, like lexia_settingsshot.
+add_executable(lexia_uia_test tests/uia_tree_main.cpp src/settings_window.cpp src/native_ui/uia_provider.cpp
+    src/tooltip_window.cpp src/settingsshot_sample.cpp src/native_ui/d2d_canvas.cpp src/svg_icon.cpp src/assets.cpp
+    src/native_ui/fonts.cpp "${LEXIA_ASSETS_RC}")
+target_link_libraries(lexia_uia_test PRIVATE lexia_core
+    user32 gdi32 gdiplus ole32 oleaut32 uuid advapi32 shell32 d2d1 d3d11 dxgi dwrite windowscodecs shlwapi dwmapi shcore
+    uiautomationcore)
+set_target_properties(lexia_uia_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/uia_test"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/uia_test/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/uia_test/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/uia_test/RelWithDebInfo"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/uia_test/MinSizeRel")
+add_custom_command(TARGET lexia_uia_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_uia_test> "$<TARGET_FILE_DIR:lexia_uia_test>"
+    COMMAND_EXPAND_LISTS)
 # ------------------------------------------------------------------- tests ---
 # Unit tests (doctest) for the pure logic in lexia_core. Run with
 #   ctest --test-dir build -C Release --output-on-failure
@@ -355,6 +377,7 @@ add_executable(lexia_tests
     tests/md5_test.cpp
     tests/mouse_role_test.cpp
     tests/palette_test.cpp
+    tests/native_ui_access_test.cpp
     tests/native_ui_animation_test.cpp
     tests/native_ui_controls_test.cpp
     tests/native_ui_screen_test.cpp
@@ -406,6 +429,11 @@ add_test(NAME settingsshot_smoke
     COMMAND ${CMAKE_COMMAND} "-DSHOT_EXE=$<TARGET_FILE:lexia_settingsshot>" "-DWORK_DIR=${CMAKE_BINARY_DIR}/settingsshot_test"
         -P "${CMAKE_SOURCE_DIR}/tests/settingsshot_test.cmake")
 
+# The UI Automation tree of the real Settings window, from a client (tests/uia_tree_main.cpp). Skips with exit 0
+# and a message when the session has no interactive desktop (a service).
+add_test(NAME uia_tree COMMAND lexia_uia_test)
+set_tests_properties(uia_tree PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP uia_tree" TIMEOUT 120)
+
 # The Settings window page (ui/): its bridge tests, in headless Edge (tests/ui_bridge_test.cmake).
 # It fails, not skips, when Edge is missing; CI's windows-latest has Edge.
 add_test(NAME ui_bridge
@@ -418,7 +446,7 @@ add_test(NAME ui_bridge
 # Lexia's own targets get /WX, not the vcpkg ports.
 option(LEXIA_WARNINGS_AS_ERRORS "Treat compiler warnings in Lexia's own targets as errors" OFF)
 if(LEXIA_WARNINGS_AS_ERRORS)
-    foreach(target lexia_core lexia_net lexia lexia_cli lexia_tests)
+    foreach(target lexia_core lexia_net lexia lexia_cli lexia_tests lexia_uia_test)
         target_compile_options(${target} PRIVATE /WX)
     endforeach()
     # Linker warnings too (e.g. LNK4098 conflicting default libs). lexia_core is a static

@@ -17,6 +17,7 @@
 #include "native_ui/palette.h"
 #include "native_ui/screen.h"
 #include "native_ui/settings_ui.h"
+#include "native_ui/uia_provider.h"
 #include "tooltip_window.h"
 
 namespace {
@@ -89,6 +90,8 @@ struct SettingsWindow::Impl {
     std::unique_ptr<nui::SettingsUi> ui;
     std::unique_ptr<nui::D2dCanvas> canvas;
     TooltipWindow tip;
+    // UI Automation (K.5): declared after `screen`, which it reads, so it is destroyed before the tree.
+    std::unique_ptr<UiaHost> uia;
     UINT dpi = 96;
     bool dark = false;
     bool trackingMouse = false;  // TrackMouseEvent(TME_LEAVE) is armed
@@ -178,6 +181,11 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         }
     };
     // Sends a mouse event to the tree with the clock moved on first.
+    // Tells UI Automation what the last event changed. After events only, never inside one; a plain pointer
+    // move changes nothing a screen reader reads, unless a list is open (the highlighted row has the focus).
+    auto notify = [&im]() {
+        if (im.uia) im.uia->Update();
+    };
     auto mouse = [&](nui::MouseKind kind, nui::MouseButton button, int xPx, int yPx, float wheel = 0) {
         im.screen.Tick(NowSeconds());
         nui::MouseEvent ev;
@@ -188,6 +196,7 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         im.lastPos = ev.pos;
         const bool used = im.screen.HandleMouse(ev);
         sync();
+        if (kind != nui::MouseKind::Move || im.screen.Popup()) notify();
         return used;
     };
 
@@ -205,6 +214,7 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         ev.repeat = repeat;
         const bool used = im.screen.HandleKey(ev);
         sync();
+        notify();
         return used;
     };
 
@@ -281,6 +291,7 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
             up.pos = im.lastPos;
             im.screen.HandleMouse(up);
             sync();
+            notify();
         }
         return 0;
     case WM_MOUSEWHEEL: {
@@ -347,8 +358,25 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
             }
         }
         return DefWindowProcW(hwnd_, msg, wp, lp);
+    case WM_GETOBJECT:
+        // UI Automation asks for the window's provider (K.5). Anything else (MSAA) gets the default answer.
+        if (im.uia) {
+            if (const LRESULT r = im.uia->HandleGetObject(wp, lp)) return r;
+        }
+        return DefWindowProcW(hwnd_, msg, wp, lp);
+    case UiaHost::kActionsMessage:
+        // Invoke, Toggle, SetValue ... that a screen reader asked for: done here, like a click, not inside the
+        // UI Automation call (a click may open a file dialog).
+        if (im.uia) im.uia->RunPendingActions();
+        sync();
+        notify();
+        return 0;
+    case WM_SETFOCUS:
+        if (im.uia) im.uia->RaiseFocus();  // the window has the keyboard: say which element has it
+        return DefWindowProcW(hwnd_, msg, wp, lp);
     case WM_DPICHANGED: {
         im.dpi = LOWORD(wp);
+        if (im.uia) im.uia->SetDpi(im.dpi);
         if (im.canvas) im.canvas->SetDpi(static_cast<float>(im.dpi));
         im.tip.SetDpi(static_cast<int>(im.dpi));
         const RECT* r = reinterpret_cast<const RECT*>(lp);
@@ -373,6 +401,8 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         DestroyWindow(hwnd_);
         return 0;
     case WM_DESTROY:
+        // First: from here every UI Automation element answers "not available" (a screen reader may call late).
+        if (im.uia) im.uia->Detach();
         if (im.timerOn) KillTimer(hwnd_, kTimerFrame);
         im.timerOn = false;
         im.tip.Destroy();
@@ -424,6 +454,9 @@ bool SettingsWindow::Create(const RECT& monitor) {
         LogError("[window] Could not create the Settings window (error ", GetLastError(), ").");
         return false;
     }
+    // The UI Automation host needs the window and the tree; WM_GETOBJECT before this point gets the default.
+    impl_->uia = std::make_unique<UiaHost>(hwnd_, impl_->screen, options_.interfaceLanguage);
+    impl_->uia->SetDpi(impl_->dpi);
     SetDark(impl_->dark);
 
     // The canvas works in pixels of the client area (which is what the fixed size gives at this DPI).
@@ -463,12 +496,14 @@ void SettingsWindow::BringToFront() {
 void SettingsWindow::ShowPage(nui::Page page) {
     impl_->ui->ShowPage(page);
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+    if (impl_->uia) impl_->uia->Update();  // the page is new: a structure change for a screen reader
 }
 
 void SettingsWindow::SetState(const UiState& state) {
     impl_->ui->SetState(state);
     if (impl_->ui->Dark() != impl_->dark) SetDark(impl_->ui->Dark());  // the title bar follows the state's theme
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+    if (impl_->uia) impl_->uia->Update();  // values, toggles and names that the state moved
 }
 
 // The dark or light title bar (DWM attribute 20, DWMWA_USE_IMMERSIVE_DARK_MODE, not in older SDK
@@ -487,6 +522,7 @@ VoiceEventSink* SettingsWindow::VoiceEvents() {
     if (!impl_->events) {
         impl_->events = std::make_unique<RepaintingSink>(impl_->ui->VoiceEvents(), [this] {
             if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+            if (impl_->uia) impl_->uia->Update();  // a catalogue, a progress step or a result: news for a screen reader
         });
     }
     return impl_->events.get();
