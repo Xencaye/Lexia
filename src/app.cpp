@@ -882,7 +882,7 @@ void App::OpenOverlay() {
 
     OverlayCallbacks cb;
     // Called on this thread for every click/drag while the overlay is open.
-    cb.onSelect = [&](const Selection& sel, const Recognition& picked) -> bool {
+    cb.onSelect = [&](const Selection& sel, const Recognition& picked) -> PickOutcome {
         const std::string text = BlocksToText(picked.blocks);
 
         LogInfo("\n[", sel.kind == SelKind::Drag ? "area" : "block", ", OCR ", picked.ms, " ms]");
@@ -893,15 +893,16 @@ void App::OpenOverlay() {
         if (Trim(text).empty()) {  // only spaces, tabs or line ends: nothing to say (R11)
             LogInfo("(no text found there)");
             speaker_.Announce(strings::id::kAnnouncePickNoText);
-            return false;
+            return PickOutcome{};
         }
         // One Reading of the Pick's Blocks, so Skip goes to the next Block and each Block gets
-        // its own main Voice; queued after earlier Picks.
+        // its own main Voice; queued after earlier Picks. The Block index of a heard word is the
+        // index in `blocks`, i.e. in picked.blocks, which the Overlay keeps under the returned id.
         std::vector<std::string> blocks;
         for (const TextBlock& b : picked.blocks) blocks.push_back(b.text);
-        speaker_.SpeakReading(blocks, /*append=*/true);
-        return true;
+        return PickOutcome{true, speaker_.SpeakReading(blocks, /*append=*/true)};
     };
+    cb.heardWord = [&]() { return speaker_.HeardWordNow(); };  // the word mark (G1)
     cb.onPause = [&]() { TogglePause(); };
     cb.onSkip = [&]() { Skip(); };
     cb.onStop = [&]() { Stop(); };

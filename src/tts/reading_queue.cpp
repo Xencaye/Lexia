@@ -30,11 +30,13 @@ ReadingQueue::ReadingQueue(AudioSink& sink, BlockSynthesizer synthesize, double 
       aheadSeconds_(aheadSeconds),
       sinkSeconds_(sinkSeconds < 0 ? aheadSeconds : sinkSeconds) {}
 
-void ReadingQueue::Add(Reading reading) {
-    if (!HasText(reading)) return;
+uint64_t ReadingQueue::Add(Reading reading) {
+    if (!HasText(reading)) return 0;
     std::lock_guard<std::mutex> lk(m_);
-    queue_.push_back(std::move(reading));
+    const uint64_t id = nextId_++;
+    queue_.push_back({std::move(reading), id});
     ReportActiveLocked();
+    return id;
 }
 
 void ReadingQueue::Announce(AnnouncementSpeech speak) {
@@ -126,9 +128,37 @@ bool ReadingQueue::Paused() const {
     return paused_ || heldPause_;
 }
 
+std::optional<HeardWord> ReadingQueue::HeardWordNow() const {
+    std::lock_guard<std::mutex> lk(m_);
+    // An Announcement plays over the Reading: its words are not the Reading's, and the Reading's own
+    // audio is out of the sink (taken back) or silent.
+    if (annState_ == AnnState::Playing || queue_.empty()) return std::nullopt;
+    // Which piece is being heard: the first one that PruneSinkPiecesLocked would keep, i.e. the
+    // first whose successors together are shorter than what the sink still has pending. The same
+    // rule, but it only looks (this method is const and must not move pieces under the speech thread).
+    const double pending = sink_.PendingSeconds();
+    double remaining = sinkPiecesSeconds_;
+    for (const Piece& piece : sinkPieces_) {
+        if (remaining - piece.Seconds() >= pending - kEpsilon) {  // played already
+            remaining -= piece.Seconds();
+            continue;
+        }
+        if (!piece.hasWord) return std::nullopt;  // silence, punctuation, or a word with no known place
+        return piece.word;
+    }
+    return std::nullopt;  // everything the sink was given has been played
+}
+
+void ReadingQueue::StartBlockTextLocked() {
+    stretchesKnown_ = false;
+    stretches_.clear();
+    stretchOffset_ = 0;
+    sentence_ = 0;
+}
+
 void ReadingQueue::AdvanceLocked() {
     // An empty queue has no Block to drop (a Stop or Skip got there first); the rest still holds.
-    if (!queue_.empty() && ++block_ >= queue_.front().size()) {
+    if (!queue_.empty() && ++block_ >= queue_.front().blocks.size()) {
         queue_.erase(queue_.begin());
         block_ = 0;
     }
@@ -155,22 +185,62 @@ void ReadingQueue::CutOffLocked() {
 // ------------------------------------------------------------------ the Reading ---
 
 void ReadingQueue::AppendChunkLocked(const SpeechChunk& chunk) {
-    const size_t n = chunk.samples.size();
-    if (n == 0 || chunk.sampleRate <= 0) return;
     // A word ends where the next ' ' phoneme starts (the silence of the space then belongs to the
-    // start of the next piece, so it is kept when the Reading resumes).
-    std::vector<size_t> cuts{0};
-    for (const PhonemeTiming& p : chunk.phonemes) {
-        if (p.phoneme != U' ' || p.startSample <= 0) continue;
-        const size_t at = static_cast<size_t>(p.startSample);
-        if (at > cuts.back() && at < n) cuts.push_back(at);
+    // start of the next piece, so it is kept when the Reading resumes). CutIntoWords does the cutting.
+    const std::vector<WordPiece> cut = CutIntoWords(chunk);
+    if (cut.empty() || chunk.sampleRate <= 0) return;
+
+    // Which word of the Block's text each piece says (read-along). The pieces with a spoken phoneme
+    // are the spoken words, in order; SpokenWordRanges maps them to text words. A failure to map
+    // only means no word mark: the audio is cut the same either way.
+    std::vector<TextRange> ranges(cut.size());
+    // The Block is the one being synthesised; the epoch check in Pump's callback means a Stop or
+    // Skip has not emptied the queue under it, but be safe.
+    if (!queue_.empty() && block_ < queue_.front().blocks.size()) {
+        const std::string& text = queue_.front().blocks[block_];
+        std::vector<int> phonemesPerWord;
+        std::vector<size_t> pieceOfWord;
+        for (size_t i = 0; i < cut.size(); ++i) {
+            if (cut[i].phonemes <= 0) continue;
+            phonemesPerWord.push_back(cut[i].phonemes);
+            pieceOfWord.push_back(i);
+        }
+        if (!phonemesPerWord.empty() && chunk.textOffset < text.size()) {
+            if (!stretchesKnown_) {
+                stretches_ = SpokenStretchRanges(text);
+                stretchesKnown_ = true;
+            }
+            // The chunks of a new stretch start counting sentences again.
+            if (chunk.textOffset != stretchOffset_) {
+                stretchOffset_ = chunk.textOffset;
+                sentence_ = 0;
+            }
+            // The stretch's text: to the start of the next stretch (a sentence that runs on into the
+            // next Voice's words must not take them in), or the end of the Block if this offset is
+            // not a stretch start (a synthesiser that is not SpeakStretches).
+            size_t stretchEnd = text.size();
+            for (const TextRange& s : stretches_) {
+                if (s.start == chunk.textOffset) stretchEnd = s.end;
+            }
+            const std::string stretchText = text.substr(chunk.textOffset, stretchEnd - chunk.textOffset);
+            const std::vector<TextRange> spoken = SpokenWordRanges(stretchText, sentence_, phonemesPerWord);
+            ++sentence_;  // only chunks with a spoken word count: a sentence of "..." has none
+            for (size_t k = 0; k < spoken.size(); ++k) {
+                if (spoken[k].Empty()) continue;
+                ranges[pieceOfWord[k]] = {spoken[k].start + chunk.textOffset, spoken[k].end + chunk.textOffset};
+            }
+        }
     }
-    cuts.push_back(n);
-    for (size_t i = 0; i + 1 < cuts.size(); ++i) {
+
+    for (size_t i = 0; i < cut.size(); ++i) {
         Piece piece;
-        piece.samples.assign(chunk.samples.begin() + static_cast<std::ptrdiff_t>(cuts[i]),
-                             chunk.samples.begin() + static_cast<std::ptrdiff_t>(cuts[i + 1]));
+        piece.samples.assign(chunk.samples.begin() + static_cast<std::ptrdiff_t>(cut[i].begin),
+                             chunk.samples.begin() + static_cast<std::ptrdiff_t>(cut[i].end));
         piece.sampleRate = chunk.sampleRate;
+        if (!ranges[i].Empty() && !queue_.empty()) {
+            piece.hasWord = true;
+            piece.word = HeardWord{queue_.front().id, block_, ranges[i]};
+        }
         bufferedSeconds_ += piece.Seconds();
         buffer_.push_back(std::move(piece));
     }
@@ -368,12 +438,13 @@ bool ReadingQueue::Pump() {
     }
     if (paused_) return false;
 
-    const std::string text = queue_.front()[block_];
+    const std::string text = queue_.front().blocks[block_];
     if (Trim(text).empty()) {
         AdvanceLocked();
         return true;
     }
     speaking_ = true;
+    StartBlockTextLocked();
     const unsigned long long epoch = epoch_;
     lk.unlock();
 

@@ -133,6 +133,7 @@ add_library(lexia_core STATIC
     src/native_ui/pages/voice_sheets.cpp
     src/native_ui/widget.cpp
     src/ocr.cpp
+    src/read_along.cpp
     src/recognize.cpp
     src/score.cpp
     src/startup.cpp
@@ -386,6 +387,7 @@ add_executable(lexia_tests
     tests/stretch_speech_test.cpp
     tests/stretch_test.cpp
     tests/settings_test.cpp
+    tests/read_along_test.cpp
     tests/reading_queue_test.cpp
     tests/speech_key_test.cpp
     tests/stale_data_test.cpp
