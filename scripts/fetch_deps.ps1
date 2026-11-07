@@ -1,11 +1,9 @@
 # Downloads what is not in git: ONNX Runtime into onnxruntime, the OCR models into models and the Piper Voices into voices
-# (and, with -Installer, the WebView2 Runtime's bootstrapper into installer\redist).
 # Every file is checked against a pinned SHA-256; files already present and correct are skipped.
 # Network use in the repo: this script, and the build, which clones Piper and espeak-ng at pinned commits (CMakeLists.txt). ADR-0005 covers the app.
 
 param(
-    [switch]$SkipVoices,  # CI builds and tests without speaking, so it skips the 126 MB of Voices
-    [switch]$Installer    # also the WebView2 Runtime's Evergreen Bootstrapper, for the installer (H4)
+    [switch]$SkipVoices  # CI builds and tests without speaking, so it skips the 126 MB of Voices
 )
 
 # --- Pins: to change a version, change the URL and the hash together ------------------------
@@ -111,34 +109,6 @@ foreach ($m in $models) {
     if (Test-Path $dest) { Write-Host "$($m.Name): wrong SHA-256, replacing" } else { Write-Host "$($m.Name): downloading" }
     Get-Verified $m.Name $m.Url $m.Sha $dest
 }
-# --- WebView2 Runtime bootstrapper (only with -Installer) -------------------------------------
-# installer\redist\MicrosoftEdgeWebview2Setup.exe: Microsoft's "Evergreen Bootstrapper", which the
-# installer runs when a PC has no WebView2 Runtime (Lexia's Settings window needs it). Microsoft allows
-# apps to ship it. Its link always gives the newest build, so no SHA-256 can be pinned: the file is
-# kept only if it carries a valid Authenticode signature of Microsoft Corporation.
-if ($Installer) {
-    $redist = Join-Path $root 'installer\redist'
-    New-Item -ItemType Directory $redist -Force | Out-Null
-    $boot = Join-Path $redist 'MicrosoftEdgeWebview2Setup.exe'
-    function Test-MicrosoftSigned($path) {
-        if (-not (Test-Path -LiteralPath $path)) { return $false }
-        $sig = Get-AuthenticodeSignature -LiteralPath $path
-        $sig.Status -eq 'Valid' -and $sig.SignerCertificate.Subject -match 'O=Microsoft Corporation'
-    }
-    if (Test-MicrosoftSigned $boot) {
-        Write-Host 'MicrosoftEdgeWebview2Setup.exe: present'
-    } else {
-        Write-Host 'MicrosoftEdgeWebview2Setup.exe: downloading'
-        $part = "$boot.part"
-        Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $part -UseBasicParsing
-        if (-not (Test-MicrosoftSigned $part)) {
-            Remove-Item -LiteralPath $part -Force
-            throw 'MicrosoftEdgeWebview2Setup.exe is not signed by Microsoft Corporation: not kept.'
-        }
-        Move-Item -LiteralPath $part $boot -Force
-    }
-}
-
 # --- Piper Voices ----------------------------------------------------------------------------
 if ($SkipVoices) { Write-Host "voices: skipped"; Write-Host "Done."; exit 0 }
 # voices\voices.json (tracked) lists the Voices, the pinned download source and the hashes. A
