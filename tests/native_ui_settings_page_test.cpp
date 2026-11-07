@@ -503,6 +503,51 @@ TEST_CASE("Settings: the read button sends readKeyCard for the selected Key, nev
     CHECK(r.sent[1].action == "speech");
 }
 
+// The owner's rule: the read button is on the card of every Key, not only Read's. The card is one widget for
+// the three Keys, so this walks them all: the speaker icon left of that Key's title, the button's name for that
+// Key, and a press that reads that Key's card.
+TEST_CASE("Settings: every Key's card has the read button left of its title, and it reads that Key") {
+    struct KeyCase {
+        const char* action;
+        const char* title;  // a string id (strings/string_ids.h): the Key's full name, its card's title
+    };
+    const KeyCase keys[] = {{"read", strings::id::kWindowKeysRead},
+                            {"pause", strings::id::kWindowKeysPause},
+                            {"speech", strings::id::kWindowKeysSpeech}};
+    Rig r;
+    for (const KeyCase& k : keys) {
+        CAPTURE(k.action);
+        // Select the Key the way a person does: the pointer over its row's name.
+        const RectF row = r.Page_().RowFor(k.action)->Abs();
+        r.ui.Move(row.x + 20, row.y + 12);
+        r.ui.Frame();
+        REQUIRE(r.Page_().SelectedAction() == k.action);
+        CHECK(r.Page_().CardTitle()->Text() == r.Words(k.title));
+
+        Widget* button = r.Page_().ReadButton();
+        CHECK(button->Visible());
+        CHECK(button->Enabled());
+        CHECK(button->Access().name ==
+              strings::Format("en", strings::id::kWindowKeysReadAloud, {{"action", r.Words(k.title)}}));
+        CHECK(button->Abs().Right() < r.Page_().CardTitle()->Abs().x);
+
+        // The speaker icon is drawn in the card's head, left of this title.
+        const Call* icon = nullptr;
+        for (const Call* c : r.ui.canvas.Of(Call::Icon)) {
+            if (c->text == "volume-05" && c->rect.y < 300) icon = c;
+        }
+        REQUIRE(icon != nullptr);
+        CHECK(icon->rect.Right() + 10 == doctest::Approx(r.Page_().CardTitle()->Abs().x));
+
+        r.sent.clear();
+        const PointF c = Centre(*button);
+        r.ui.Click(c.x, c.y);
+        REQUIRE(r.sent.size() == 1);
+        CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
+        CHECK(r.sent[0].action == k.action);
+    }
+}
+
 // ---------------------------------------------------------------------------------- switches ---
 
 TEST_CASE("Settings: the switches show the state, and a press changes nothing until the next state") {
