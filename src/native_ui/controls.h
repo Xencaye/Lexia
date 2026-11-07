@@ -154,16 +154,26 @@ public:
     void SetState(State s);
     State GetState() const { return state_; }
     void SetOnKey(std::function<void(const KeyEvent&)> fn) { onKey_ = std::move(fn); }
+    // Called when the pointer comes onto the chip or the focus comes to it (the page selects the row).
+    void SetOnReach(std::function<void()> fn) { onReach_ = std::move(fn); }
+    // Called when the chip loses the focus while it is Capturing (a press elsewhere, Tab, the window
+    // going inactive, the page being replaced): the capture is over. The state is still Capturing then.
+    void SetOnBlur(std::function<void()> fn) { onBlur_ = std::move(fn); }
     bool OnKey(const KeyEvent& ev) override;
     bool CapturesAllKeys() const override { return state_ == State::Capturing; }
     SizeF Measure(Canvas& canvas, float maxWidth) override;
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;
 
+protected:
+    void StateChanged() override;
+
 private:
     std::string text_;
     State state_ = State::None;
     std::function<void(const KeyEvent&)> onKey_;
+    std::function<void()> onReach_, onBlur_;
+    bool wasHovered_ = false, wasFocused_ = false;  // to see which flag just changed
 };
 
 }  // namespace nui

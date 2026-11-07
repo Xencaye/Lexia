@@ -75,6 +75,12 @@ void SettingsUi::ShowPage(Page page) {
     screen_.Invalidate();
 }
 
+void SettingsUi::ShowPage(Page page, const ShowOptions& options) {
+    ShowPage(page);  // builds the page when it is not the one that shows
+    view_->OnShow(options);
+    screen_.Invalidate();
+}
+
 void SettingsUi::SetState(const UiState& state) {
     state_ = state;
     hasState_ = true;

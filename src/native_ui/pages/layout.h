@@ -34,6 +34,25 @@ constexpr float kPowerGlyphSize = 104, kPowerGlyphViewBox = 64, kPowerGlyphStrok
 constexpr RectF kEnable{331, 421, 138, 40};
 constexpr float kEnableFont = 22;
 
+// ---- Settings (pages.css `.heading` `.keys` `.misc` `.keycard` `.key-hint`, components.css) -----------------
+// Headings: right edge at 252, 24 bold, 28 high; keys at y = 120, misc at y = 335.
+constexpr float kHeadingW = 252, kHeadingH = 28, kHeadingFont = 24, kHeadingKeysY = 120, kHeadingMiscY = 335;
+// The key list: right edge at 253 (the chips), first row at y = 179, 24 high, 17 between, name 20, 16 before the chip.
+constexpr float kKeysW = 253, kKeysY = 179, kKeyRowH = 24, kKeyRowGap = 17, kKeyNameFont = 20, kKeyNameGap = 16;
+// The five switches: 250 wide, first at y = 377, 28 apart.
+constexpr float kMiscW = 250, kMiscY = 377, kMiscRowH = 28;
+// The key card: 355 x 342 at (273, 160), padding 18 20 20; title 20 bold in a 28 high head; the play button
+// 24 x 24 (2 border, radius 4, icon 14) 12 after the title; the text 22 under the head, 20 line, paragraphs 14
+// apart; the wine at (72, 207) inside, 210 wide.
+constexpr RectF kKeyCard{273, 160, 355, 342};
+constexpr float kKeyCardPadX = 20, kKeyCardPadTop = 18, kKeyCardHeadH = 28, kKeyCardTitleFont = 20,
+                kKeyPlaySize = 24, kKeyPlayBorder = 2, kKeyPlayIcon = 14, kKeyPlayGap = 12, kKeyCardTextGap = 22,
+                kKeyCardParaGap = 14;
+constexpr RectF kKeyCardWine{72, 207, 210, 114};  // relative to the card
+// The capture hint under the card: 13 px at (273, 508).
+constexpr RectF kKeyHint{273, 508, 355, 20};
+constexpr float kKeyHintFont = 13;
+
 // ---- Report, Help (pages.css) --------------------------------------------------------------------------
 constexpr RectF kDog{-13, 124, 406, 394};
 constexpr float kDogOpacity = 0.66f;

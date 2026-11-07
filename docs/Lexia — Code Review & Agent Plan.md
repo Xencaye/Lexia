@@ -31,8 +31,8 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0, K1, K2 and K3 are done
-(K2 merged; K3 on `feat/K.3`, not merged yet); K4 (Settings page) is next.
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 to K4 are done and
+merged there; K5 (UI Automation) is next.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -380,7 +380,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
 
 - [x] **K0 Reference and ADR.** The HTML pages' screenshots (every page, state and sheet, light and dark) in
   `wireframe/html-reference/`, the visual spec after `ui/` is gone. ADR-0009.
-- [ ] **K1 Toolkit and assets.** Icons, pictures and fonts (Atkinson Hyperlegible Next TTF) as resources in the
+- [x] **K1 Toolkit and assets.** Icons, pictures and fonts (Atkinson Hyperlegible Next TTF) as resources in the
   exe; one palette for the window and the Control bar (the contrast check becomes a doctest); the Win32-free
   widget tree with a `Canvas` interface (tested with a fake canvas); the Direct2D canvas; a shared tooltip.
   *Done so far (`feat/K.1b`):* the widget tree and every control (`src/native_ui/`: `Widget`, `Screen`, sheets,
@@ -412,7 +412,15 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   `voice_events_test.cpp` (4 cases). Compared with `wireframe/html-reference/` (light and dark): positions within 1-2 DIPs;
   a scrolling download list leaves 10 DIPs for its scrollbar (the HTML shots had none); a few words wrap one word
   differently (DirectWrite and the browser measure a glyph a little differently).
-- [ ] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
+- [x] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
+  *Done (`feat/K.4`):* `pages/settings_page.*` (rows, key card, play button, hint, five switches), `key_chord.*`
+  (`KeyChordName`, pure), the capture in `settings_window.cpp` (F10, Alt combinations and PrintScreen reach a waiting
+  chip; no hook, nothing logged; Alt+F4 still closes), `SettingsUi::ShowPage(Page, ShowOptions)`,
+  `lexia_settingsshot --select / --capture / --switches` and the five `settings-*` shots of `settings_shots.ps1`;
+  `native_ui_settings_page_test.cpp` and `key_chord_test.cpp` (32 cases). Compared with `wireframe/html-reference/`
+  (light and dark): positions within 1 DIP; the card text and the switch labels sit 1 DIP lower than in the browser.
+  The owner's by-hand check of the capture (F-keys, Alt and Ctrl combinations, F10, PrintScreen; Lexia's keys work
+  again after a capture) is part of K7.
 - [ ] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
 - [ ] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
 - [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator, dark mode,

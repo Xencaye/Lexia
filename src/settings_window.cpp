@@ -98,6 +98,16 @@ struct SettingsWindow::Impl {
     int lostFrames = 0;          // frames in a row that were lost (device loss); stops a retry loop
     std::string tipText;         // what the tooltip window shows now ("" = hidden)
     std::unique_ptr<RepaintingSink> events;  // the Voice library's sink, with a repaint after each answer
+    // K.4: a key chip waited for a key when an Alt / F10 key went down, and Windows would take the rest of
+    // that press (the character, the key-up) for the system menu. Set while those messages are eaten.
+    bool swallowSysKeys = false;
+
+    // Does the focused widget wait for a key (a key chip in capture)? Then it gets every key, even the ones
+    // Windows keeps for itself. The window reads only its own key messages: no hook, no other window's keys.
+    bool Capturing() const {
+        const nui::Widget* f = screen.Focused();
+        return f && f->CapturesAllKeys();
+    }
 
     float ToDip(int px) const { return static_cast<float>(px) * 96.0f / static_cast<float>(dpi); }
     int ToPx(float dip) const { return static_cast<int>(std::lround(dip * static_cast<float>(dpi) / 96.0f)); }
@@ -177,6 +187,23 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         ev.wheelDelta = wheel;
         im.lastPos = ev.pos;
         const bool used = im.screen.HandleMouse(ev);
+        sync();
+        return used;
+    };
+
+    // Sends a key to the tree: the toolkit's key, the virtual-key code and the modifiers as they are now. The
+    // key itself is never logged (a captured key is the user's choice, but a log of keys is not Lexia's).
+    auto deliverKey = [&](WPARAM vk, bool repeat) {
+        im.screen.Tick(NowSeconds());
+        nui::KeyEvent ev;
+        ev.key = KeyOf(vk);
+        ev.code = static_cast<int>(vk);
+        ev.ctrl = KeyIsDown(VK_CONTROL);
+        ev.alt = KeyIsDown(VK_MENU);
+        ev.shift = KeyIsDown(VK_SHIFT);
+        ev.win = KeyIsDown(VK_LWIN) || KeyIsDown(VK_RWIN);
+        ev.repeat = repeat;
+        const bool used = im.screen.HandleKey(ev);
         sync();
         return used;
     };
@@ -272,20 +299,54 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         return DefWindowProcW(hwnd_, msg, wp, lp);
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
-        im.screen.Tick(NowSeconds());
-        nui::KeyEvent ev;
-        ev.key = KeyOf(wp);
-        ev.code = static_cast<int>(wp);
-        ev.ctrl = KeyIsDown(VK_CONTROL);
-        ev.alt = KeyIsDown(VK_MENU);
-        ev.shift = KeyIsDown(VK_SHIFT);
-        ev.win = KeyIsDown(VK_LWIN) || KeyIsDown(VK_RWIN);
-        ev.repeat = (lp & (1 << 30)) != 0;  // the key was already down
-        const bool used = im.screen.HandleKey(ev);
-        sync();
+        const bool capturing = im.Capturing();
+        const bool sys = msg == WM_SYSKEYDOWN;
+        // Alt+F4 closes the window even while a chip waits: it is Windows' own key, and trapping it would
+        // leave no way out but Esc. (It is not usable as a Key anyway.)
+        const bool closeKey = sys && wp == VK_F4 && KeyIsDown(VK_MENU);
+        if (capturing && sys && !closeKey) im.swallowSysKeys = true;
+        const bool used = deliverKey(wp, (lp & (1 << 30)) != 0);  // bit 30: the key was already down
+        // While a chip waits, every key is its own: F10 and Alt combinations (WM_SYSKEYDOWN) must not reach
+        // DefWindowProc either, or Windows would open the system menu instead of leaving us the key.
+        if (capturing && !closeKey) return 0;
         // A key the tree does not use goes on: Alt+F4 closes, Alt+Space opens the system menu.
         return used ? 0 : DefWindowProcW(hwnd_, msg, wp, lp);
     }
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+        // PrintScreen sends no key-down to a window, only a key-up (with Alt: a system key-up). While a chip
+        // waits, that one message is its key.
+        if (wp == VK_SNAPSHOT && im.Capturing()) {
+            if (msg == WM_SYSKEYUP) im.swallowSysKeys = true;
+            deliverKey(wp, /*repeat=*/false);
+            return 0;
+        }
+        if (im.swallowSysKeys && msg == WM_SYSKEYUP) {
+            // The end of a press whose start we took (an Alt tap would open the system menu here). The flag
+            // goes when Alt is up again.
+            if (!KeyIsDown(VK_MENU)) im.swallowSysKeys = false;
+            return 0;
+        }
+        return DefWindowProcW(hwnd_, msg, wp, lp);
+    case WM_SYSCHAR:
+        if (im.swallowSysKeys || im.Capturing()) return 0;  // Alt+letter would beep or pick a menu item
+        return DefWindowProcW(hwnd_, msg, wp, lp);
+    case WM_SYSCOMMAND:
+        // Alt alone, F10 or Alt+Space ask for the system menu (SC_KEYMENU): not while a key is awaited.
+        if ((wp & 0xFFF0) == SC_KEYMENU && (im.swallowSysKeys || im.Capturing())) return 0;
+        return DefWindowProcW(hwnd_, msg, wp, lp);
+    case WM_ACTIVATE:
+        // Another window took the activation: a chip that waits stops waiting (as a blur does in a browser).
+        // Taking the focus away makes the chip tell the page, the page tells the host, and the host gives
+        // Lexia's keys back.
+        if (LOWORD(wp) == WA_INACTIVE) {
+            im.swallowSysKeys = false;
+            if (im.Capturing()) {
+                im.screen.SetFocus(nullptr);
+                sync();
+            }
+        }
+        return DefWindowProcW(hwnd_, msg, wp, lp);
     case WM_DPICHANGED: {
         im.dpi = LOWORD(wp);
         if (im.canvas) im.canvas->SetDpi(static_cast<float>(im.dpi));

@@ -101,6 +101,7 @@ add_library(lexia_core STATIC
     src/common.cpp
     src/control_bar_layout.cpp
     src/jobqueue.cpp
+    src/key_chord.cpp
     src/key_edit.cpp
     src/ctc.cpp
     src/language.cpp
@@ -344,6 +345,7 @@ add_executable(lexia_tests
     tests/control_bar_layout_test.cpp
     tests/hotkeys_test.cpp
     tests/jobqueue_test.cpp
+    tests/key_chord_test.cpp
     tests/key_edit_test.cpp
     tests/ctc_test.cpp
     tests/language_test.cpp
@@ -356,6 +358,7 @@ add_executable(lexia_tests
     tests/native_ui_animation_test.cpp
     tests/native_ui_controls_test.cpp
     tests/native_ui_screen_test.cpp
+    tests/native_ui_settings_page_test.cpp
     tests/native_ui_settings_ui_test.cpp
     tests/native_ui_slider_select_test.cpp
     tests/native_ui_text_test.cpp

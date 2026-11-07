@@ -338,8 +338,18 @@ bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& opti
     SettingsUi& ui = *keep;
     // The Delete sheet is for a Voice the person added: its picture needs that one active.
     const std::string voices = options.voices.empty() && options.sheet == "delete" ? "user" : options.voices;
-    ui.SetState(SampleState(options.on, dark, voices));
-    ui.ShowPage(page);
+    UiState state = SampleState(options.on, dark, voices);
+    if (options.switches) {  // the owner's reference shot of the switches (start minimised is on by default)
+        state.runAtStartup = true;
+        state.runAsAdmin = true;
+        state.leftHanded = true;
+    }
+    ui.SetState(state);
+    // The Settings page opens on a Key and may start a capture, as the old ?select= / ?capture= did.
+    ShowOptions show;
+    show.selectAction = options.select;
+    show.capture = options.capture;
+    ui.ShowPage(page, show);
     if (!options.sheet.empty() && !ApplySheet(options.sheet, ui, screen)) return false;
     const std::string& h = options.hover;
     if (h.empty()) return true;

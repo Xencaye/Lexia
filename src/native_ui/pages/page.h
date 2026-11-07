@@ -53,12 +53,22 @@ private:
     bool layoutDirty_ = true;
 };
 
+// Where to open a page (the old `?select=` and `?capture=` switches, for the picture tool and tests): the
+// Settings page selects the key of `selectAction` ("read" | "pause" | "speech") and, with `capture`, puts that
+// key's chip in capture (as a press on it does: CaptureKey goes to the host). Other pages ignore it.
+struct ShowOptions {
+    std::string selectAction;
+    std::string capture;
+};
+
 class PageView : public Panel {
 public:
     PageView(Page kind, const PageEnv& env);
     Page Kind() const { return kind_; }
     // Shows what `state` says. Called once when the page is built (if a state has come) and after every state.
     virtual void SetState(const UiState& state) = 0;
+    // Called by SettingsUi::ShowPage(page, options) after the page is built and has the state.
+    virtual void OnShow(const ShowOptions&) {}
 
 protected:
     // The texts of the page: by string id, in the window's Interface language.
