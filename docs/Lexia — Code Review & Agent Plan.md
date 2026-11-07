@@ -31,7 +31,7 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-Merged into `main` (Nov 7): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); **K7, your check, is still open** and is done on `main`. G1 (the word mark on the Overlay, PR #2), G2 (the word mark layer after you leave the Overlay, PR #3) and the H5 plan (PR #4). K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2) is on `feat/K9-settings-layout`, in a PR to `main`; K10 (the window's own minimise and close buttons, no Windows title bar) is built on `feat/K10-window-buttons` (from K9), and its check is yours.
+Merged into `main` (Nov 7): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); **K7, your check, is still open** and is done on `main`. G1 (the word mark on the Overlay, PR #2), G2 (the word mark layer after you leave the Overlay, PR #3) and the H5 plan (PR #4). K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2) is on `feat/K9-settings-layout`, in a PR to `main`; K10 (the window's own minimise and close buttons, no Windows title bar) is merged (PR #6), and its check is yours; K11 (the card's read button is also a stop button) is built on `feat/K11-read-button-stop` (from K9), and its check is yours.
 Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -544,6 +544,37 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   *Your check:* drag the window by the empty area, minimise and close with the mouse, Tab + Enter, Alt+Space and
     Alt+F4; the shadow and the corners; 100 / 150 / 200 % and a move between monitors; Narrator reads both buttons.
 
+- [x] **K11 The card's read button is also a stop button (built Nov 7 on `feat/K11-read-button-stop`, from K9; owner check open).**
+  The owner's request: the speaker (`volume-05`) that reads a card aloud turns into `volume-07` while the card is read;
+  a press on it stops the reading and the speaker comes back; the next press reads the card again from the beginning;
+  when the reading ends by itself the speaker comes back too. Then (agent):
+  - **The host owns the truth.** `UiState::readingCard` (a Key action or a switch name, "" = none); the page shows the
+    stop icon only when it equals the selected card (another selected card shows the speaker, and a press on it starts
+    that card and replaces the reading, as before). The button name, tooltip and UIA Name follow
+    (`window.keys.stopReading` / `window.switches.stopReading`, "Stop reading what ... does"); no wiggle while it shows stop.
+  - **One message.** `readKeyCard` stays the only command; `App::ReadKeyCard` decides play or stop from its own
+    `CardReading` (`card_reading.*`, pure and tested): stop if the pressed card is the one being read and its Reading is
+    still queued, else start. Starting keeps the Reading id of `Speaker::SpeakReading` (`append = false`).
+  - **Stop only that Reading.** New `ReadingQueue::StopReading(id)` / `Speaker::StopReading(id)`: the Reading being
+    spoken is cut off (a pause ends with it, like Stop) and the next Reading starts at its first Block; a waiting one is
+    dropped; an unknown id changes nothing. A Pick queued behind the card therefore goes on (a full `Stop()` would
+    have cut it too).
+  - **The end is noticed** on the busy / idle message (`WM_APP+11`) and by a 100 ms window timer that runs only while a
+    card is read (a Pick queued behind it keeps the queue busy, so the message alone would not tell). Cleared on
+    Stop from anywhere (Control bar, Speech key, tray), on a new card reading, and when the Settings window closes.
+  - **Tests:** `card_reading_test` (6), `reading_queue_test` (4 `StopReading` cases), `native_ui_settings_page_test` (5:
+    icon, name, press, another card, switch card, no wiggle), `native_ui_access_test` (name change and the tracker's
+    Name event). `lexia_settingsshot --reading`, `settings_shots.ps1` writes `settings-reading-light/dark.png`.
+  - **Security:** no new input from files or the network; the card id the page sends is only looked up in the card
+    table (`CardDescId`, an unknown one is not spoken); the timer and the Reading id live on the UI thread.
+  - **Status (built):** as planned. Build Release 0 warnings, `ctest` 883 of 883 (`uia_tree` ran), `score_layout.ps1`
+    OK, shot `settings-reading` looked at. `volume-07.svg` is the owner's file (it is drawn like a speaker with a slash).
+  *Your check:* click the speaker on a card: the speech starts and the icon changes; click it again: the speech stops
+    and the speaker returns; click once more: it starts from the first sentence; let a card finish: the speaker returns;
+    start a card, then hover another row: that card shows the speaker, click it: the old reading is replaced and the
+    stop icon is on the new card; start a card, press F8, pick a text, stop the card with the button: the picked text
+    goes on; Narrator reads "Stop reading ..." while it plays; no shaking while it shows stop; 150 % and dark.
+
 ## Order and milestones
 
 Phase 0 comes first. After it, A, B, C, E and I can run as parallel agents because they own different
@@ -567,7 +598,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1); K9 in a PR; K10 built on `feat/K10-window-buttons` (your check is open); your K7 check is open (owner, Nov 7).
+5. **M5 Lexia 0.6: Read-along** — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1); K9 in a PR; K10 built (your check is open); K11 built on `feat/K11-read-button-stop` (your check is open); your K7 check is open (owner, Nov 7).
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland. Also H5: the Windows files signed through SignPath Foundation, if SignPath accepts Lexia (moved from 0.6 on Nov 7).
 
