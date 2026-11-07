@@ -6,6 +6,7 @@
 
 #include "strings/string_ids.h"
 #include "strings/strings.h"
+#include "voice_events.h"
 
 // The host's side of the bridge to the ui/ pages (the contract is ui/README.md): the JSON messages the
 // host sends (strings, state, the Voice tab's answers) and the check of every message the page sends.
@@ -252,16 +253,13 @@ const ControlInfo kControls[] = {{"speed", VoiceControl::Speed, 0.05},
 // Round to the three decimals the sliders use, so 0.8f is not sent as 0.800000011920929.
 double Round3(double v) { return std::round(v * 1000.0) / 1000.0; }
 
-// A Lexia Language id for a Voice language code ("en" or the catalogue's "en_GB"); nullptr if none is offered.
-const Language* OfferedLanguageForCode(const std::string& code) {
-    const Language* l = FindLanguageByCode(code.substr(0, code.find_first_of("_-")));
-    return l && l->offered ? l : nullptr;
-}
-
-// The facts the page puts into a refusal's text ("Lexia can't read {language} yet").
+// The facts the old page put into a refusal's text ("Lexia can't read {language} yet"). Which facts a text
+// takes is decided once, in voice_events.h (FactsOf); the native pages use the typed value, this only dresses
+// it as JSON until K.6 removes the JSON builders.
 void AddProblemFacts(ordered_json& j, const VoiceOutcome& o) {
-    if (!o.languageName.empty()) j["language"] = o.languageName;
-    if (!o.quality.empty()) j["quality"] = o.quality;
+    const ProblemFacts f = FactsOf(o);
+    if (!f.language.empty()) j["language"] = f.language;
+    if (!f.quality.empty()) j["quality"] = f.quality;
 }
 
 }  // namespace
@@ -309,13 +307,9 @@ void FillVoiceState(UiState& state, const VoiceModel& m) {
 // The downloadable Voices for the Voice download dialog: only those of offered Languages (ADR-0007).
 std::string CatalogueMessage(const std::vector<CatalogueVoice>& voices, const std::set<std::string>& installedNames) {
     ordered_json list = ordered_json::array();
-    for (const CatalogueVoice& v : voices) {
-        const Language* lang = OfferedLanguageForCode(v.languageCode);
-        if (!lang) continue;
-        list.push_back({{"name", v.name},
-                        {"language", lang->id},
-                        {"sizeBytes", v.model.sizeBytes + v.config.sizeBytes},
-                        {"installed", installedNames.count(v.name) > 0}});
+    // The filter (offered Languages only) is the typed one of voice_events.h; this only dresses it as JSON.
+    for (const CatalogueEntry& v : OfferedCatalogue(voices, installedNames)) {
+        list.push_back({{"name", v.name}, {"language", v.language}, {"sizeBytes", v.sizeBytes}, {"installed", v.installed}});
     }
     return Dump({{"type", "catalogue"}, {"voices", std::move(list)}});
 }
@@ -337,8 +331,8 @@ std::string DownloadFailedMessage(const std::string& name, const VoiceOutcome& o
 }
 
 std::string VoiceAddedMessage(const VoiceOutcome& o) {
-    const Language* lang = OfferedLanguageForCode(o.languageCode);
-    return Dump({{"type", "voiceAdded"}, {"voice", o.voiceName}, {"language", lang ? lang->id : std::string()}});
+    const VoiceAddedFacts added = AddedFactsOf(o);
+    return Dump({{"type", "voiceAdded"}, {"voice", added.voice}, {"language", added.language}});
 }
 
 std::string VoiceRefusedMessage(const VoiceOutcome& o) {

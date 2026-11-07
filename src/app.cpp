@@ -178,9 +178,12 @@ bool App::Init() {
     speaker_.Configure(settings_.speechRate, settings_.speechVolume);
 
     VoiceTab::Host host;
-    // TODO(K.3): the Voices page has no widgets yet, so the Voice library's answers (catalogue, download,
-    // add / delete / preset results) have nowhere to go. K.3 replaces this JSON hook with typed events.
-    host.toPage = [](const std::string&) {};
+    // The Voice library's answers (catalogue, download, add / delete / preset results) are typed events for
+    // the Settings window's Voice download and result sheets. A window that is closing (its HWND is gone,
+    // the object waits for the posted drop) gets none.
+    host.events = [this]() -> VoiceEventSink* {
+        return settingsWindow_ && IsWindow(settingsWindow_->Handle()) ? settingsWindow_->VoiceEvents() : nullptr;
+    };
     host.pushState = [this] { PushState(); };
     host.owner = [this]() -> HWND { return settingsWindow_ ? settingsWindow_->Handle() : nullptr; };
     host.languageId = [this] { return AllLanguages()[langIdx_].id; };

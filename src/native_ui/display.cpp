@@ -151,13 +151,17 @@ Notice::Geometry Notice::Place(Canvas& canvas, float width) const {
     TextStyle leadStyle;
     leadStyle.weight = FontWeight::Bold;
     TextStyle textStyle;
-    g.lineHeight = LineHeight(canvas, textStyle);
-    g.leadW = lead_.empty() ? 0.0f : canvas.MeasureText(lead_, leadStyle).w;
-    g.textX = kNoticeBorder + kNoticePadX + kMarkSize + kNoticeGap + (lead_.empty() ? 0.0f : g.leadW + kNoticeGap);
+    // The CSS body `line-height: 1.35` (not the font's own line, which is a little shorter): the lines of the
+    // reference notices are 21.6 apart.
+    g.lineHeight = textStyle.size * 1.35f;
+    const bool plain = kind_ == Kind::Plain;  // no mark and no lead: the text starts at the padding
+    g.leadW = (lead_.empty() || plain) ? 0.0f : canvas.MeasureText(lead_, leadStyle).w;
+    g.textX = kNoticeBorder + kNoticePadX;
+    if (!plain) g.textX += kMarkSize + kNoticeGap + (lead_.empty() ? 0.0f : g.leadW + kNoticeGap);
     g.textW = std::max(0.0f, width - kNoticePadX - g.textX);
     g.lines = WrapRuns(canvas, std::vector<TextRun>{TextRun{text_, false}}, textStyle, g.textW);
     const float textH = static_cast<float>(g.lines.size()) * g.lineHeight;
-    const float inner = std::max({kMarkTop + kMarkSize, textH, lead_.empty() ? 0.0f : g.lineHeight});
+    const float inner = plain ? textH : std::max({kMarkTop + kMarkSize, textH, lead_.empty() ? 0.0f : g.lineHeight});
     g.height = 2 * kNoticePadY + inner;
     return g;
 }
@@ -174,19 +178,22 @@ void Notice::Paint(Canvas& canvas, const Palette& p) {
     canvas.FillRect(r, p.paper);
     canvas.FillRect({r.x, r.y, kNoticeBorder, r.h}, accent);
 
-    // The mark: a ring with a check (ok) or an exclamation sign (bad), drawn with lines.
+    // The mark: a ring with a check (ok) or an exclamation sign (bad), drawn with lines. Plain has none.
     const float mx = r.x + kNoticeBorder + kNoticePadX;
     const float my = r.y + kNoticePadY + kMarkTop;
-    canvas.StrokeEllipse({mx + 1, my + 1, kMarkSize - 2, kMarkSize - 2}, accent, 1.75f);
-    if (!bad) {
-        canvas.Polyline({{mx + 5.5f, my + 10.5f}, {mx + 8.8f, my + 13.8f}, {mx + 14.5f, my + 7.0f}}, accent, 2.0f);
-    } else {
-        canvas.Line({mx + 10, my + 5.5f}, {mx + 10, my + 11.5f}, accent, 2.0f);
-        canvas.FillEllipse({mx + 9, my + 13.5f, 2, 2}, accent);
+    const bool plain = kind_ == Kind::Plain;
+    if (!plain) {
+        canvas.StrokeEllipse({mx + 1, my + 1, kMarkSize - 2, kMarkSize - 2}, accent, 1.75f);
+        if (!bad) {
+            canvas.Polyline({{mx + 5.5f, my + 10.5f}, {mx + 8.8f, my + 13.8f}, {mx + 14.5f, my + 7.0f}}, accent, 2.0f);
+        } else {
+            canvas.Line({mx + 10, my + 5.5f}, {mx + 10, my + 11.5f}, accent, 2.0f);
+            canvas.FillEllipse({mx + 9, my + 13.5f, 2, 2}, accent);
+        }
     }
 
     float x = mx + kMarkSize + kNoticeGap;
-    if (!lead_.empty()) {
+    if (!lead_.empty() && !plain) {
         TextStyle leadStyle;
         leadStyle.weight = FontWeight::Bold;
         canvas.Text({x, r.y + kNoticePadY, g.leadW + 4, g.lineHeight}, lead_, leadStyle, accent);

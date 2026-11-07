@@ -297,8 +297,8 @@ TEST_CASE("a sheet: centred card, scrim behind, focus moves in") {
     CHECK(f.ui.screen.SheetCount() == 1);
     CHECK(s->Bounds().w == 420);
     CHECK(s->Bounds().x == 190);
-    // padding 24 + title 26.4 + 14 + one line 21.6 + 22 + a 34 high button + 24
-    CHECK(s->Bounds().h == doctest::Approx(24 + 26.4f + 14 + 21.6f + 22 + 34 + 24));
+    // border 1 + padding 24 + title 26.4 + 14 + one line 21.6 + 22 + a 34 high button + padding 24 + border 1
+    CHECK(s->Bounds().h == doctest::Approx(25 + 26.4f + 14 + 21.6f + 22 + 34 + 25));
 
     // The scrim covers the whole window before the card is drawn.
     const auto fills = f.ui.canvas.Of(Call::FillRect);
@@ -317,7 +317,7 @@ TEST_CASE("a sheet: centred card, scrim behind, focus moves in") {
     CHECK(f.ui.screen.Focused() == f.cancel);  // the first focusable in the sheet
     // The title is 14 above the body, the actions 22 below it, 12 apart.
     CHECK(f.ok->Bounds().x == f.cancel->Bounds().Right() + 12);
-    CHECK(f.cancel->Bounds().x == 24);
+    CHECK(f.cancel->Bounds().x == 25);  // inside the border and the padding
 }
 
 TEST_CASE("a sheet is modal: the page gets no clicks, no Tab, no hover") {
@@ -389,7 +389,7 @@ TEST_CASE("a press on the scrim does nothing") {
 
 TEST_CASE("hidden actions take no room; a full row wraps") {
     SheetFixture f;
-    auto s = std::make_unique<Sheet>(200.0f);  // inside width 152
+    auto s = std::make_unique<Sheet>(200.0f);  // inside width 148
     auto* a = s->AddAction(std::make_unique<Button>("Aaaaaaa"));  // 56 + 36 = 92
     auto* b = s->AddAction(std::make_unique<Button>("Bbbbbbb"));  // 92: does not fit beside a
     auto* c = s->AddAction(std::make_unique<Button>("Cc"));       // 16 + 36 = 52
@@ -397,11 +397,11 @@ TEST_CASE("hidden actions take no room; a full row wraps") {
     f.ui.screen.OpenSheet(std::move(s));
     f.ui.Frame();
     CHECK(a->Bounds().y == doctest::Approx(b->Bounds().y - 34 - 12));
-    CHECK(b->Bounds().x == 24);
+    CHECK(b->Bounds().x == 25);
     // Hiding the first lets the second take its place.
     a->SetVisible(false);
     f.ui.Frame();
-    CHECK(b->Bounds().x == 24);
+    CHECK(b->Bounds().x == 25);
 }
 
 // --------------------------------------------------------------------------------- ScrollArea ---

@@ -4,7 +4,7 @@
 // (icons, engravings, the font) like lexia_barshot, so it needs no ui\ folder.
 //
 //   lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] [--hover <widget>]
-//                      [--theme light|dark] [--dpi N] out.png
+//                      [--voices none|changed|user] [--sheet <name>] [--theme light|dark] [--dpi N] out.png
 //
 // The picture is 800 x 600 DIPs (the window's client area), so 1200 x 900 pixels at 144 dpi. On success
 // it prints one line: the file, its size and the number of distinct colours (the smoke test checks that
@@ -32,7 +32,7 @@ constexpr float kWindowW = 800, kWindowH = 600;  // the Settings window's client
 int Usage() {
     std::fprintf(stderr,
                  "usage: lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] "
-                 "[--hover <widget>] [--theme light|dark] [--dpi N] out.png\n");
+                 "[--hover <widget>] [--voices none|changed|user] [--sheet <name>] [--theme light|dark] [--dpi N] out.png\n");
     return 2;
 }
 
@@ -60,6 +60,8 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--theme") dark = next() == L"dark";
         else if (a == L"--on") options.on = true;
         else if (a == L"--hover") options.hover = WideToUtf8(next());
+        else if (a == L"--voices") options.voices = WideToUtf8(next());
+        else if (a == L"--sheet") options.sheet = WideToUtf8(next());
         else if (a == L"--dpi") dpi = _wtoi(next().c_str());
         else if (a.rfind(L"--", 0) == 0) return Usage();
         else out = a;

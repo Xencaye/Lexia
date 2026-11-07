@@ -57,4 +57,21 @@ constexpr float kAboutIndents[] = {27, 23, 15, 11, 7, 0};
 constexpr float kAboutLinksX = 284, kAboutLinksY = 450, kAboutLinksGap = 12;
 constexpr float kAboutLegalX = 283, kAboutLegalY = 494, kAboutLegalFont = 10, kAboutLegalLine = 13;
 
+// ---- Voices (pages.css `.vrow` and the rows below) -------------------------------------------------------
+// A row is 30 tall in a grid of 252 | 254 | auto with 21 between: the label ends at x = 252 (right aligned), the
+// control is at x = 273 (254 wide), the icon buttons start at x = 548, 6 apart.
+constexpr float kVoiceRowH = 30, kVoiceLabelRight = 252, kVoiceControlX = 273, kVoiceControlW = 254,
+                kVoiceSideX = 548, kVoiceSideGap = 6;
+constexpr float kVoiceRowTop = 135, kSpeedRowTop = 225, kPitchRowTop = 275, kVolumeRowTop = 325;
+constexpr float kVoiceLabelFont = 20, kVoiceLabelIcon = 24, kVoiceLabelGap = 8;
+// The note that takes the place of the short rule when no Voice is installed (13 px, 254 wide).
+constexpr RectF kVoiceNone{273, 170, 254, 36};
+constexpr float kVoiceNoneFont = 13, kVoiceNoneLine = 13 * 1.35f;
+constexpr RectF kVoiceRule{340, 197, 120, 1};
+constexpr RectF kOtter{318, 378, 162, 76};
+constexpr float kOtterOpacity = 0.55f;
+// The preset links: left 274, 24 tall from y = 482, 18 apart; word 17, icon 24.
+constexpr float kPresetsX = 274, kPresetsY = 482, kPresetsH = 24, kPresetsGap = 18, kPresetsFont = 17,
+                kPresetsIcon = 24;
+
 }  // namespace nui::layout

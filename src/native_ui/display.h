@@ -82,7 +82,8 @@ private:
 // the kind too. Bad: the border, mark, lead and text are in the danger colour.
 class Notice : public Widget {
 public:
-    enum class Kind { Ok, Bad };
+    // Plain: the text alone, with the paper and the accent border (the "download is cancelled" line).
+    enum class Kind { Ok, Bad, Plain };
     Notice();
     void SetKind(Kind k) { kind_ = k; Invalidate(); }
     Kind GetKind() const { return kind_; }

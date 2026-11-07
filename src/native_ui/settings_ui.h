@@ -13,18 +13,19 @@
 //   SetDark / Dark     the theme in use. SetState takes it from the state (`dark`). The window picks its
 //                      Palette by Dark() when it paints.
 //
-// How the later tasks plug in without touching the frame:
-//   K.3  adds typed events (catalogue, download progress, add / delete / preset results) as methods of
-//        VoicesPage, and a SettingsUi accessor `VoicesPage* Voices()` that returns the page while it shows
-//        (events for a page that is not shown are kept by the window layer of K.3, not here).
+// The Voice library (K.3): VoiceEvents() is the sink VoiceTab calls with the typed answers of the host
+// (catalogue, download progress, add / delete / preset results, voice_events.h). They land in a
+// VoiceLibraryState that this object owns, so a download is known while another page shows; the Voices page
+// draws it (and opens its sheets) while it shows, and a result that came while it did not is shown when it is built.
+// How a later task plugs in without touching the frame:
 //   K.4  adds ShowPage(Page, ShowOptions) (select an action, start a capture) next to the one-argument one.
-// Both fill voices_page.* / settings_page.* and layout.h; pages.cpp's MakePage already makes them.
 #include <memory>
 #include <string>
 
 #include "native_ui/pages/frame.h"
 #include "native_ui/pages/page.h"
 #include "native_ui/screen.h"
+#include "native_ui/voice_library_state.h"
 
 namespace nui {
 
@@ -49,8 +50,13 @@ public:
     void SetDark(bool dark);
     bool Dark() const { return dark_; }
 
+    // The Voice library's answers (VoiceTab calls this sink; the window hands it out). The data lives here, not
+    // in the Voices page, so a download is known while another page shows; the page draws it when it shows.
+    VoiceEventSink& VoiceEvents() { return library_; }
+    VoiceLibraryState& Library() { return library_; }
+
 private:
-    std::unique_ptr<PageView> MakePage(Page page) const;
+    std::unique_ptr<PageView> MakePage(Page page);
 
     Screen& screen_;
     PageEnv env_;
@@ -61,6 +67,7 @@ private:
     UiState state_;
     bool hasState_ = false;
     bool dark_ = false;
+    VoiceLibraryState library_;  // the Voice download sheet and the results, whichever page shows
 };
 
 }  // namespace nui

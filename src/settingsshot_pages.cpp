@@ -9,6 +9,7 @@
 #include "native_ui/pages/about_page.h"
 #include "native_ui/pages/home_page.h"
 #include "native_ui/pages/report_page.h"
+#include "native_ui/pages/voices_page.h"
 #include "native_ui/settings_ui.h"
 #include "native_ui/slider.h"
 #include "settingsshot_sample.h"
@@ -272,12 +273,74 @@ void BuildRightColumn(Screen& screen, Canvas& canvas) {
     otter->SetBounds({x + 130, py + 70, 123, 58});
 }
 
-// The real SettingsUi on a sample state. The SettingsUi object itself is not needed after the build: the
-// widgets belong to the Screen, which is drawn next.
+// Opens the sheet `name` of the Voices page, with the data of the old mock host's ?sheet= states. The Voice
+// events go through the same sink the window uses (VoiceTab calls it), so the sheets draw what they would draw
+// in the app. False for a name that is none of them.
+bool ApplySheet(const std::string& name, SettingsUi& ui, Screen& screen) {
+    if (ui.CurrentPage() != Page::Voices) return false;
+    VoicesPage& page = *static_cast<VoicesPage*>(ui.Current());
+    VoiceEventSink& events = ui.VoiceEvents();
+    constexpr uint64_t kMiB = 1024 * 1024;
+    const std::string amy = "en_US-amy-medium";
+
+    if (name == "delete") {
+        page.OpenDeleteSheet();
+    } else if (name == "catalogue" || name == "offline" || name == "downloading" || name == "done" || name == "failed" ||
+               name == "failed-baddownload") {
+        page.OpenDownloadSheet();
+        if (name == "offline") {
+            events.CatalogueFailed(VoiceProblem::Network);
+        } else {
+            events.CatalogueShown(SampleCatalogue());
+            if (name == "downloading") {
+                for (const CatalogueEntry& e : SampleCatalogue()) {
+                    if (e.name == amy) ui.Library().StartDownload(e);
+                }
+                events.DownloadProgress(amy, 12 * kMiB, 63 * kMiB);
+            } else if (name == "done") {
+                events.DownloadDone(amy);
+            } else if (name == "failed") {
+                events.DownloadFailed(amy, ProblemFacts{VoiceProblem::Network, {}, {}});
+            } else if (name == "failed-baddownload") {
+                events.DownloadFailed(amy, ProblemFacts{VoiceProblem::BadDownload, {}, {}});
+            }
+        }
+    } else if (name == "added") {
+        events.VoiceAdded({amy, "eng"});
+    } else if (name == "refused") {
+        events.VoiceRefused(ProblemFacts{VoiceProblem::UnsupportedLanguage, "German", "low"});
+    } else if (name == "refused-notmedium") {
+        events.VoiceRefused(ProblemFacts{VoiceProblem::NotMedium, "German", "low"});
+    } else if (name == "deleteFailed") {
+        events.VoiceDeleteFailed("en_GB-alba-medium", VoiceProblem::CannotWrite);
+    } else if (name == "presetSaved") {
+        events.PresetSaved("Slow reading.json");
+    } else if (name == "presetLoaded") {
+        events.PresetLoaded("Slow reading.json");
+    } else if (name == "presetFailed") {
+        events.PresetFailed(PresetProblem::BadFile);
+    } else {
+        return false;
+    }
+    // The reference pictures show the sheet's focus ring (the old shots were taken after a key): any key turns
+    // the focus-visible flag on.
+    KeyEvent key;
+    key.key = Key::Other;
+    screen.HandleKey(key);
+    return true;
+}
+
+// The real SettingsUi on a sample state. The SettingsUi is kept for the life of the tool: the Voices page's
+// sheets call back into it (the Voice library state is its), and the picture is drawn after this returns.
 bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& options) {
-    SettingsUi ui(screen, "en");
-    ui.SetState(SampleState(options.on, dark));
+    static std::unique_ptr<SettingsUi> keep;
+    keep = std::make_unique<SettingsUi>(screen, "en");
+    SettingsUi& ui = *keep;
+    // The Delete sheet is for a Voice the person added: its picture needs that one active.
+    const std::string voices = options.voices.empty() && options.sheet == "delete" ? "user" : options.voices;
+    ui.SetState(SampleState(options.on, dark, voices));
     ui.ShowPage(page);
+    if (!options.sheet.empty() && !ApplySheet(options.sheet, ui, screen)) return false;
     const std::string& h = options.hover;
     if (h.empty()) return true;
     Widget* target = nullptr;
@@ -291,6 +354,16 @@ bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& opti
     else if (page == Page::Report && h == "github") target = static_cast<ReportPage*>(ui.Current())->GithubLink();
     else if (page == Page::About && h == "itch") target = static_cast<AboutPage*>(ui.Current())->ItchButton();
     else if (page == Page::About && h == "notices") target = static_cast<AboutPage*>(ui.Current())->NoticesLink();
+    else if (page == Page::Voices) {
+        VoicesPage* v = static_cast<VoicesPage*>(ui.Current());
+        if (h == "delete") target = v->DeleteButton();
+        else if (h == "download") target = v->DownloadButton();
+        else if (h == "addfile") target = v->AddFileButton();
+        else if (h == "speed" || h == "pitch" || h == "volume") target = v->SliderFor(h);
+        else if (h == "reset-pitch") target = v->ResetFor("pitch");
+        else if (h == "save") target = v->SavePresetLink();
+        else if (h == "load") target = v->LoadPresetLink();
+    }
     if (!target) return false;  // a hover that this page does not have
     ForceHover(*target);
     return true;

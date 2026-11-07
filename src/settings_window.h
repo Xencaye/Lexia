@@ -21,6 +21,7 @@
 
 #include "native_ui/pages/page.h"
 #include "ui_host.h"
+#include "voice_events.h"
 
 class SettingsWindow {
 public:
@@ -47,6 +48,8 @@ public:
     void ShowPage(nui::Page page);           // switches the page
     void SetState(const UiState& state);     // redraws from the state (the theme in it included)
     void SetDark(bool dark);                 // the title bar and the paper; SetState does it from state.dark
+    // The Voice library's answers (typed events) go to the Voices page's sheets through this; never null.
+    VoiceEventSink* VoiceEvents();
     HWND Handle() const { return hwnd_; }
 
 private:
