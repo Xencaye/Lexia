@@ -3,5 +3,7 @@ Licence: CC BY 4.0, the licence of files on the Figma Community (https://creativ
 Copyright: the authors of Stratis UI
 Source: https://www.figma.com/community/file/1177180791780461401/stratis-ui-icons-1000-free-figma-icons
 Used for: the icons of the Settings window and the Control bar (src\res\icons\, SVG files exported from that file;
-the colour of each icon is set by Lexia). Not from this set: discord.svg, github.svg and itch.svg, the logos of
-Discord, GitHub and itch.io, used only to link to Lexia's pages there.
+the colour of each icon is set by Lexia). The Off look of the Lexia logo (src\res\lexia_logo_off.svg, and the
+tray icon src\res\lexia_off.ico made from it) draws the icon volume-07 of this set as its large muted-speaker
+stroke, so the same licence and credit apply to it. Not from this set: discord.svg, github.svg and itch.svg, the
+logos of Discord, GitHub and itch.io, used only to link to Lexia's pages there.

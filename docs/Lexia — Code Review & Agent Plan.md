@@ -297,7 +297,7 @@ The C++ side of D2–D7 waited for your approval of D0 (Oct 28). D8 (Nov 3) repl
   - Six pages: home, voices, settings, and report, help, about. The window is a fixed 800 x 600 DIPs.
   - New features: Master volume, Run as admin (ADR-0008), dark mode from Windows, left-handed mouse, Presets as files, Delete voice.
   - Removed: Expressiveness, the Start minimised setting (the Run value now gets `--minimised`), and the Close button of the Control bar.
-  - Icons: Stratis UI (CC BY 4.0). Pictures and the logo: public-domain engravings.
+  - Icons: Stratis UI (CC BY 4.0). Pictures: public-domain engravings. The logo (K12): the owner's own SVG drawing (the Off look draws the Stratis UI icon volume-07).
 
   - Fixes after the owner's review (Nov 5): a bold menu word keeps its room, so the other menu items do not move (`components.css`, `data-bold-room`); the About text goes around the engraving (`shape-outside`, measured on `wireframe/about.png`, and 14 px as in the design); the Control bar's Pause button is as wide as the word it shows, so every gap is 18 px as in the mockup (the bar gets wider when Pause becomes Resume and keeps its left edge); the Master volume moves in steps of 5 %, like the Voice controls. The bar's colours stay: the light theme already matches the mockups, and the dark one waits for the owner's palette. Second About mockup (Nov 5): the second block and the icons 33 px higher, new line edges (27, 23, 15 / 11, 7, 0 px), and a smaller two-line notice whose "here" opens THIRD-PARTY-NOTICES.txt; the package step also copies that file and LICENSE next to the dev exe, so the link works from `build\Release` too.
 

@@ -312,6 +312,19 @@ add_custom_command(TARGET lexia_barshot POST_BUILD
     COMMAND_EXPAND_LISTS)
 
 
+# lexia_svgshot: a developer tool, not packaged (K12). Draws one SVG file at a square pixel size with Direct2D
+# (the app's SVG renderer) on a transparent background and writes a PNG; scripts/make_tray_icons.ps1 uses it to
+# make src/res/lexia.ico and lexia_off.ico from the logo SVGs. Self-contained: no lexia_core, no resources.
+#   build/svgshot/<Config>/lexia_svgshot.exe --px 256 in.svg out.png
+add_executable(lexia_svgshot src/svgshot_main.cpp)
+target_link_libraries(lexia_svgshot PRIVATE ole32 uuid d2d1 d3d11 dxgi windowscodecs shlwapi)
+set_target_properties(lexia_svgshot PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/svgshot"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/svgshot/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/svgshot/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/svgshot/RelWithDebInfo"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/svgshot/MinSizeRel")
+
 # lexia_settingsshot: a developer tool, not packaged. It draws a page of the native Settings window
 # (the same widget tree and Direct2D canvas as the window) off-screen and writes a PNG, to compare the
 # look with wireframe/html-reference/ without a window. Own output folder, like lexia_barshot.

@@ -4,8 +4,9 @@ except discord.svg, github.svg and itch.svg (the logos of those sites). See lice
 
 The SVG files have a fixed colour (#6E504A). The native Settings window and the Control bar recolour them in C++ (svg_recolour.h) before Direct2D draws them.
 
-The tray icons src/res/lexia.ico and lexia_off.ico are not made from these icons: they come from the
-Lexia logo src/res/lexia_logo.png (see licenses/components/ui-engravings.txt and scripts/make_tray_icons.ps1).
+The tray icons src/res/lexia.ico and lexia_off.ico are not made from these files: they come from the Lexia logo
+SVGs src/res/lexia_logo.svg and lexia_logo_off.svg (the Off one draws volume-07 of this set inside the logo; see
+licenses/components/ui-engravings.txt and scripts/make_tray_icons.ps1).
 
 Changed from the original: user-profile-03.svg draws its two outlines as stroked ellipses instead of a 4 wide stroke
 inside an SVG <mask> (Direct2D's SVG renderer, used by the native Settings window, does not support masks); the picture

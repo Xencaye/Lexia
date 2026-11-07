@@ -4,7 +4,7 @@
 #include <winver.h>
 #include "@CMAKE_CURRENT_SOURCE_DIR@/src/resource_ids.h"
 
-// Icons: the lowest id is the exe's icon. Made by scripts/make_tray_icons.ps1 from src/res/lexia_logo.png.
+// Icons: the lowest id is the exe's icon. Made by scripts/make_tray_icons.ps1 from the logo SVGs src/res/lexia_logo.svg (On) and lexia_logo_off.svg (Off).
 IDI_LEXIA ICON "@CMAKE_CURRENT_SOURCE_DIR@/src/res/lexia.ico"
 IDI_LEXIA_OFF ICON "@CMAKE_CURRENT_SOURCE_DIR@/src/res/lexia_off.ico"
 
