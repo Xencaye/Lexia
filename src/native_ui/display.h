@@ -21,6 +21,7 @@ public:
     void SetStyle(float size, FontWeight weight = FontWeight::Regular);
     void SetAlign(TextAlign a) { style_.align = a; Invalidate(); }
     void SetUnderline(bool u) { style_.underline = u; Invalidate(); }
+    void SetLetterSpacing(float dips) { style_.letterSpacing = dips; Invalidate(); }
     void SetColour(ColourRole c) { colour_ = c; Invalidate(); }
     SizeF Measure(Canvas& canvas, float maxWidth) override;
     void Paint(Canvas& canvas, const Palette& palette) override;
@@ -45,6 +46,9 @@ public:
     void SetColour(ColourRole c) { colour_ = c; Invalidate(); }
     void SetIndents(std::vector<float> indents) { indents_ = std::move(indents); Invalidate(); }
     void SetParagraphGap(float gap) { paragraphGap_ = gap; Invalidate(); }
+    // The height of a line in DIPs (the design's `line-height: 20px`); 0 = what the canvas measures.
+    void SetLineHeight(float h) { lineHeight_ = h; Invalidate(); }
+    void SetLetterSpacing(float dips) { style_.letterSpacing = dips; Invalidate(); }
 
     struct Placed {
         WrappedLine line;
@@ -69,6 +73,7 @@ private:
     ColourRole colour_ = ColourRole::Ink;
     std::vector<float> indents_;
     float paragraphGap_ = 8;
+    float lineHeight_ = 0;
 };
 
 // ------------------------------------------------------------------------------------ Notice ---

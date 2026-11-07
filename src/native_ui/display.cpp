@@ -92,7 +92,7 @@ std::string Paragraph::PlainText() const {
 
 Paragraph::Layout Paragraph::LayoutFor(Canvas& canvas, float width) const {
     Layout out;
-    out.lineHeight = LineHeight(canvas, style_);
+    out.lineHeight = lineHeight_ > 0 ? lineHeight_ : LineHeight(canvas, style_);
     float y = 0;
     size_t lineNo = 0;  // the indents count lines of the whole widget, not of one paragraph
     bool first = true;

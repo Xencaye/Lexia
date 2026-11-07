@@ -6,7 +6,12 @@
 #include "native_ui/controls.h"
 #include "native_ui/display.h"
 #include "native_ui/select.h"
+#include "native_ui/pages/about_page.h"
+#include "native_ui/pages/home_page.h"
+#include "native_ui/pages/report_page.h"
+#include "native_ui/settings_ui.h"
 #include "native_ui/slider.h"
+#include "settingsshot_sample.h"
 
 // The sample texts below are test data of a developer tool (like lexia_barshot's), not text the app shows:
 // they stay literals, outside strings/.
@@ -267,14 +272,40 @@ void BuildRightColumn(Screen& screen, Canvas& canvas) {
     otter->SetBounds({x + 130, py + 70, 123, 58});
 }
 
+// The real SettingsUi on a sample state. The SettingsUi object itself is not needed after the build: the
+// widgets belong to the Screen, which is drawn next.
+bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& options) {
+    SettingsUi ui(screen, "en");
+    ui.SetState(SampleState(options.on, dark));
+    ui.ShowPage(page);
+    const std::string& h = options.hover;
+    if (h.empty()) return true;
+    Widget* target = nullptr;
+    Page linkPage = Page::Home;
+    if (h == "power" && page == Page::Home) target = static_cast<HomePage*>(ui.Current())->Power();
+    else if (h == "enable" && page == Page::Home) target = static_cast<HomePage*>(ui.Current())->Enable();
+    else if (h == "volume") target = ui.GetFrame().Volume();
+    else if (ParsePageName(h, linkPage)) target = ui.GetFrame().LinkFor(linkPage);
+    else if (page == Page::Report && h == "mail") target = static_cast<ReportPage*>(ui.Current())->MailLink();
+    else if (page == Page::Report && h == "discord") target = static_cast<ReportPage*>(ui.Current())->DiscordLink();
+    else if (page == Page::Report && h == "github") target = static_cast<ReportPage*>(ui.Current())->GithubLink();
+    else if (page == Page::About && h == "itch") target = static_cast<AboutPage*>(ui.Current())->ItchButton();
+    else if (page == Page::About && h == "notices") target = static_cast<AboutPage*>(ui.Current())->NoticesLink();
+    if (!target) return false;  // a hover that this page does not have
+    ForceHover(*target);
+    return true;
+}
+
 }  // namespace
 
-bool BuildShotPage(std::string_view page, Screen& screen, Canvas& canvas, bool /*dark*/) {
+bool BuildShotPage(std::string_view page, Screen& screen, Canvas& canvas, bool dark, const ShotOptions& options) {
     if (page == "gallery") {
         BuildLeftColumn(screen, canvas);
         BuildRightColumn(screen, canvas);
         return true;
     }
+    Page real = Page::Home;
+    if (ParsePageName(page, real)) return BuildRealPage(real, screen, dark, options);
     return false;
 }
 

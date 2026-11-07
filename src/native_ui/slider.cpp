@@ -8,6 +8,7 @@ namespace nui {
 namespace {
 
 constexpr float kBoxH = 28, kTrackH = 2, kThumbW = 6, kThumbH = 14, kThumbGrownW = 12, kThumbGrownH = 25;
+constexpr float kCompactW = 6, kCompactH = 12, kCompactGrownW = 9, kCompactGrownH = 20;  // the Master volume
 
 // Values are kept to 6 decimals so 0.1 + 0.2 style sums do not leak into the messages.
 double Round6(double v) { return std::round(v * 1e6) / 1e6; }
@@ -69,8 +70,10 @@ RectF Slider::ThumbRect() const {
     const RectF box = Abs();
     const double pos = usable_ ? std::min(1.0, std::max(0.0, SliderPos(range_, range_.value))) : 0.5;
     const float g = VisualAmount();
-    const float w = kThumbW + (kThumbGrownW - kThumbW) * g;
-    const float h = kThumbH + (kThumbGrownH - kThumbH) * g;
+    const float w0 = compact_ ? kCompactW : kThumbW, h0 = compact_ ? kCompactH : kThumbH;
+    const float w1 = compact_ ? kCompactGrownW : kThumbGrownW, h1 = compact_ ? kCompactGrownH : kThumbGrownH;
+    const float w = w0 + (w1 - w0) * g;
+    const float h = h0 + (h1 - h0) * g;
     const float cx = box.x + static_cast<float>(pos) * box.w;
     return {cx - w / 2, box.y + box.h / 2 - h / 2, w, h};
 }

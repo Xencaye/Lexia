@@ -49,7 +49,6 @@
     X(AppStartFailed, "app.startFailed")                                                         \
     /* Settings window (D0 ui, D3, D8): the frame, Home, Voices, Settings, Report, Help, About */\
     X(WindowTitle, "window.title")  /* the title of the Settings window */                       \
-    X(WindowNoRuntime, "window.noRuntime")  /* a message box: WebView2 Runtime is missing */     \
     X(WindowNavMain, "window.nav.main")  /* accessible name of the top links */                  \
     X(WindowNavMore, "window.nav.more")  /* accessible name of the bottom links */               \
     X(WindowNavHome, "window.nav.home")                                                          \
