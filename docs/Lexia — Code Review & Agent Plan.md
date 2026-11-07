@@ -31,7 +31,8 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 is done.
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0, K1 and K2 are done
+(K2 on `feat/K.2`, not merged yet); K3 (Voices page and sheets) and K4 (Settings page) are next.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -388,8 +389,14 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   resources, the fonts, one palette, the shared tooltip. `feat/K.1c`: the Direct2D canvas (`D2dCanvas`, window and
   off-screen) and the `lexia_settingsshot` tool with the `gallery` page and ctest `settingsshot_smoke`; one
   `nui::FontWeight`. Nothing in K1 is open once K.1c is merged.
-- [ ] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
+- [x] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
   Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; the pages and `--sheet` of `lexia_settingsshot`.
+  *Done (`feat/K.2`):* `settings_window.*` is native (Direct2D, no WebView2 in it; the library stays in CMake until K6);
+  `SettingsUi` + `pages/` (`Frame`, `HomePage`, `HelpPage`, `ReportPage`, `AboutPage`; `VoicesPage` and `SettingsPage` are
+  empty places for K3 / K4); `App::HandlePageMessage(const PageMessage&)`, `pageReady_` and `window.noRuntime` gone;
+  `lexia_settingsshot --page home|voices|settings|report|help|about [--on] [--hover]` and `scripts\settings_shots.ps1`
+  (the `--sheet` switch comes with the sheets in K3); `native_ui_settings_ui_test.cpp` (14 cases). Compared with
+  `wireframe/html-reference/` (light and dark): positions within 1 DIP; the dots of a dotted rule start one pixel later.
 - [ ] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
   `VoiceTab` gets typed events.
 - [ ] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
