@@ -3,6 +3,7 @@
 #include <doctest/doctest.h>
 
 #include <chrono>
+#include <cstdint>
 #include <condition_variable>
 #include <functional>
 #include <future>
@@ -675,4 +676,226 @@ TEST_CASE("Reading queue: Stop ends the wait for playback to catch up") {
     CHECK(voice.chunksAccepted == 1);
     CHECK(sink.writes == 2);
     CHECK_FALSE(queue.Active());
+}
+
+// ------------------------------------------------------------ the heard word (G1) ---
+
+namespace {
+
+// A synthesiser whose chunks have phoneme timings: each sentence of the text (cut at '.') is one
+// chunk of one second at 100 Hz per word (words are the runs between spaces), 2 phonemes a word,
+// with Piper's markers and ' ' phonemes, so the queue can cut words and name them.
+BlockSynthesizer WordVoice() {
+    return [](const std::string& text, const std::function<bool(const SpeechChunk&)>& onChunk) {
+        size_t from = 0;
+        while (from < text.size()) {
+            const size_t dot = text.find('.', from);
+            const size_t end = dot == std::string::npos ? text.size() : dot + 1;
+            const std::string sentence = text.substr(from, end - from);
+            from = end;
+            size_t words = 0;
+            bool inWord = false;
+            for (char ch : sentence) {
+                const bool space = ch == ' ';
+                if (!space && !inWord) ++words;
+                inWord = !space;
+            }
+            if (words == 0) continue;
+            SpeechChunk c;
+            c.sampleRate = 100;
+            c.samples.assign(words * 100, 0.f);
+            c.phonemes.push_back({U'^', 0, 0});
+            for (size_t w = 0; w < words; ++w) {
+                const int at = static_cast<int>(w) * 100;
+                if (w > 0) c.phonemes.push_back({U' ', at, 5});
+                c.phonemes.push_back({U'a', at + 5, 45});
+                c.phonemes.push_back({U'b', at + 50, 50});
+            }
+            c.phonemes.push_back({U'$', static_cast<int>(words) * 100, 0});
+            c.isLast = end >= text.size();
+            if (!onChunk(c)) return SynthResult::Cancelled;
+        }
+        return SynthResult::Done;
+    };
+}
+
+// The sink holds one word (1 s) at a time, so the queue keeps the rest and Announcements can cut in.
+struct WordFixture {
+    FakeAudioSink sink;
+    ReadingQueue queue{sink, WordVoice(), /*aheadSeconds=*/1e9, /*sinkSeconds=*/1.0};
+
+    void Settle() {
+        for (int i = 0; i < 100 && queue.Pump(); ++i) {
+        }
+    }
+    // The sound card plays one word; the queue feeds the next.
+    void NextWord() {
+        sink.Advance(1.0);
+        Settle();
+    }
+    std::string HeardText(const std::string& block) const {
+        const auto h = queue.HeardWordNow();
+        return h ? block.substr(h->range.start, h->range.end - h->range.start) : std::string("<none>");
+    }
+};
+
+SynthResult SayOneSecond(const std::function<bool(const SpeechChunk&)>& onChunk) {
+    SpeechChunk c;
+    c.sampleRate = 100;
+    c.samples.assign(100, 0.f);
+    onChunk(c);
+    return SynthResult::Done;
+}
+
+}  // namespace
+
+TEST_CASE("Heard word: Add gives each Reading an id; a Reading with no text gets 0") {
+    WordFixture f;
+    const uint64_t a = f.queue.Add({"one two"});
+    const uint64_t b = f.queue.Add({"three"});
+    CHECK(a != 0);
+    CHECK(b != 0);
+    CHECK(a != b);
+    CHECK(f.queue.Add({"", "  "}) == 0);
+    CHECK(f.queue.Add({}) == 0);
+}
+
+TEST_CASE("Heard word: nothing is heard when idle") {
+    WordFixture f;
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+}
+
+TEST_CASE("Heard word: it moves word by word through the Block") {
+    WordFixture f;
+    const std::string text = "alpha beta gamma";
+    const uint64_t id = f.queue.Add({text});
+    f.Settle();
+    REQUIRE(f.queue.HeardWordNow().has_value());
+    CHECK(f.queue.HeardWordNow()->readingId == id);
+    CHECK(f.queue.HeardWordNow()->block == 0);
+    CHECK(f.HeardText(text) == "alpha");
+    f.sink.Advance(0.5);  // half way through the word: still that word
+    CHECK(f.HeardText(text) == "alpha");
+    f.sink.Advance(0.5);
+    f.Settle();
+    CHECK(f.HeardText(text) == "beta");
+    f.NextWord();
+    CHECK(f.HeardText(text) == "gamma");
+    f.sink.Drain();  // the last word is played
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.Settle();
+    CHECK_FALSE(f.queue.Active());
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+}
+
+TEST_CASE("Heard word: the second sentence counts on from the first") {
+    WordFixture f;
+    const std::string text = "One two. Three four five.";
+    f.queue.Add({text});
+    f.Settle();
+    const char* expected[] = {"One", "two", "Three", "four", "five"};
+    for (const char* word : expected) {
+        CHECK(f.HeardText(text) == word);
+        f.NextWord();
+    }
+}
+
+TEST_CASE("Heard word: the Block index and the Reading follow the queue") {
+    WordFixture f;
+    const uint64_t first = f.queue.Add({"aa bb", "cc"});
+    const uint64_t second = f.queue.Add({"dd"});
+    CHECK(first != second);
+    f.Settle();
+    CHECK(f.queue.HeardWordNow()->readingId == first);
+    CHECK(f.queue.HeardWordNow()->block == 0);
+    f.NextWord();  // "bb"
+    f.NextWord();  // the end of Block 0: Block 1 starts
+    REQUIRE(f.queue.HeardWordNow().has_value());
+    CHECK(f.queue.HeardWordNow()->readingId == first);
+    CHECK(f.queue.HeardWordNow()->block == 1);
+    CHECK(f.queue.HeardWordNow()->range.start == 0);
+    CHECK(f.queue.HeardWordNow()->range.end == 2);
+    f.sink.Drain();
+    f.Settle();
+    REQUIRE(f.queue.HeardWordNow().has_value());
+    CHECK(f.queue.HeardWordNow()->readingId == second);
+    CHECK(f.queue.HeardWordNow()->block == 0);
+}
+
+TEST_CASE("Heard word: a Pause keeps the word, Resume goes on") {
+    WordFixture f;
+    const std::string text = "alpha beta gamma";
+    f.queue.Add({text});
+    f.Settle();
+    f.NextWord();
+    CHECK(f.HeardText(text) == "beta");
+    f.queue.Pause();
+    f.sink.Advance(1.0);  // a paused sink plays nothing
+    f.Settle();
+    CHECK(f.HeardText(text) == "beta");
+    f.queue.Resume();
+    f.NextWord();
+    CHECK(f.HeardText(text) == "gamma");
+}
+
+TEST_CASE("Heard word: Skip and Stop clear it; Skip goes on in the next Block") {
+    WordFixture f;
+    const uint64_t id = f.queue.Add({"alpha beta", "gamma delta"});
+    f.Settle();
+    CHECK(f.queue.HeardWordNow().has_value());
+    f.queue.Skip();
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.Settle();
+    REQUIRE(f.queue.HeardWordNow().has_value());
+    CHECK(f.queue.HeardWordNow()->readingId == id);
+    CHECK(f.queue.HeardWordNow()->block == 1);
+    f.queue.Stop();
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.Settle();
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+}
+
+TEST_CASE("Heard word: an Announcement hides it, and the Reading's next word returns after it") {
+    WordFixture f;
+    const std::string text = "alpha beta gamma";
+    f.queue.Add({text});
+    f.Settle();
+    CHECK(f.HeardText(text) == "alpha");
+    f.queue.Announce(SayOneSecond);
+    f.Settle();  // the Announcement is made; the Reading plays on to its word boundary
+    CHECK(f.HeardText(text) == "alpha");
+    f.sink.Drain();
+    f.Settle();  // the Announcement plays
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.sink.Drain();
+    f.Settle();  // it is over; the Reading carries on
+    CHECK(f.HeardText(text) == "beta");
+}
+
+TEST_CASE("Heard word: an Announcement over a paused Reading takes the audio back without losing the word") {
+    WordFixture f;
+    const std::string text = "alpha beta gamma";
+    f.queue.Add({text});
+    f.Settle();
+    f.NextWord();
+    CHECK(f.HeardText(text) == "beta");
+    f.queue.Pause();
+    f.queue.Announce(SayOneSecond);
+    f.Settle();  // the Announcement plays over the pause; the Reading's audio is taken back
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.sink.Drain();
+    f.Settle();  // it is over; the Reading is paused again, with nothing in the sink
+    f.queue.Resume();
+    f.Settle();
+    CHECK(f.HeardText(text) == "beta");  // from the start of the word it was paused in
+    f.NextWord();
+    CHECK(f.HeardText(text) == "gamma");
+}
+
+TEST_CASE("Heard word: audio without timings has no word to show") {
+    Fixture f;  // the plain fake voice makes chunks with no phonemes
+    f.queue.Add({"one two"});
+    f.Settle();
+    CHECK(f.sink.PendingSeconds() > 0);
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
 }

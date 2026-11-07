@@ -1,7 +1,7 @@
 #pragma once
 // What a Voice produces: audio in chunks, each with the timing of the phonemes that made it.
-// Plain data, Win32-free. Nothing reads the timings yet; read-along highlighting (G) and
-// Announcements that pause at a word boundary (B3) will.
+// Plain data, Win32-free. The Reading queue reads the timings: it cuts words at the ' ' phonemes, so
+// Announcements pause at a word boundary (B3) and the Overlay marks the heard word (G1, read_along.h).
 #include <cstddef>
 #include <cstdint>
 #include <vector>

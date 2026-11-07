@@ -2,7 +2,7 @@
 
 // One group in `phonemes` is one phoneme, repeated once per phoneme id it produced, then a 0. It
 // becomes one PhonemeTiming whose length is the sum of the alignments of those ids (see the header).
-// The timings are back to back from sample 0; read-along highlighting (G1) will use them.
+// The timings are back to back from sample 0; the Reading queue cuts words with them (read_along.h).
 std::vector<PhonemeTiming> PhonemeTimings(const std::vector<char32_t>& phonemes,
                                           const std::vector<int>& alignments) {
     std::vector<PhonemeTiming> out;

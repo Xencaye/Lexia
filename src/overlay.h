@@ -3,7 +3,9 @@
 // choose what to read. The Control bar (controlbar.h) floats above it for the length of a Session.
 #include <windows.h>
 
+#include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,6 +14,7 @@
 #include "control_bar_layout.h"
 #include "controlbar.h"
 #include "jobqueue.h"
+#include "read_along.h"
 #include "recognize.h"
 
 enum class SelKind { Cancel, Drag, Click };
@@ -42,9 +45,14 @@ using Recognizer = std::function<Recognition(Rect area, bool isDrag)>;
 // Called on the UI thread for every Pick, in Pick order. `picked` holds the Blocks the Pick
 // covers: the one Block of a Click (with the Analysis's time), or what the Drag recognised; a
 // Click on no Block (counted only once the Analysis is done) comes with none. The handler reads
-// the text aloud, or announces that there is none, and returns true if it found any (the area
-// then stays highlighted).
-using SelectHandler = std::function<bool(const Selection&, const Recognition& picked)>;
+// the text aloud, or announces that there is none, and says whether it found any (the area then
+// stays highlighted) and, if it queued the text for speech, the id of that Reading (G1): the Session
+// keeps the Pick's Blocks under that id and draws the word mark for the words of that Reading.
+struct PickOutcome {
+    bool found = false;        // there was text: keep the area highlighted
+    uint64_t readingId = 0;    // Speaker::SpeakReading's id; 0 = nothing was queued (no word mark)
+};
+using SelectHandler = std::function<PickOutcome(const Selection&, const Recognition& picked)>;
 
 // What the Session calls back into. All of them run on the UI thread.
 struct OverlayCallbacks {
@@ -58,6 +66,10 @@ struct OverlayCallbacks {
     // and the bar gone, RunOverlay calls this (the app opens the Settings window on its Help page).
     std::function<void()> onHelp;
     std::function<SpeechState()> speechState;  // is anything being spoken or paused (the bar polls it)
+    // The word that is heard now (Speaker::HeardWordNow), polled on a window timer (~30 ms) to draw the
+    // word mark: an underline bar in `OverlayStyle::hoverColor` under the word, for Readings Picked in
+    // this Session. Empty function = no word mark.
+    std::function<std::optional<HeardWord>()> heardWord;
     // The Control bar's size or place changed: size, x, y (offsets from the monitor's corner). The
     // app remembers them.
     std::function<void(BarSize, int, int)> onBarChanged;

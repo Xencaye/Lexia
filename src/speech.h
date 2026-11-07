@@ -1,13 +1,16 @@
 #pragma once
 // Text to speech through Piper Voices (src/tts), played by Lexia itself. A Reading queue
 // (tts/reading_queue.h) holds what is to be said.
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "language.h"
+#include "read_along.h"
 #include "strings/strings.h"
 #include "tts/voice_controls.h"
 
@@ -44,8 +47,14 @@ public:
 
     // Speaks a Reading: its Blocks one after another, in order. Each Block is spoken as its stretches
     // of one script, each with the Voice of the Language that script matches (see stretch.h).
-    // append = true queues the Reading after whatever is already being spoken.
-    void SpeakReading(const std::vector<std::string>& blocks, bool append = false);
+    // append = true queues the Reading after whatever is already being spoken. Returns the Reading's
+    // id (names it in HeardWordNow; the Block index there is the index in `blocks`), or 0 if nothing
+    // was queued (no text in it, or the Speaker did not start).
+    uint64_t SpeakReading(const std::vector<std::string>& blocks, bool append = false);
+
+    // The word that is heard now, or nothing (rules in tts/reading_queue.h, "The heard word"). Any
+    // thread; the Overlay asks for it on a timer to draw the word mark (G1).
+    std::optional<HeardWord> HeardWordNow() const;
 
     // Announcements (rules in tts/reading_queue.h: they hold the Reading at a word boundary, the
     // newest replaces any other). Spoken in the Interface language, by the Voice of the Language
