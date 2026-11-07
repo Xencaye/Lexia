@@ -33,6 +33,7 @@
 #include "elevation.h"
 #include "instance.h"
 #include "settings.h"
+#include "stale_data.h"
 #include "version.h"
 #include "log.h"
 #include "strings/string_ids.h"
@@ -94,6 +95,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (cmd.console) OpenConsole();
     LogInfo("---- Lexia ", LEXIA_VERSION, " started ----");
     for (const std::string& arg : cmd.unknown) LogWarn("Unknown command-line argument ignored: ", arg);
+
+    // Lexia 0.5's Settings window kept a WebView2 profile here. The native window does not use it, so it is
+    // deleted once (junctions and links inside are not followed: stale_data.h).
+    switch (RemoveStaleWebView2Data(LexiaDataDir())) {
+    case StaleRemoval::Absent: break;
+    case StaleRemoval::Removed:
+        LogInfo("Removed the old WebView2 data folder of Lexia 0.5 (%LOCALAPPDATA%\\Lexia\\WebView2).");
+        break;
+    case StaleRemoval::Failed:
+        LogWarn("The old WebView2 data folder of Lexia 0.5 could not be removed completely; it is tried again at the next start.");
+        break;
+    }
 
     // Real pixels on every monitor, even when the monitors use different scaling (the manifest
     // asks for it too).

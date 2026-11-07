@@ -136,6 +136,7 @@ add_library(lexia_core STATIC
     src/recognize.cpp
     src/score.cpp
     src/startup.cpp
+    src/stale_data.cpp
     src/stretch.cpp
     src/svg_recolour.cpp
     src/ui_host.cpp
@@ -386,6 +387,7 @@ add_executable(lexia_tests
     tests/settings_test.cpp
     tests/reading_queue_test.cpp
     tests/speech_key_test.cpp
+    tests/stale_data_test.cpp
     tests/tray_menu_test.cpp
     tests/tts_test.cpp
     tests/strings_test.cpp
