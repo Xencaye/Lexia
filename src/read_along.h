@@ -14,6 +14,7 @@
 // share of the Line's characters before it (a proportional font makes it a little off).
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -88,9 +89,18 @@ std::vector<Rect> WordBoxes(const TextBlock& block, TextRange range);
 // Keeping it on the Shot is the caller's job.
 Rect UnderlineBar(const Rect& wordBox, int thickness, int gap = 0);
 
+// `r` cut to the rectangle [0, w) x [0, h) (a Shot's or a layer's own coordinates: a word at the edge
+// of the screen must not draw outside it). An empty Rect if nothing is left of it.
+Rect ClipToArea(const Rect& r, int w, int h);
+
+// Are the two lists the same Rects in the same order? The Overlay and the click-through layer redraw
+// only when the bars changed.
+bool SameRects(const std::vector<Rect>& a, const std::vector<Rect>& b);
+
 // The Readings that were Picked, with their Blocks as the Pick found them (Shot coordinates), and
 // the logic from "which word is heard" to "where are its bars". The Overlay keeps one for the length
-// of a Session; G2 keeps one after it. Blocks are copied: they are small.
+// of a Session and hands it back when the Session ends; the click-through layer (G2, "keep the word
+// mark") then keeps it until its Readings are done. Blocks are copied: they are small.
 class ReadAlongTrack {
 public:
     // Remembers the Blocks of a Reading (the Block index of a HeardWord is an index into `blocks`).
@@ -99,6 +109,11 @@ public:
     void Clear();
     bool Knows(uint64_t readingId) const { return readings_.count(readingId) != 0; }
     bool Empty() const { return readings_.empty(); }
+
+    // Is at least one of the Readings still going on? `isActive` says whether a Reading id is still in
+    // the Reading queue (Speaker::HasReading): queued, being spoken or paused. False for an empty track
+    // or no function. The click-through layer ends when this turns false.
+    bool AnyActive(const std::function<bool(uint64_t)>& isActive) const;
 
     // The boxes of the heard word (nothing when no word is heard, or the Reading is not one of
     // this track's, or the range does not fit).

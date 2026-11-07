@@ -899,3 +899,26 @@ TEST_CASE("Heard word: audio without timings has no word to show") {
     CHECK(f.sink.PendingSeconds() > 0);
     CHECK_FALSE(f.queue.HeardWordNow().has_value());
 }
+
+TEST_CASE("HasReading: a Reading is in the queue until its last Block is played, or Stop") {
+    WordFixture f;
+    CHECK_FALSE(f.queue.HasReading(0));
+    CHECK_FALSE(f.queue.HasReading(1));  // not added yet
+    const uint64_t a = f.queue.Add({"alpha beta"});
+    const uint64_t b = f.queue.Add({"gamma"});
+    CHECK(f.queue.HasReading(a));
+    CHECK(f.queue.HasReading(b));
+    CHECK_FALSE(f.queue.HasReading(b + 1));
+    f.Settle();
+    f.queue.Pause();  // a paused Reading is still there: the word mark keeps its word
+    CHECK(f.queue.HasReading(a));
+    f.queue.Resume();
+    f.NextWord();
+    f.NextWord();  // alpha and beta are played: Reading a is done
+    f.Settle();
+    CHECK_FALSE(f.queue.HasReading(a));
+    CHECK(f.queue.HasReading(b));
+    f.queue.Stop();
+    CHECK_FALSE(f.queue.HasReading(b));
+    CHECK_FALSE(f.queue.HasReading(0));  // the "ignored" id is never a Reading
+}

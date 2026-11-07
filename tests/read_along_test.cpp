@@ -351,3 +351,40 @@ TEST_CASE("Read-along: the track gives bars for the Readings it knows and no oth
     track.Clear();
     CHECK(track.Empty());
 }
+
+TEST_CASE("Read-along: AnyActive is true while one of the track's Readings is still in the queue") {
+    ReadAlongTrack track;
+    const std::function<bool(uint64_t)> only8 = [](uint64_t id) { return id == 8; };
+    CHECK_FALSE(track.AnyActive(only8));  // an empty track has nothing to keep a layer for
+    track.Add(7, {BlockOf({Line(R(0, 0, 70, 10), "one two")}, "one two")});
+    track.Add(8, {BlockOf({Line(R(0, 100, 70, 110), "xx yy")}, "xx yy")});
+    CHECK(track.AnyActive(only8));
+    CHECK(track.AnyActive([](uint64_t id) { return id == 7; }));
+    CHECK_FALSE(track.AnyActive([](uint64_t) { return false; }));
+    // An id the track does not know does not keep it alive (another Session's Reading).
+    CHECK_FALSE(track.AnyActive([](uint64_t id) { return id == 9; }));
+    CHECK_FALSE(track.AnyActive(nullptr));  // nobody to ask: finished
+}
+
+TEST_CASE("Read-along: ClipToArea keeps a bar on the screen and drops one that is off it") {
+    const Rect in = ClipToArea(R(10, 20, 50, 23), 100, 100);
+    CHECK(in.left == 10);
+    CHECK(in.right == 50);
+    const Rect edge = ClipToArea(R(-5, 95, 120, 103), 100, 100);
+    CHECK(edge.left == 0);
+    CHECK(edge.top == 95);
+    CHECK(edge.right == 100);
+    CHECK(edge.bottom == 100);
+    const Rect gone = ClipToArea(R(10, 100, 50, 104), 100, 100);  // below the last row
+    CHECK(gone.right <= gone.left);
+    CHECK(gone.bottom <= gone.top);
+}
+
+TEST_CASE("Read-along: SameRects compares sizes and every edge") {
+    const std::vector<Rect> a = {R(1, 2, 3, 4), R(5, 6, 7, 8)};
+    CHECK(SameRects(a, a));
+    CHECK(SameRects({}, {}));
+    CHECK_FALSE(SameRects(a, {R(1, 2, 3, 4)}));
+    CHECK_FALSE(SameRects(a, {R(1, 2, 3, 4), R(5, 6, 7, 9)}));
+    CHECK_FALSE(SameRects({R(1, 2, 3, 4)}, {R(2, 2, 3, 4)}));
+}

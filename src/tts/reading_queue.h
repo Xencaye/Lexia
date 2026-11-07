@@ -104,6 +104,11 @@ public:
     bool Active() const;  // something is being spoken or paused: a Reading is queued or an Announcement is
     bool Paused() const;  // the Reading is paused (also while an Announcement plays over it)
 
+    // Is the Reading with this id still in the queue (waiting, being spoken or paused)? False once its
+    // last Block has been played, and after Stop. Any thread. The click-through layer (G2) ends when
+    // none of its Readings is.
+    bool HasReading(uint64_t id) const;
+
     // The word that is audible now (or, while paused, the one the pause holds), or nothing: see
     // "The heard word" above. Any thread; cheap (the Overlay asks every 30 ms), and it does not
     // change the queue.
