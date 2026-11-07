@@ -220,7 +220,8 @@ each task with a short manual test list for the owner rather than claiming it wo
 Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.md`.
 
 - **Released:** Lexia 0.5.0 (2026-11-05, tag `v0.5.0`) and **Lexia 0.6.0** (2026-11-08, tag `v0.6.0`: read-along
-  (G1, G2), the native Settings window (K), the logo and the final palette), kept in `release\<v>\` (git-ignored).
+  (G1, G2), the native Settings window (K), the logo and the final palette), and **Lexia 0.6.1** (2026-11-08, branch
+  `release/0.6.1` from `v0.6.0`: the corrected package `README.txt` only), kept in `release\<v>\` (git-ignored).
 - **Now: towards Lexia 0.7** (owner, Nov 8: future changes go into 0.7); `vcpkg.json` says 0.7.0. No 0.7 task is
   planned yet. New work branches from `main`.
 - **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, games, the installer
