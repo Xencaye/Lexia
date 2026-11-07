@@ -7,8 +7,6 @@
 #include <vector>
 
 #include "cli.h"
-#include "strings/string_ids.h"
-#include "strings/strings.h"
 #include "version.h"
 
 namespace {
@@ -342,39 +340,6 @@ TEST_CASE("ParseCliArgs: the Voice library options cannot be mixed with each oth
     CHECK_FALSE(ParseCliArgs({"--voice-download", ""}).ok);
     CHECK_FALSE(ParseCliArgs({"--voices-dir", "D:/v"}).ok);  // it needs one of the three
     CHECK_FALSE(ParseCliArgs({"--voices-catalogue", "--voices-dir", "D:/v"}).ok);  // lists, writes nothing
-}
-
-TEST_CASE("ParseCliArgs: --strings-json takes an Interface language code and stands alone") {
-    const CliParse p = ParseCliArgs({"--strings-json", "en"});
-    REQUIRE(p.ok);
-    CHECK(p.args.stringsLang == "en");
-    CHECK(p.args.imagePath.empty());
-    CHECK_FALSE(ParseCliArgs({"--strings-json"}).ok);
-    CHECK_FALSE(ParseCliArgs({"--strings-json", "xx"}).ok);
-    CHECK_FALSE(ParseCliArgs({"--strings-json", "en", "a.png"}).ok);
-    CHECK_FALSE(ParseCliArgs({"--strings-json", "en", "--voices-catalogue"}).ok);
-    CHECK_FALSE(ParseCliArgs({"--strings-json", "en", "--say", "Hi", "--wav", "o.wav"}).ok);
-}
-
-TEST_CASE("StringsToJson: every id with its English text, placeholders unchanged") {
-    const nlohmann::json doc = nlohmann::json::parse(StringsToJson("en"));
-    REQUIRE(doc.is_object());
-    CHECK(doc.size() == strings::AllIds().size());
-    for (const char* id : strings::AllIds()) {
-        CAPTURE(id);
-        REQUIRE(doc.contains(id));
-        CHECK(doc[id].get<std::string>() == strings::Text("en", id));
-    }
-    CHECK(doc["window.home.enable"] == "enable");
-    CHECK(doc["controlBar.skipTip"] == "Skip ({key})");  // {key} is filled by the caller, not here
-    CHECK(StringsToJson("en").back() == '\n');
-}
-
-TEST_CASE("StringsToJson: a text the Interface language lacks is the English one; an unknown code is English") {
-    const nlohmann::json bg = nlohmann::json::parse(StringsToJson("bg"));
-    CHECK(bg.size() == strings::AllIds().size());
-    CHECK(bg["window.home.enable"] == "enable");  // no Bulgarian text yet
-    CHECK(StringsToJson("xx") == StringsToJson("en"));
 }
 
 TEST_CASE("VoiceCatalogueToText: one line per Voice with its Language and size, marking installed ones") {

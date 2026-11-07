@@ -251,10 +251,6 @@ int AddVoiceCommand(const CliArgs& args) {
 
 // Runs the one command the arguments name (ParseCliArgs made sure there is exactly one).
 int Run(const CliArgs& args) {
-    if (!args.stringsLang.empty()) {
-        WriteStdout(StringsToJson(args.stringsLang));
-        return kOk;
-    }
     if (args.listVoices) return ListVoices(args);
     if (!args.downloadVoice.empty()) return DownloadVoiceCommand(args);
     if (!args.addVoicePath.empty()) return AddVoiceCommand(args);
