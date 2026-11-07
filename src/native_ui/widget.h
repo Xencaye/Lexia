@@ -61,6 +61,7 @@ struct AccessInfo {
     double min = 0, max = 0, current = 0, step = 0;
     Tri expanded = Tri::Unset;  // a select with its list open
     bool selected = false;      // a list item, the current page's link
+    bool selectable = false;    // it can be selected, so `selected` means something (a list item, a nav link)
     bool liveRegion = false;    // changes of the text are announced (the result notice)
     bool enabled = true;
     bool focusable = false;
@@ -139,6 +140,23 @@ public:
     void SetValueText(std::string v) { valueText_ = std::move(v); }
     void SetLiveRegion(bool live) { liveRegion_ = live; }
     virtual AccessInfo Access() const;
+    // A stable name for the automation id of the widget (such as "home.power"), set by the page. Empty = the
+    // id is made from the widget's place in the tree (access_tree.h). Unique within the window.
+    void SetAutomationId(std::string id) { automationId_ = std::move(id); }
+    const std::string& AutomationId() const { return automationId_; }
+    // A widget that only repeats what another one says (the word beside a slider, the title above a card of the
+    // same name) is not offered to a screen reader: it would be read twice. It is still drawn and still in the tree.
+    void SetAccessHidden(bool hidden) { accessHidden_ = hidden; }
+    bool AccessHidden() const { return accessHidden_; }
+
+    // ---- accessibility actions (K.5). What a screen reader asks for through UI Automation (Invoke,
+    // Toggle, SetValue, Expand / Collapse, Select). Each does what a click or a key would do and returns
+    // false when the widget does not do that, or cannot now (disabled). They run through PerformAccess
+    // (access_tree.h), which treats the call as an event, so a callback may remove widgets as in a click.
+    virtual bool AccInvoke() { return false; }
+    virtual bool AccSetValue(double) { return false; }
+    virtual bool AccExpand(bool) { return false; }
+    virtual bool AccSelect() { return false; }
 
     // ---- painting. Paint draws the widget itself; PaintChildren its children (a ScrollArea clips
     // them); PaintTree is both. Nothing is drawn for a hidden widget.
@@ -201,6 +219,8 @@ private:
     bool focusable_ = false;
     bool focusWhenDisabled_ = false;
     std::string tooltip_;
+    std::string automationId_;
+    bool accessHidden_ = false;
     Tween visual_;
 };
 

@@ -74,7 +74,14 @@ AccessInfo KeyRow::Access() const {
     AccessInfo a = BaseAccess();
     a.role = Role::ListItem;
     a.selected = selected_;
+    a.selectable = true;
     return a;
+}
+
+bool KeyRow::AccSelect() {
+    if (!onSelect_) return false;
+    onSelect_();
+    return true;
 }
 
 // ---------------------------------------------------------------------------- KeyPlayButton ---
@@ -144,6 +151,7 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
 
     // A switch never flips by itself: it sends the opposite of what the last state says (HomePage's rule).
     startup_ = AddSwitch(strings::id::kWindowSettingsRunAtStartup, 0);
+    startup_->SetAutomationId("settings.runAtStartup");
     startup_->SetOnActivate([this] {
         if (!haveState_) return;
         PageMessage m = MakeMessage(PageMessageType::SetRunAtStartup, "setRunAtStartup");
@@ -151,6 +159,7 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         Emit(m);
     });
     minimised_ = AddSwitch(strings::id::kWindowSettingsStartMinimised, 1);
+    minimised_->SetAutomationId("settings.startMinimised");
     minimised_->SetEnabled(false);  // usable only while Run at startup is on (D9)
     minimised_->SetOnActivate([this] {
         if (!haveState_ || !last_.runAtStartup) return;
@@ -159,6 +168,7 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         Emit(m);
     });
     admin_ = AddSwitch(strings::id::kWindowSettingsRunAsAdmin, 2);
+    admin_->SetAutomationId("settings.runAsAdmin");
     admin_->SetOnActivate([this] {
         if (!haveState_) return;
         PageMessage m = MakeMessage(PageMessageType::SetRunAsAdmin, "setRunAsAdmin");
@@ -166,6 +176,7 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         Emit(m);
     });
     dark_ = AddSwitch(strings::id::kWindowSettingsDarkMode, 3);
+    dark_->SetAutomationId("settings.darkMode");
     dark_->SetOnActivate([this] {
         if (!haveState_) return;
         // The switch shows the theme in use (`dark`), not the stored choice ("system" may be either): it
@@ -175,6 +186,7 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
         Emit(m);
     });
     left_ = AddSwitch(strings::id::kWindowSettingsLeftHanded, 4);
+    left_->SetAutomationId("settings.leftHanded");
     left_->SetOnActivate([this] {
         if (!haveState_) return;
         PageMessage m = MakeMessage(PageMessageType::SetLeftHanded, "setLeftHanded");
@@ -188,7 +200,10 @@ SettingsPage::SettingsPage(const PageEnv& env) : PageView(Page::Settings, env) {
     wine->SetBounds(layout::kKeyCardWine);
     cardTitle_ = card_->Add<Label>();
     cardTitle_->SetStyle(layout::kKeyCardTitleFont, FontWeight::Bold);
+    cardTitle_->SetAccessHidden(true);  // the card is a group of the same name
     play_ = card_->Add<KeyPlayButton>();
+    play_->SetAutomationId("settings.card.play");
+    card_->SetAutomationId("settings.card");
     play_->SetOnActivate([this] {
         if (selected_.empty()) return;
         PageMessage m = MakeMessage(PageMessageType::ReadKeyCard, "readKeyCard");
@@ -239,7 +254,9 @@ void SettingsPage::BuildRows(const UiState& state) {
         row->SetBounds({0, y, layout::kKeysW, layout::kKeyRowH});
         y += layout::kKeyRowH + layout::kKeyRowGap;
         row->SetOnSelect([this, action] { Select(action); });
+        row->SetAutomationId("settings.row." + action);
         KeyChip* chip = row->Chip();
+        chip->SetAutomationId("settings.key." + action);
         chip->SetOnActivate([this, action] { StartCapture(action); });
         chip->SetOnReach([this, action] { Select(action); });
         chip->SetOnBlur([this, action] {

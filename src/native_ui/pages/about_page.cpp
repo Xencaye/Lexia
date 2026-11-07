@@ -76,6 +76,7 @@ AboutPage::AboutPage(const PageEnv& env) : PageView(Page::About, env) {
     noticesTemplateAfter_ = at == std::string::npos ? std::string() : line.substr(at + 6);
     noticesBefore_ = Add<Label>(noticesTemplateBefore_);
     noticesBefore_->SetStyle(layout::kAboutLegalFont);
+    noticesBefore_->SetAccessHidden(true);  // the link below is called "View the third-party notices" in full
     notices_ = Add<TextLink>(T(strings::id::kWindowAboutNotices));
     notices_->SetSmall(true);  // always underlined
     notices_->SetFontSize(layout::kAboutLegalFont);
@@ -84,6 +85,7 @@ AboutPage::AboutPage(const PageEnv& env) : PageView(Page::About, env) {
     notices_->SetOnActivate([this] { Emit(MakeMessage(PageMessageType::OpenNotices, "openNotices")); });
     noticesAfter_ = Add<Label>(noticesTemplateAfter_);
     noticesAfter_->SetStyle(layout::kAboutLegalFont);
+    noticesAfter_->SetAccessHidden(true);  // only the full stop after the link
 }
 
 IconButton* AboutPage::AddIconLink(const char* icon, const char* nameId, LinkId id) {

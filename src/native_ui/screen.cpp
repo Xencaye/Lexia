@@ -374,6 +374,24 @@ void Screen::RemoveLayer(size_t index) {
 
 // ---------------------------------------------------------------------------- plumbing ---
 
+std::vector<Screen::LayerView> Screen::Layers() const {
+    std::vector<LayerView> out;
+    out.reserve(layers_.size());
+    for (const Layer& l : layers_) out.push_back({l.widget, l.modal});
+    return out;
+}
+
+Widget* Screen::WidgetAt(PointF p) const {
+    bool blocked = false;
+    return HitTarget(p, blocked);  // null when the press would land on a scrim
+}
+
+void Screen::Perform(const std::function<void()>& fn) {
+    ++dispatchDepth_;
+    fn();
+    if (--dispatchDepth_ == 0) RunDeferred();
+}
+
 void Screen::Defer(std::function<void()> fn) {
     if (dispatchDepth_ > 0) deferred_.push_back(std::move(fn));
     else fn();

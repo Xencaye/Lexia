@@ -123,10 +123,12 @@ HomePage::HomePage(const PageEnv& env) : PageView(Page::Home, env) {
 
     power_ = Add<PowerButton>();
     power_->SetName(T(strings::id::kWindowHomePower));
+    power_->SetAutomationId("home.power");
     power_->SetEnabled(false);  // until the first state: there is nothing to toggle
     power_->SetOnActivate([this] { Toggle(); });
 
     enable_ = Add<EnableButton>();
+    enable_->SetAutomationId("home.enable");
     enable_->SetEnabled(false);
     enable_->SetOnActivate([this] { Toggle(); });
 }

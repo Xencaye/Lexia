@@ -40,6 +40,7 @@ public:
 
     // The page. Its bounds are the whole client area; the page fills it with widgets.
     Widget& Root() { return *root_; }
+    Widget* PageRoot() const { return root_.get(); }  // for the read-only walks of access_tree.h
     void SetSize(SizeF size);  // the client area in DIPs (800 x 600)
     SizeF Size() const { return size_; }
 
@@ -90,6 +91,15 @@ public:
     Widget* OpenPopup(std::unique_ptr<Widget> popup, Widget* owner);
     void ClosePopup();
     Widget* Popup() const;
+    // The layers from the bottom, for accessibility (access_tree.h): a sheet makes the page beneath
+    // unavailable (aria-modal), a popup does not.
+    struct LayerView {
+        Widget* widget = nullptr;
+        bool modal = false;
+    };
+    std::vector<LayerView> Layers() const;
+    // The widget a press at `p` (window DIPs) would reach, layers first; null on a scrim or on bare paper.
+    Widget* WidgetAt(PointF p) const;
 
     // ---- commands out
     // Page code builds PageMessages (src/ui_host.h) in its widget callbacks and sends them with
@@ -102,6 +112,9 @@ public:
     // Runs `fn` after the event that is being handled, so a callback can remove widgets (the sheet it
     // sits in, its own page) without pulling them from under its own feet. Outside an event: at once.
     void Defer(std::function<void()> fn);
+    // Runs `fn` as if it were an event: Defer inside it waits until `fn` is over, then runs. UI Automation
+    // actions (Invoke, SetValue ...) go through this, so a callback that removes a page or a sheet is safe.
+    void Perform(const std::function<void()>& fn);
 
     // Widget removal: drop every pointer that points into `subtree`.
     void Forget(Widget* subtree);

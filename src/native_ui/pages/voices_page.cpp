@@ -33,9 +33,11 @@ VoicesPage::VoicesPage(const PageEnv& env, VoiceLibraryState& library) : PageVie
     voiceIcon_ = Add<IconWidget>("user-profile-03", ColourRole::Accent);
     voiceLabel_ = Add<Label>(T(sid::kWindowVoiceVoice));
     voiceLabel_->SetStyle(layout::kVoiceLabelFont);
+    voiceLabel_->SetAccessHidden(true);  // the Select below says the same word
 
     voice_ = Add<Select>();
     voice_->SetName(T(sid::kWindowVoiceVoice));
+    voice_->SetAutomationId("voices.voice");
     voice_->SetBounds({layout::kVoiceControlX, layout::kVoiceRowTop + kSelectTopOffset, layout::kVoiceControlW,
                        kIconButtonSize});
     voice_->SetEnabled(false);  // until the first state
@@ -58,10 +60,13 @@ VoicesPage::VoicesPage(const PageEnv& env, VoiceLibraryState& library) : PageVie
         return b;
     };
     download_ = sideButton("download", sid::kWindowVoiceDownload);
+    download_->SetAutomationId("voices.download");
     download_->SetOnActivate([this] { OpenDownloadSheet(); });
     addFile_ = sideButton("upload-04", sid::kWindowVoiceAddFromFile);
+    addFile_->SetAutomationId("voices.addFile");
     addFile_->SetOnActivate([this] { Emit(MakeMessage(PageMessageType::AddFromFile, "addFromFile")); });
     delete_ = sideButton("trash-02", sid::kWindowVoiceDelete);
+    delete_->SetAutomationId("voices.delete");
     delete_->SetFocusWhenDisabled(true);  // aria-disabled: it explains itself with its tooltip, so it keeps the focus
     delete_->SetOnActivate([this] { OpenDeleteSheet(); });
 
@@ -92,6 +97,8 @@ VoicesPage::VoicesPage(const PageEnv& env, VoiceLibraryState& library) : PageVie
         l->SetReserveBold(false);  // a plain `.text-link` is never bold
         l->SetEnabled(false);      // until a Voice is there (the first state)
     }
+    save_->SetAutomationId("voices.savePreset");
+    load_->SetAutomationId("voices.loadPreset");
     save_->SetOnActivate([this] { Emit(MakeMessage(PageMessageType::SavePresetFile, "savePresetFile")); });
     load_->SetOnActivate([this] { Emit(MakeMessage(PageMessageType::LoadPresetFile, "loadPresetFile")); });
 }
@@ -105,9 +112,11 @@ VoicesPage::ControlRow VoicesPage::AddControl(const char* name, float top, const
     r.icon = Add<IconWidget>(icon, ColourRole::Accent);
     r.label = Add<Label>(T(textId));
     r.label->SetStyle(layout::kVoiceLabelFont);
+    r.label->SetAccessHidden(true);  // the slider carries the same word as its name
     r.slider = Add<Slider>();
     r.slider->SetBounds({layout::kVoiceControlX, top + (layout::kVoiceRowH - kSliderH) / 2, layout::kVoiceControlW, kSliderH});
     r.slider->SetName(T(textId));
+    r.slider->SetAutomationId(std::string("voices.") + name);
     r.slider->Clear();  // disabled until a state has a Voice
     // A drag or key asks for a value on the grid of the state; the host answers with a new state.
     r.slider->SetOnValue([this, n = std::string(name)](double v) {
@@ -118,6 +127,7 @@ VoicesPage::ControlRow VoicesPage::AddControl(const char* name, float top, const
     });
     r.reset = Add<IconButton>("refresh-01");
     r.reset->SetBounds({layout::kVoiceSideX, top + (layout::kVoiceRowH - kIconButtonSize) / 2, kIconButtonSize, kIconButtonSize});
+    r.reset->SetAutomationId(std::string("voices.reset.") + name);
     r.reset->SetVisible(false);  // only beside a value that is not the default
     r.reset->SetOnActivate([this, n = std::string(name)] {
         PageMessage m = MakeMessage(PageMessageType::ResetControl, "resetControl");

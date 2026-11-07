@@ -39,6 +39,7 @@ public:
     bool OnMouse(const MouseEvent& ev) override;
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;
+    bool AccSelect() override;  // UI Automation SelectionItem.Select: the row's key card shows (K.5)
 
 protected:
     void StateChanged() override;

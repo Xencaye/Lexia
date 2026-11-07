@@ -19,6 +19,8 @@ public:
     bool OnMouse(const MouseEvent& ev) override;
     bool OnKey(const KeyEvent& ev) override;
     CursorHint Cursor() const override { return enabled_ ? CursorHint::Hand : CursorHint::Arrow; }
+    // UI Automation Invoke / Toggle (K.5): the same as a click. False when the widget is disabled.
+    bool AccInvoke() override;
 
 protected:
     // Is the press in progress and the pointer still over the widget? (the CSS :active)
@@ -71,6 +73,10 @@ public:
     void SetIcon(std::string icon) { icon_ = std::move(icon); Invalidate(); }
     void SetCurrent(bool current) { current_ = current; Invalidate(); }
     bool Current() const { return current_; }
+    // A link of the frame that picks a page: accessibility shows it as selectable (the current page is the
+    // selected one). Other links (Report, About) are plain links.
+    void SetNav(bool nav) { nav_ = nav; }
+    bool AccSelect() override { return AccInvoke(); }
     void SetSmall(bool isSmall) { small_ = isSmall; Invalidate(); }  // not `small`: windows.h defines it as a macro
     void SetIconSize(float s) { iconSize_ = s; Invalidate(); }
     // The size of the word (the frame's links are 24 / 16 / 18 px, the About page's inline link 10 px);
@@ -88,6 +94,7 @@ private:
     float FontSize() const { return fontSize_ > 0 ? fontSize_ : (small_ ? 13.0f : 16.0f); }
     std::string text_, icon_;
     bool current_ = false;
+    bool nav_ = false;
     bool small_ = false;
     float iconSize_ = 22;
     float fontSize_ = 0;
