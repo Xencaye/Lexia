@@ -1,5 +1,5 @@
 #pragma once
-// The clickable controls of the native Settings window (K1.b; look from ui/css/components.css, numbers
+// The clickable controls of the native Settings window (K1.b; look from old ui/css/components.css, numbers
 // in DIPs): IconButton, TextLink (also the NavLink), Button, SwitchRow and KeyChip. They share Clickable,
 // which turns a left press and release on the widget (or Enter / Space) into one call of onActivate.
 //

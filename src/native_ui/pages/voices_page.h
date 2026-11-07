@@ -1,5 +1,5 @@
 #pragma once
-// The Voices page (K.3, ADR-0009; ui/index.html `#page-voices`, ui/js/voice.js, ui/css/pages.css): the Voice row
+// The Voices page (K.3, ADR-0009; old ui/index.html `#page-voices`, old ui/js/voice.js, old ui/css/pages.css): the Voice row
 // (a Select of the installed Voices and three icon buttons: Download, Add from file, Delete), the "no voice"
 // note, the Speed / Pitch / Volume sliders with a reset button beside a changed one, the otter, and the
 // Save preset / Load preset links. It draws what the last `state` says and keeps no copy of a setting: a

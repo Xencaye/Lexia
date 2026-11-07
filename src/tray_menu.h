@@ -1,5 +1,5 @@
 #pragma once
-// The rows of the tray icon's menu, as data (spec: ui/dev/tray.html). Pure and Win32-free: the
+// The rows of the tray icon's menu, as data (spec: old ui/dev/tray.html). Pure and Win32-free: the
 // tray code in lexia.exe turns these rows into a native popup menu and the chosen command into
 // an App action. The words are string ids; the caller looks them up in the Interface language.
 #include <vector>

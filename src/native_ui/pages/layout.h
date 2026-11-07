@@ -1,8 +1,8 @@
 #pragma once
 // Where everything of the Settings window sits (K.2, ADR-0009). Every number is in DIPs of the 800 x 600
-// client area and comes from the old ui/css/frame.css and ui/css/pages.css (measured by the owner on the
-// wireframes at 96 dpi); the CSS is the spec until ui/ is deleted (K.6), the HTML reference shots in
-// wireframe/html-reference/ are the spec after. Pure and Win32-free. K.3 (Voices) and K.4 (Settings) add
+// client area and comes from the HTML pages of Lexia 0.5 (ui/css/frame.css and pages.css, deleted in K.6; they are in git
+// history before it), measured by the owner on the wireframes at 96 dpi. The HTML reference shots in
+// wireframe/html-reference/ are the visual spec. Pure and Win32-free. K.3 (Voices) and K.4 (Settings) add
 // their own blocks to this file, so the positions of the pages stay in one place.
 #include "native_ui/canvas.h"
 

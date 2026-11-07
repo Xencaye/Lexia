@@ -1,7 +1,7 @@
 #pragma once
 // The Report page (K.2): the dog, the invitation and three links (mail, Discord, GitHub). A link sends
 // openLink with a LinkId; the host owns the URL (ADR-0005, `LinkUrl`). Ported from `.dog` `.big`
-// `.report-text` `.links` in ui/css/pages.css and ui/js/pages.js.
+// `.report-text` `.links` in old ui/css/pages.css and old ui/js/pages.js.
 #include "native_ui/controls.h"
 #include "native_ui/pages/page.h"
 

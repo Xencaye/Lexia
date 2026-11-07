@@ -1,7 +1,7 @@
 #pragma once
 // Select: a drop-down of text choices (the Voice choice, the theme). 28 tall, padding 0 30 0 9, a 1 DIP
 // `line` border, radius 1, card fill, 16 px ink text and a 16 px ink chevron 9 from the right (K1.b;
-// ui/css/components.css `.select`). Disabled: opacity 0.7, not focusable.
+// old ui/css/components.css `.select`). Disabled: opacity 0.7, not focusable.
 //
 // It opens an in-window popup list under it (or over it when there is no room below), as a layer of
 // the Screen. Closed: Down / Up / Enter / Space (or a press) open it. Open: Down / Up / Home / End move

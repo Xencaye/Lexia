@@ -1,6 +1,6 @@
 #pragma once
 // The Voice tab's side of the Settings window (D5, D8.3): Voice choice, Voice controls, Preset files and
-// the Voice library (download, add from file, delete). App owns one and hands it the Voice messages of the page.
+// the Voice library (download, add from file, delete). App owns one and hands it the Voice commands of the window.
 // The pure parts (the state, the answers) are in ui_host.*; this class is the glue: settings.json,
 // the Speaker, worker threads for the network and the file dialog.
 //

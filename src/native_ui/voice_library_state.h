@@ -3,7 +3,7 @@
 // (SettingsUi owns one) and not by the Voices page, so a download goes on being known while another page shows
 // and the page can be built again (K.3, ADR-0009). Pure and Win32-free, in lexia_core, tested.
 //
-// It is the port of the state of ui/js/voice_library.js: which catalogue came, the download that runs, the
+// It is the port of the state of old ui/js/voice_library.js: which catalogue came, the download that runs, the
 // last failure of a row, the note over the list, the Voices installed since the catalogue came, the row to
 // scroll into view. It is not a setting (the installed Voices are drawn from the host's `state`); it is the
 // sheets' own progress. It is the VoiceEventSink the host (VoiceTab) calls, and it tells whoever listens

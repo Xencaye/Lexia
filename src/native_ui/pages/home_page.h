@@ -1,7 +1,7 @@
 #pragma once
 // The Home page (K.2): the bee engraving, the power circle in it and the enable / disable button under it.
 // Both turn Lexia On or Off by sending setOn with the opposite of what the state says; both are disabled
-// until the first state comes. Ported from ui/css/pages.css `.bee` `.power` `.enable` and ui/js/app.js.
+// until the first state comes. Ported from old ui/css/pages.css `.bee` `.power` `.enable` and old ui/js/app.js.
 #include "native_ui/controls.h"
 #include "native_ui/pages/page.h"
 

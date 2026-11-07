@@ -1,5 +1,5 @@
 #pragma once
-// The tray icon and its native popup menu (D2; spec ui/dev/tray.html). Thin Win32 glue: what the
+// The tray icon and its native popup menu (D2; spec old ui/dev/tray.html). Thin Win32 glue: what the
 // menu holds is decided by tray_menu.h (pure, tested). Everything runs on the UI thread.
 #include <windows.h>
 

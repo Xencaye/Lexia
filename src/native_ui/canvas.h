@@ -69,7 +69,7 @@ public:
     // The width and the line height of one line of text.
     virtual SizeF MeasureText(std::string_view utf8, const TextStyle& style) = 0;
 
-    // An SVG icon of ui/icons (now resources), drawn in one colour into `box` (square).
+    // An SVG icon of src/res/icons (now resources), drawn in one colour into `box` (square).
     virtual void Icon(const RectF& box, std::string_view name, Colour c) = 0;
     // An engraving (black lines on white JPEG) as a mask: alpha = 1 - luminance, colour = tint.
     virtual void Picture(const RectF& box, std::string_view name, Colour tint, float opacity) = 0;

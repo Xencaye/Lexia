@@ -1,7 +1,7 @@
 #pragma once
 // The About page (K.2): the wolf, "Lexia | ver. x", the intro with two bold words, the text that goes round
 // the wolf, the itch.io and GitHub buttons, and the licence and notices lines. Ported from `.wolf`
-// `.about-*` in ui/css/pages.css and ui/js/pages.js. The version comes from UiState.version.
+// `.about-*` in old ui/css/pages.css and old ui/js/pages.js. The version comes from UiState.version.
 #include <string>
 
 #include "native_ui/controls.h"

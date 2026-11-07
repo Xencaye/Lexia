@@ -1,6 +1,6 @@
 #pragma once
-// The Settings page (K.4, ADR-0009), ported from ui/index.html (#page-settings), ui/js/settings.js and
-// ui/css/pages.css. Left: the heading "keybinds" and one row per Key (its name and a KeyChip), the heading
+// The Settings page (K.4, ADR-0009), ported from old ui/index.html (#page-settings), old ui/js/settings.js and
+// old ui/css/pages.css. Left: the heading "keybinds" and one row per Key (its name and a KeyChip), the heading
 // "misc" and five switches. Right: the key card of the selected Key (wine engraving, title, a play button that
 // reads the card aloud, what the Key does) and, under it, the hint that shows while a chip waits for a key.
 //

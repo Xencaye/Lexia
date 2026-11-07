@@ -15,7 +15,7 @@
 #include "log.h"
 #include "svg_recolour.h"
 
-// The Control bar's icons: an SVG resource of the exe (ui/icons, assets.h) drawn at one pixel size and
+// The Control bar's icons: an SVG resource of the exe (src/res/icons, assets.h) drawn at one pixel size and
 // colour with Direct2D, read back into memory as premultiplied BGRA, so the bar's GDI+ painting can blend it in. Each
 // (name, size, colour) is drawn once and kept for the life of the process.
 using Microsoft::WRL::ComPtr;

@@ -14,7 +14,7 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 
-// The resource names (file stems in ui/fonts) in FontWeight order.
+// The resource names (file stems in src/res/fonts) in FontWeight order.
 constexpr std::array<const char*, 3> kStems = {"AtkinsonHyperlegibleNext-Regular", "AtkinsonHyperlegibleNext-SemiBold",
                                                "AtkinsonHyperlegibleNext-Bold"};
 

@@ -1,5 +1,5 @@
 #pragma once
-// The Control bar's geometry (the spec is ui/dev/controlbar.html and wireframe/control_bar_*.png, in px
+// The Control bar's geometry (the spec is old ui/dev/controlbar.html and wireframe/control_bar_*.png, in px
 // at 96 dpi): where each part of the bar is for a size, a state and a DPI; which buttons work; what a
 // mouse position is on; and where the bar sits on the monitor. Pure, Win32-free; the drawing and the
 // windows are in controlbar.cpp. All results are device pixels. A bar's rectangles start at 0,0 (its

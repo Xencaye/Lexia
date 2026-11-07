@@ -31,8 +31,9 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 to K4 are done and
-merged there; K5 (UI Automation) is done on `feat/K.5`; K6 is next.
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 to K5 are done and
+merged there; K6 (WebView2 and `ui/` removed) is done on `feat/K.6`. **K7, your check, is the only open step**; then K
+merges to `main`.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -340,8 +341,8 @@ Superseded by the Oct 25 decisions: Lexia is GPL-3.0-or-later (ADR-0003), and Pi
 
 Decided Nov 5, 2026: Lexia 1.0 also runs on Ubuntu (the current LTS, x64). Windows stays the first platform.
 The core is already portable: OCR (ONNX Runtime, OpenCV), layout, Piper and espeak-ng, the Reading queue,
-settings, strings and the `ui/` pages. What is Win32 today is the shell around it: the hotkeys, the screen
-capture, the Overlay and the Control bar, the tray, the audio sink, the Settings window (WebView2), and the
+settings, strings and the Win32-free widget tree of the Settings window (`src/native_ui/`). What is Win32 today is the shell around it: the hotkeys, the screen
+capture, the Overlay and the Control bar, the tray, the audio sink, the Settings window (Direct2D since K; J5), and the
 start-up, single-instance and elevation code. The rules stay: the Overlay never takes focus (ADR-0001), no
 network except on request (ADR-0005), GPL-3-compatible dependencies only.
 
@@ -432,7 +433,18 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   `native_ui_access_test.cpp` (18 cases) and the UIA client exe `lexia_uia_test` (ctest `uia_tree`: skips with exit 0
   when there is no interactive desktop). A switch is a Button + Toggle with the control type text "switch" (strings
   `uia.switch`); a slider offers its number (RangeValue), not its value text. **K7 must check with Narrator:** see below.
-- [ ] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
+- [x] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
+  *Done (`feat/K.6`):* the assets moved to `src/res/{icons,img,fonts}` (still embedded as resources; nothing is read from
+  disk); `ui/` (HTML, CSS, JS, `dev/`, the bridge README), `cmake/copy_ui.cmake`, `cmake/ui_files.cmake`, the package's
+  `ui\` copy, ctest `ui_bridge`, `scripts\ui_preview.ps1` and `scripts\ui_contrast.ps1` are deleted (`palette_test` is the
+  contrast check); the `webview2` vcpkg dependency, `WebView2Loader.dll`, the `webview2` and `wil` notices entries and the
+  WebView2 and WIL rows of `docs/third-party.md` are gone; the installer has no WebView2 task, bootstrapper, registry
+  check or download link (and `scripts\fetch_deps.ps1 -Installer` with `installer\redist` are gone; it still removes an
+  old `{app}\ui` and `*.dll` on an update); dead code: `StringsMessage`, `StateMessage`, `ParsePageMessage`, the JSON
+  builders of `ui_host.*` and `lexia_cli --strings-json` with their tests (`ui_host.*` keeps `UiState`, `PageMessage`,
+  `LinkUrl`, `IsDarkTheme`, `FillVoiceState`; the name is older than its content); `stale_data.*`: at start the old
+  `%LOCALAPPDATA%\Lexia\WebView2` folder is removed once, a junction or link inside is never followed (`stale_data_test.cpp`,
+  4 cases). ADR-0006 stays as a superseded record.
 - [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator (the K5 list: turn
   Narrator on with Win+Ctrl+Enter; the Settings window opens at the window title; Tab through the home page and hear
   each name and role; the power button says "Lexia On / Off" with its state, and Space or Enter changes it; the
@@ -444,7 +456,11 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   switches read as "switch" with on or off, and a disabled Start minimised says it is unavailable; Narrator's
   caps lock + F5 / Insert + Space actions work on every button; the download sheet's rows are read and the
   list scrolls to the focused one; if a switch is read badly try CheckBox in `ControlTypeOf`), dark mode,
-  150 % / 200 % and a move between monitors.
+  150 % / 200 % and a move between monitors. After K6 also: install `Lexia-0.6.0-setup.exe` on a PC without the
+  WebView2 Runtime (no runtime task is shown, the window opens), an update over Lexia 0.5 (the old `ui\` folder and
+  `WebView2Loader.dll` are gone from the install folder, the `WebView2` folder in `%LOCALAPPDATA%\Lexia` is removed at
+  the first start and the log says so; settings.json, Voices and Presets stay), and the uninstaller (the program, the
+  Run value; it still asks about `%LOCALAPPDATA%\Lexia`).
 
 ## Order and milestones
 
@@ -469,7 +485,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G done; K, the native Settings window, done (owner, Nov 7).
+5. **M5 Lexia 0.6: Read-along** — G done; K, the native Settings window, built (K0 to K6); your K7 check is open (owner, Nov 7).
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland.
 

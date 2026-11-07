@@ -1,6 +1,6 @@
 #pragma once
-// Slider: the Voice controls and the Master volume (K1.b; ui/css/components.css `.slider` and the maths
-// of ui/js/controls.js, which this ports). A box 28 tall; a 2 DIP `line` track; a 6 x 14 accent thumb that
+// Slider: the Voice controls and the Master volume (K1.b; old ui/css/components.css `.slider` and the maths
+// of old ui/js/controls.js, which this ports). A box 28 tall; a 2 DIP `line` track; a 6 x 14 accent thumb that
 // grows to 12 x 25 on hover, drag and keyboard focus (0.12 s); a focus ring round the grown thumb;
 // disabled (no state, or SetEnabled(false)): opacity 0.5.
 //

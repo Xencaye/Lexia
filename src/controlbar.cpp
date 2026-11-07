@@ -65,8 +65,8 @@ uint32_t Mix(uint32_t a, uint32_t b, double t) {
 // The colours of the bar in the light or the dark theme: every colour is a token of nui::Palette, but
 // the hover and pressed states are not (the design draws them as "a darker tone"), so they are derived
 // here from the token they belong to. A tile gets 10% / 20% darker (light: within 1 of 255 of the
-// design's #AB9883 and #988774; dark: the dark tile is the token's #BEA991 as well, as in the old
-// ui/css/tokens.css, where the bar used a temporary #8F7A6B before); the Help and size icons go darker in the light theme (30% / 50% towards black: within
+// design's #AB9883 and #988774; dark: the dark tile is the token's #BEA991 as well, as in the HTML
+// pages' tokens.css (deleted in K.6), where the bar used a temporary #8F7A6B before); the Help and size icons go darker in the light theme (30% / 50% towards black: within
 // 2 of 255 of the design's #4F3733 and #3A2825) and lighter in the dark one (15% / 40% towards white).
 BarColours BarColoursFor(bool dark) {
     const nui::Palette& t = nui::PaletteFor(dark);
@@ -310,7 +310,7 @@ gp::RectF ToRectF(const Rect& r, int ox, int oy) {
 
 // -------------------------------------------------------------------- icons ---
 
-// The icon (the file stem in ui/icons, an exe resource: assets.h) a button shows now.
+// The icon (the file stem in src/res/icons, an exe resource: assets.h) a button shows now.
 const char* IconName(BarButton b, bool paused, BarSize size) {
     switch (b) {
     case BarButton::Pause: return paused ? "play-03" : "pause-03";

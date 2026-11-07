@@ -1,6 +1,6 @@
 #pragma once
 // The three sheets of the Voices page (K.3, ADR-0009; the old ui/index.html dialogs `delete-voice`,
-// `catalogue` and `file-result`, and ui/js/voice_library.js): Delete voice, Voice download, and the Result
+// `catalogue` and `file-result`, and old ui/js/voice_library.js): Delete voice, Voice download, and the Result
 // sheet of Add from file, a failed delete and the Preset files. They are Sheets of the Screen (modal, Esc
 // closes, the focus goes in and comes back), built on demand. The Voices page owns one DownloadSheet and one
 // ResultSheet; the data they draw is the VoiceLibraryState of the Settings window.
