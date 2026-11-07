@@ -382,6 +382,10 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
 - [ ] **K1 Toolkit and assets.** Icons, pictures and fonts (Atkinson Hyperlegible Next TTF) as resources in the
   exe; one palette for the window and the Control bar (the contrast check becomes a doctest); the Win32-free
   widget tree with a `Canvas` interface (tested with a fake canvas); the Direct2D canvas; a shared tooltip.
+  *Done so far (`feat/K.1b`):* the widget tree and every control (`src/native_ui/`: `Widget`, `Screen`, sheets,
+  `IconButton`, `TextLink`, `Button`, `Select`, `Slider`, `SwitchRow`, `KeyChip`, `Notice`, `ProgressBar`,
+  `ScrollArea`, `Label`, `Paragraph`, `Tween`), with 96 doctest cases on a fake canvas. Open: the Direct2D
+  canvas, the resources and fonts, the shared tooltip window.
 - [ ] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
   Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; `lexia_settingsshot`.
 - [ ] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
