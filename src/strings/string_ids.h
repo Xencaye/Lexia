@@ -38,7 +38,7 @@
     X(ControlBarSizeSmall, "controlBar.sizeSmall")                                               \
     X(ControlBarSizeLarge, "controlBar.sizeLarge")                                               \
     X(ControlBarName, "controlBar.name")                                                         \
-    X(WordMarkName, "wordMark.name")                                                             \
+    X(ReadAlongLayerName, "readAlongLayer.name")                                                 \
     /* Tray menu (D2) */                                                                         \
     X(TrayOn, "tray.on")                                                                         \
     X(TrayOff, "tray.off")                                                                       \

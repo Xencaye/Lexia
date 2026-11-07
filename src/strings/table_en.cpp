@@ -25,7 +25,7 @@ const Table& EnglishTable() {
         {id::kControlBarSizeSmall, "Show the Small bar"},
         {id::kControlBarSizeLarge, "Show the Large bar"},
         {id::kControlBarName, "Lexia controls"},
-        {id::kWordMarkName, "Lexia word mark"},  // the name of the click-through layer (G2); never shown, but a window has one
+        {id::kReadAlongLayerName, "Lexia read-along"},  // the name of the click-through layer (G2); never shown, but a window has one
 
         {id::kTrayOn, "On"},
         {id::kTrayOff, "Off"},

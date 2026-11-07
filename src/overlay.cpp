@@ -39,7 +39,7 @@ struct Session {
     bool pending = false;   // a selection was just made and still needs handling
     bool busy = false;      // a Pick is being read (or a Click is waiting for the Analysis)
     std::vector<RECT> picked;  // areas already read on this screen (kept highlighted)
-    // The word mark (G1): the Blocks of each Reading Picked in this Session, by the Reading's id, and
+    // The read-along bar (G1): the Blocks of each Reading Picked in this Session, by the Reading's id, and
     // the bars under the word that is heard now (Shot coordinates). Only this Session's Readings are
     // known, so a word of an earlier Session's Reading draws nothing.
     ReadAlongTrack track;
@@ -68,8 +68,8 @@ static const UINT kMsgAnalysisDone = WM_APP + 1;
 static const UINT kMsgPickDone = WM_APP + 2;  // a Drag job finished; the loop's Pump picks it up
 // A window timer that asks which word is heard. The speech thread cannot post a message at each word
 // (it would need a channel into the Session), and 30 ms is well under the length of a spoken word.
-static const UINT_PTR kTimerWordMark = 1;
-static const UINT kWordMarkMs = 30;
+static const UINT_PTR kTimerReadAlong = 1;
+static const UINT kReadAlongMs = 30;
 
 // The Drag's rectangle from where the button went down to where the mouse is now, in either direction,
 // kept on the Shot.
@@ -162,7 +162,7 @@ static void RefreshHover(HWND hwnd, Session& ss) {
 
 // Asks which word is heard and moves the bars to it; repaints only when the bars changed (a word lasts
 // a fraction of a second, a timer tick much less). Nothing to do before the first Pick of the Session.
-static void PollWordMark(HWND hwnd, Session& ss) {
+static void PollReadAlong(HWND hwnd, Session& ss) {
     if (!ss.heardWord || !*ss.heardWord || ss.track.Empty()) return;
     const std::vector<Rect> bars = ss.track.Bars((*ss.heardWord)(), ss.barThickness, ss.barGap);
     if (SameRects(bars, ss.bars)) return;
@@ -196,8 +196,8 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
 
     case WM_TIMER:
-        if (wp == kTimerWordMark) {
-            PollWordMark(hwnd, ss);
+        if (wp == kTimerReadAlong) {
+            PollReadAlong(hwnd, ss);
             return 0;
         }
         break;
@@ -451,8 +451,8 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     if (!ss.bar.Create(bc)) LogWarn("The Control bar could not be shown; use the keys.");
 
     StartAnalysis(hwnd, ss);
-    // A failed SetTimer only means no word mark; the Session works without it.
-    const bool wordTimer = style.readAlong && cb.heardWord && SetTimer(hwnd, kTimerWordMark, kWordMarkMs, nullptr) != 0;
+    // A failed SetTimer only means no read-along bar; the Session works without it.
+    const bool readAlongTimer = style.readAlong && cb.heardWord && SetTimer(hwnd, kTimerReadAlong, kReadAlongMs, nullptr) != 0;
 
     MSG msg;
     while (!ss.done) {
@@ -495,7 +495,7 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     }
 
     if (escHotkey) UnregisterHotKey(nullptr, HK_ESC);
-    if (wordTimer) KillTimer(hwnd, kTimerWordMark);
+    if (readAlongTimer) KillTimer(hwnd, kTimerReadAlong);
     ss.bar.Destroy();
     ShowWindow(hwnd, SW_HIDE);
     // A job still running reads the Shot and writes into `ss`: wait for it before they go away
@@ -509,7 +509,7 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     DestroyWindow(hwnd);
     // Only now, with nothing of the Session left on screen, may another window of Lexia take focus.
     OverlayResult result;
-    result.track = std::move(ss.track);  // for the word mark layer (G2); the Session's own copy is done with
+    result.track = std::move(ss.track);  // for the read-along layer (G2); the Session's own copy is done with
     if (ss.helpAsked && cb.onHelp) cb.onHelp();
     return result;
 }

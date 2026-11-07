@@ -364,7 +364,7 @@ set_target_properties(lexia_uia_test PROPERTIES
 add_custom_command(TARGET lexia_uia_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_uia_test> "$<TARGET_FILE_DIR:lexia_uia_test>"
     COMMAND_EXPAND_LISTS)
-# A smoke test of the word mark layer (G2, src/read_along_layer.*): a real window over a small area, checks that
+# A smoke test of the read-along layer (G2, src/read_along_layer.*): a real window over a small area, checks that
 # it can never take the focus or a click and that it ends when its Readings do. ctest read_along_layer runs it.
 # Own output folder, like lexia_uia_test (lexia_core pulls in the OpenCV / ONNX Runtime DLLs).
 add_executable(lexia_layer_test tests/read_along_layer_main.cpp src/read_along_layer.cpp)

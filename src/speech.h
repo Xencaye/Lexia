@@ -53,11 +53,11 @@ public:
     uint64_t SpeakReading(const std::vector<std::string>& blocks, bool append = false);
 
     // The word that is heard now, or nothing (rules in tts/reading_queue.h, "The heard word"). Any
-    // thread; the Overlay asks for it on a timer to draw the word mark (G1).
+    // thread; the Overlay asks for it on a timer to draw the read-along bar (G1).
     std::optional<HeardWord> HeardWordNow() const;
 
     // Is the Reading with this id still queued, being spoken or paused (ReadingQueue::HasReading)?
-    // Any thread; the click-through layer of "keep the word mark" (G2) asks it on a timer.
+    // Any thread; the click-through layer of "keep the read-along bar" (G2) asks it on a timer.
     bool HasReading(uint64_t id) const;
 
     // Announcements (rules in tts/reading_queue.h: they hold the Reading at a word boundary, the

@@ -47,7 +47,7 @@ struct UiState {
     bool runAsAdmin = false;        // the stored setting
     bool elevated = false;          // Lexia runs elevated now (D8.3 fills it)
     bool leftHanded = false;
-    bool readAlong = false;         // K9: the word mark (G1) on the Overlay and after it (G2); off = no word mark at all
+    bool readAlong = false;         // K9: the read-along bar (G1) on the Overlay and after it (G2); off = no read-along at all
     // K11: the Settings card (a Key action or a switch name, as in ReadKeyCard) that is read aloud now, or "" when
     // none is. Its read button shows the "stop" icon (volume-07) while its card is selected; the host sets it
     // when the reading starts and clears it when it ends or is stopped, however that came about.

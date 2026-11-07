@@ -1,4 +1,4 @@
-// A smoke test of the word mark layer (G2, src/read_along_layer.*) on a real window: it makes the layer over
+// A smoke test of the read-along layer (G2, src/read_along_layer.*) on a real window: it makes the layer over
 // a small area, checks that it can never take the focus or a click (the extended styles, WM_NCHITTEST,
 // WM_MOUSEACTIVATE, not the foreground window), that its timer asks for the heard word, and that it hides
 // itself and calls `onEnded` once when no Reading is left. Run by ctest as `read_along_layer`.
@@ -40,7 +40,7 @@ void Pump(int ms, Done done) {
 int main() {
     ReadAlongLayerConfig cfg;
     cfg.monitor = RECT{0, 0, 400, 300};
-    cfg.title = L"Lexia word mark (test)";
+    cfg.title = L"Lexia read-along (test)";
     TextBlock block;
     block.text = "one two three";
     TextLine line;
