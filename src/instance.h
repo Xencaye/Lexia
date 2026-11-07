@@ -10,6 +10,11 @@ inline constexpr const wchar_t* kAppWindowClass = L"LexiaApp";
 // The registered message that means "open the Settings window".
 UINT OpenSettingsMessage();
 
+// The registered message "Lexia.Quit": end Lexia like the tray's Quit does. Only the installer sends it
+// (installer/lexia.iss uses the same name), so that Setup and the uninstaller can close a running Lexia
+// cleanly. The App window lets it through UIPI, as it does OpenSettingsMessage (ADR-0008).
+UINT QuitMessage();
+
 class SingleInstance {
 public:
     // Takes the mutex. With `waitMs` > 0 and another instance holding it, looks again every 100 ms for that
