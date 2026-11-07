@@ -34,7 +34,8 @@ Carried over from 0.5 into 0.6 (the owner's):
 In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`: K0 to K6 and K8 (the
 owner's changes after the first look) are done and merged there. **K7, your check, is the only open step**; then K merges
 to `main`.
-Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
+G1 (the word mark on the Overlay) is built on `feat/G1` (Nov 7), made from the tip of `feat/K-native-settings`; G2 is open.
+Later: G2 (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
 ## Verdict
@@ -322,7 +323,12 @@ Superseded by the Oct 25 decisions: Lexia is GPL-3.0-or-later (ADR-0003), and Pi
 
 ### G — Read-along highlighting (Lexia 0.6; needs B1, C2, D4)
 
-- [ ] **G1** Map word timings from Piper (B1) back to OCR line boxes; draw the current word on the overlay.
+- [x] **G1** Map word timings from Piper (B1) back to OCR line boxes; draw the current word on the overlay.
+  - **Done on `feat/G1`.** The current word is an **underline bar** (3 px at 96 dpi, DPI-scaled; 1 px gap under the Line's box) in `OverlayStyle::hoverColor`, drawn after the Picked areas, for Readings Picked in this Session. No setting (G2 adds one). The Picked area frame is as before.
+  - **How words are mapped.** `read_along.*` (pure, tested): `CutIntoWords` cuts a Piper chunk (one sentence) into word pieces; `SpokenWordRanges` maps the spoken words of the chunk to byte ranges of the Block's text (the sentence by index, within the stretch that `SpeakStretches` spoke; 1:1 when the word counts agree, else by proportion of phonemes against letters, a digit counting as three letters, so "2024" said as "twenty twenty-four" stays on "2024"); `WordBoxes` maps a range to one box per Line (it finds each Line's place in `Block.text` by matching, so it follows `GroupBlocks`' hyphen re-join; x by the share of the Line's characters, because OCR gives Line boxes, not word boxes); `UnderlineBar`; `ReadAlongTrack` (Readings by id → Blocks → bars, for G2 to reuse after the Session).
+  - **Queue.** `ReadingQueue::Add` returns a Reading id; each word piece carries (id, Block, range); `HeardWordNow()` is the first not-yet-played piece in the sink (none during an Announcement, after Skip/Stop, for a piece with no word). `Speaker::SpeakReading` returns the id; `Speaker::HeardWordNow()`. The Overlay polls it on a 30 ms window timer (`OverlayCallbacks::heardWord`); `SelectHandler` now returns a `PickOutcome` (found + reading id).
+  - **Limits.** The word's x position is an estimate (a proportional font makes it a few pixels off inside a long Line); if espeak cuts a sentence somewhere this code does not (an abbreviation like "Mr."), the later sentences of that stretch may be one off until the Block ends.
+  - *Your check:* the bar sits under the word you hear; at a hyphen at a Line end; on numbers; after Pause, Skip and Stop; with two Picks queued.
 - [ ] **G2** Setting to keep the overlay up while reading for highlighting. (The Control bar currently exists only during a Session; revisit together.)
 
 ### H — Distribution (owns `cmake/package.cmake`, new `installer/`)
@@ -495,7 +501,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G done; K, the native Settings window, built (K0 to K6); your K7 check is open (owner, Nov 7).
+5. **M5 Lexia 0.6: Read-along** — G1 done (G2 open); K, the native Settings window, built (K0 to K6); your K7 check is open (owner, Nov 7).
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland.
 
