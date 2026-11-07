@@ -22,6 +22,12 @@ constexpr RectF kRuleBottom{30, 538, 280, 1};
 // Master volume: speaker icon (accent, 20) at x = 548, track 576..676, centre y = 569.
 constexpr float kVolumeIconX = 548, kVolumeIconSize = 20, kVolumeSliderX = 576, kVolumeSliderW = 100,
                 kVolumeBoxH = 24, kVolumeBoxTop = 557;
+// K10: the window's own minimise and close buttons (there is no Windows title bar), top right of every page.
+// Measured on the owner's mockup (Nov 7, 800 x 600): the 24 x 24 icon boxes are at (726, 10) and (760, 10)
+// (the X's strokes span x 765..779, y 15..29; the dash runs x 729..746 at y = 21). The hit area is 2 DIPs
+// larger on each side (28 x 28, as an IconButton); the two hit areas are 6 apart, so they never overlap.
+constexpr float kWindowButtonsY = 10, kMinimiseX = 726, kCloseX = 760, kWindowButtonIcon = 24,
+                kWindowButtonHitPad = 2;
 // The flute, on every page, bottom right.
 constexpr RectF kFlute{692, 444, 100, 150};
 

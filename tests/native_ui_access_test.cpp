@@ -175,6 +175,28 @@ TEST_CASE("access: the frame offers the six pages as selectable links and the Ma
     CHECK(r.Find(T(strings::id::kWindowNavMore), Role::Group));
 }
 
+TEST_CASE("access: the window's minimise and close buttons are two named Buttons on every page (K10)") {
+    Rig r;
+    for (Page p : {Page::Home, Page::Voices, Page::Settings, Page::Report, Page::Help, Page::About}) {
+        CAPTURE(PageName(p));
+        r.Show(p);
+        Widget* minimise = r.Find(T(strings::id::kWindowMinimise), Role::Button);
+        Widget* close = r.Find(T(strings::id::kWindowClose), Role::Button);
+        REQUIRE(minimise);
+        REQUIRE(close);
+        CHECK(minimise != close);
+        CHECK(AutomationIdOf(r.S(), *minimise) == "frame.minimise");
+        CHECK(AutomationIdOf(r.S(), *close) == "frame.close");
+        for (Widget* w : {minimise, close}) {
+            const AccessInfo a = w->Access();
+            CHECK(a.role == Role::Button);
+            CHECK(a.focusable);
+            CHECK(a.enabled);
+            CHECK(a.toggle == Toggle::None);  // a plain button, not a toggle
+        }
+    }
+}
+
 TEST_CASE("access: Home offers the power button as a toggle and the enable button") {
     Rig r;
     r.Show(Page::Home);

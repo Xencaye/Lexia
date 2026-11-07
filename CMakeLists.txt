@@ -132,6 +132,7 @@ add_library(lexia_core STATIC
     src/native_ui/pages/voice_text.cpp
     src/native_ui/pages/voice_sheets.cpp
     src/native_ui/widget.cpp
+    src/native_ui/window_hit.cpp
     src/ocr.cpp
     src/read_along.cpp
     src/recognize.cpp
@@ -396,6 +397,7 @@ add_executable(lexia_tests
     tests/native_ui_slider_select_test.cpp
     tests/native_ui_text_test.cpp
     tests/native_ui_voices_test.cpp
+    tests/native_ui_window_hit_test.cpp
     tests/preset_file_test.cpp
     tests/score_test.cpp
     tests/startup_test.cpp

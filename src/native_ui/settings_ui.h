@@ -19,6 +19,7 @@
 // draws it (and opens its sheets) while it shows, and a result that came while it did not is shown when it is built.
 // How a later task plugs in without touching the frame:
 //   K.4  adds ShowPage(Page, ShowOptions) (select an action, start a capture) next to the one-argument one.
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -45,6 +46,8 @@ public:
     Page CurrentPage() const { return page_; }
     PageView* Current() const { return view_; }  // the page that shows (never null)
     Frame& GetFrame() { return *frame_; }
+    // K10: what the window's own minimise and close buttons ask of the window (not of the App). The window sets it.
+    void SetOnWindowCommand(std::function<void(WindowCommand)> fn) { frame_->SetOnWindowCommand(std::move(fn)); }
 
     void SetState(const UiState& state);
     bool HasState() const { return hasState_; }
