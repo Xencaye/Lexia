@@ -59,14 +59,24 @@ private:
 // on-accent icon. Every kWigglePeriodSeconds it shakes a little about the icon's centre (animation.h
 // `WiggleAngle`), counted from its first paint; not with reduced motion. It asks the Screen for a wake-up at
 // the next wiggle instead of keeping a timer running (Screen::NoteWakeAt).
+//
+// K11: while its card is being read aloud it shows the "stop" icon (volume-07) instead and does not wiggle (the
+// wiggle invites a press on "play"); a press then stops the reading. The button does not decide that: the page
+// tells it from the last state (`UiState::readingCard`), as every widget shows only what the host said.
 class KeyReadButton : public Clickable {
 public:
     KeyReadButton();
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;
 
+    void SetReading(bool reading);
+    bool Reading() const { return reading_; }
+    // The icon it draws now (for the tests): "volume-07" while reading, else "volume-05".
+    const char* IconName() const { return reading_ ? "volume-07" : "volume-05"; }
+
 private:
     double start_ = -1;  // Screen time of the first paint; negative = not painted yet
+    bool reading_ = false;
 };
 
 // The card: the card colour behind its children (the engraving, the read button, the title, the text).

@@ -112,6 +112,7 @@
     X(WindowKeysPauseDesc, "window.keys.pauseDesc")                                              \
     X(WindowKeysSpeechDesc, "window.keys.speechDesc")                                            \
     X(WindowKeysReadAloud, "window.keys.readAloud")  /* the key card's play button: {action} */  \
+    X(WindowKeysStopReading, "window.keys.stopReading")  /* the same button while the card is read (K11): {action} */ \
     X(WindowKeysChipLabel, "window.keys.chipLabel")  /* accessible name of the key chip: {action}, {key} */\
     X(WindowKeysCapturing, "window.keys.capturing")  /* the key chip while it waits for a key */ \
     X(WindowKeysCaptureHint, "window.keys.captureHint")                                          \
@@ -135,6 +136,7 @@
     X(WindowSwitchesLeftHandedTitle, "window.switches.leftHandedTitle")                          \
     X(WindowSwitchesLeftHandedDesc, "window.switches.leftHandedDesc")                            \
     X(WindowSwitchesReadAloud, "window.switches.readAloud")  /* the play button of a switch's card: {action} */ \
+    X(WindowSwitchesStopReading, "window.switches.stopReading")  /* the same button while a switch's card is read (K11): {action} */ \
     /* Report, Help and About pages (D8) */                                                      \
     X(WindowReportTitle, "window.report.title")  /* one line per line */                         \
     X(WindowReportText, "window.report.text")                                                    \

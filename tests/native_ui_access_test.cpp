@@ -609,3 +609,36 @@ TEST_CASE("access: bounds are clipped to the scroll areas and the window, and a 
     CHECK(b.rect.x >= 0);
     CHECK(b.rect.Right() <= 800);
 }
+
+// K11: the read button's name follows the host's reading state, and the tracker reports it (UIA Name event).
+TEST_CASE("access: the read button's name changes when its card is read, and the tracker says so") {
+    Rig r;
+    r.Show(Page::Settings);
+    Log log;
+    AccessTracker tracker(r.S());
+    tracker.SetObserver(&log);
+    tracker.Update();  // the first call only looks
+    const std::string card = T(strings::id::kWindowKeysRead);
+    const std::string idle = strings::Format("en", strings::id::kWindowKeysReadAloud, {{"action", card}});
+    const std::string stop = strings::Format("en", strings::id::kWindowKeysStopReading, {{"action", card}});
+    Widget* button = r.Find(idle, Role::Button);
+    REQUIRE(button);
+
+    UiState s = SampleState();
+    s.readingCard = "read";
+    r.settings.SetState(s);
+    tracker.Update();
+    bool renamed = false;
+    for (const Log::Prop& p : log.props) {
+        if (p.id == button->Id()) renamed = (p.changes & kChangeName) && p.before.name == idle && p.after.name == stop;
+    }
+    CHECK(renamed);
+    CHECK(r.Find(stop, Role::Button) == button);
+    CHECK(r.Find(idle, Role::Button) == nullptr);
+
+    // It stays a button that can be invoked: the stop press is an ordinary Invoke.
+    r.sent.clear();
+    CHECK(PerformAccess(r.S(), button->Id(), AccessRequest{AccessAction::Invoke}) == AccessResult::Done);
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
+}

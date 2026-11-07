@@ -48,6 +48,10 @@ struct UiState {
     bool elevated = false;          // Lexia runs elevated now (D8.3 fills it)
     bool leftHanded = false;
     bool readAlong = false;         // K9: the word mark (G1) on the Overlay and after it (G2); off = no word mark at all
+    // K11: the Settings card (a Key action or a switch name, as in ReadKeyCard) that is read aloud now, or "" when
+    // none is. Its read button shows the "stop" icon (volume-07) while its card is selected; the host sets it
+    // when the reading starts and clears it when it ends or is stopped, however that came about.
+    std::string readingCard;
     // Settings::speechVolume, 0..100 %. Steps of 5, like the Voice Volume control (0.05), so the slider
     // moves in visible steps; a value from settings.json that is not on the grid is shown as it is.
     UiControl masterVolume{100, 0, 100, 100, 5};
