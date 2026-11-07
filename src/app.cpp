@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <filesystem>
 #include <string>
 
 #include "autostart.h"
@@ -99,6 +100,11 @@ LRESULT CALLBACK App::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         app->OpenSettingsWindow();
         return 0;
     }
+    if (app && msg == QuitMessage()) {  // the installer (Setup or the uninstaller) asks Lexia to end
+        LogInfo("The installer asked Lexia to quit (Lexia.Quit).");
+        app->Quit();  // the same clean end as the tray's Quit: speech stops, keys are freed, the icon goes
+        return 0;
+    }
     static const UINT taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
     if (app && msg == taskbarCreated) {
         app->OnTaskbarCreated();
@@ -125,6 +131,9 @@ bool App::CreateMessageWindow() {
     // again") from a program that is not elevated: UIPI drops registered messages unless they are let through.
     // Harmless when Lexia is not elevated.
     ChangeWindowMessageFilterEx(window_, OpenSettingsMessage(), MSGFLT_ALLOW, nullptr);
+    // Lexia.Quit too, so that Setup (not elevated) can close an elevated Lexia. It can only end Lexia cleanly,
+    // which any process of the same user can already do to a non-elevated Lexia; nothing else comes in.
+    ChangeWindowMessageFilterEx(window_, QuitMessage(), MSGFLT_ALLOW, nullptr);
     ChangeWindowMessageFilterEx(window_, RegisterWindowMessageW(L"TaskbarCreated"), MSGFLT_ALLOW, nullptr);
     return true;
 }
@@ -177,8 +186,11 @@ bool App::Init() {
     speaker_.Configure(settings_.speechRate, settings_.speechVolume);
 
     VoiceTab::Host host;
-    host.toPage = [this](const std::string& json) {
-        if (settingsWindow_ && pageReady_) settingsWindow_->Post(json);  // a closed window drops it
+    // The Voice library's answers (catalogue, download, add / delete / preset results) are typed events for
+    // the Settings window's Voice download and result sheets. A window that is closing (its HWND is gone,
+    // the object waits for the posted drop) gets none.
+    host.events = [this]() -> VoiceEventSink* {
+        return settingsWindow_ && IsWindow(settingsWindow_->Handle()) ? settingsWindow_->VoiceEvents() : nullptr;
     };
     host.pushState = [this] { PushState(); };
     host.owner = [this]() -> HWND { return settingsWindow_ ? settingsWindow_->Handle() : nullptr; };
@@ -257,7 +269,7 @@ int App::Run() {
 
     speaker_.Stop();
     UnregisterKeys();
-    settingsWindow_.reset();  // the window and its WebView2 go before COM is shut down
+    settingsWindow_.reset();  // the window and its Direct2D resources go before COM is shut down
     tray_.Remove();
     return 0;
 }
@@ -316,7 +328,7 @@ void App::SetOn(bool on) {
 
 // ------------------------------------------------------------- Settings window ---
 
-// The state the page draws (ui/README.md). Voices and controls are the Voice tab's (D5).
+// The state the Settings window draws (UiState). Voices and controls are the Voice tab's (D5).
 UiState App::BuildUiState() const {
     UiState s;
     s.on = settings_.enabled;
@@ -341,8 +353,8 @@ UiState App::BuildUiState() const {
 
 void App::PushState() {
     UpdateTray();  // the tray icon is the first to show On / Off, window or not
-    if (!settingsWindow_ || !pageReady_) return;
-    settingsWindow_->Post(StateMessage(BuildUiState()));
+    if (!settingsWindow_) return;
+    settingsWindow_->SetState(BuildUiState());
 }
 
 // Windows' light / dark mode changed (or the theme setting did): the window's frame follows.
@@ -351,40 +363,37 @@ void App::ApplyWindowTheme() {
 }
 
 void App::OpenSettingsWindow(std::string_view page) {
-    std::wstring startPage;  // only lower-case letters: ?page=<name>; anything else is the Home page
-    if (!page.empty() && std::all_of(page.begin(), page.end(), [](char c) { return c >= 'a' && c <= 'z'; })) {
-        startPage.assign(page.begin(), page.end());
+    // A page name (home|voices|settings|report|help|about); "" or an unknown name is the Home page.
+    nui::Page startPage = nui::Page::Home;
+    const bool named = !page.empty();
+    if (named && !nui::ParsePageName(page, startPage)) {
+        LogWarn("[window] There is no Settings page \"", std::string(page), "\"; showing Home.");
     }
     if (settingsWindow_ && IsWindow(settingsWindow_->Handle())) {
-        if (!startPage.empty()) {
-            pageReady_ = false;  // the page loads again and sends `ready`
-            settingsWindow_->ShowPage(startPage);
-        }
+        if (named) settingsWindow_->ShowPage(startPage);
         settingsWindow_->BringToFront();
         return;
     }
     settingsWindow_.reset();
-    pageReady_ = false;
 
     SettingsWindow::Options o;
     o.title = Utf8ToWide(strings::Text(settings_.interfaceLanguage, strings::id::kWindowTitle));
-    o.noRuntimeText = Utf8ToWide(strings::Text(settings_.interfaceLanguage, strings::id::kWindowNoRuntime));
-    o.uiDir = ExeDir() / "ui";
+    o.interfaceLanguage = settings_.interfaceLanguage;
     o.startPage = startPage;
     o.dark = IsDarkTheme(settings_.theme, SystemUsesLightTheme());
-    o.onMessage = [this](const std::string& json) { HandlePageMessage(json); };
+    o.onCommand = [this](const PageMessage& m) { HandlePageMessage(m); };
     o.onSystemThemeChanged = [this] { ApplyWindowTheme(); };
     // Called inside the window's own procedure: the object is dropped later, by a posted message.
     o.onDestroyed = [this] {
-        pageReady_ = false;
         if (window_) PostMessageW(window_, kMsgSettingsWindowClosed, 0, 0);
     };
-    if (!std::filesystem::exists(o.uiDir / "index.html")) {
-        LogError("[window] The Settings window's pages are missing: ", o.uiDir, ". Reinstall Lexia.");
+    settingsWindow_ = std::make_unique<SettingsWindow>(std::move(o));
+    if (!settingsWindow_->Create(ActiveMonitorRect())) {
+        settingsWindow_.reset();
         return;
     }
-    settingsWindow_ = std::make_unique<SettingsWindow>(std::move(o));
-    if (!settingsWindow_->Create(ActiveMonitorRect())) settingsWindow_.reset();
+    // The pages draw what the state says and nothing else: they have no state until now.
+    PushState();
 }
 
 // The posted end of a closed Settings window (see onDestroyed above): drop the object.
@@ -392,22 +401,17 @@ void App::OnSettingsWindowClosed() {
     // A stale message (its window is gone and a new one is open) must not drop the new one.
     if (settingsWindow_ && !IsWindow(settingsWindow_->Handle())) {
         settingsWindow_.reset();
-        pageReady_ = false;
         EndKeyCapture();  // nobody is left to answer: give the keys back
     }
 }
 
-// One message from the page (checked by ParsePageMessage) -> one action, then a new state for the page.
-void App::HandlePageMessage(const std::string& json) {
-    const PageMessage m = ParsePageMessage(json);
+// One command of the Settings window's pages (a typed PageMessage, ui_host.h) -> one action, then a new
+// state for the pages.
+void App::HandlePageMessage(const PageMessage& m) {
     if (voiceTab_ && voiceTab_->Handle(m)) return;  // the Voice tab's messages
     switch (m.type) {
     case PageMessageType::Ready:
-        pageReady_ = true;
-        EndKeyCapture();  // a reloaded page is not waiting for a key any more
-        if (settingsWindow_) settingsWindow_->Post(StringsMessage(settings_.interfaceLanguage));
-        PushState();  // strings first, then state: the page draws from both
-        break;
+        break;  // the native window has nothing to wait for: it gets the state right after Create
     case PageMessageType::SetOn:
         SetOn(m.on);
         PushState();  // also when nothing changed: the page shows only what the state says

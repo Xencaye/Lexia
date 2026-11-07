@@ -1,12 +1,12 @@
 #pragma once
 // The Voice tab's side of the Settings window (D5, D8.3): Voice choice, Voice controls, Preset files and
-// the Voice library (download, add from file, delete). App owns one and hands it the Voice messages of the page.
+// the Voice library (download, add from file, delete). App owns one and hands it the Voice commands of the window.
 // The pure parts (the state, the answers) are in ui_host.*; this class is the glue: settings.json,
 // the Speaker, worker threads for the network and the file dialog.
 //
 // Threads: everything public runs on the UI thread. The catalogue fetch and a download run on worker
 // threads (one of each at a time) and hand their answers back through Host::runOnUi, which posts to
-// the UI thread; an answer for a window that has been closed is dropped by Host::toPage.
+// the UI thread; an answer for a window that has been closed is dropped (Host::events gives no sink).
 // The network is used only when the page asks (ADR-0005).
 #include <windows.h>
 
@@ -23,11 +23,12 @@
 #include "speech.h"
 #include "tts/voice_catalogue.h"
 #include "ui_host.h"
+#include "voice_events.h"
 
 class VoiceTab {
 public:
     struct Host {
-        std::function<void(const std::string&)> toPage;      // UI thread; does nothing without a window
+        std::function<VoiceEventSink*()> events;             // UI thread; the Settings window's sink, nullptr without a window
         std::function<void()> pushState;                      // UI thread
         std::function<HWND()> owner;                          // the Settings window, or nullptr
         std::function<std::string()> languageId;              // the current Language's id
@@ -63,6 +64,9 @@ private:
     void DeleteVoice(const std::string& voice);
     void SavePresetFile();  // the file dialog, then the current controls to a Preset file
     void LoadPresetFile();  // the file dialog, then the file's controls become the current ones
+    // Tells the Settings window's Voice library sink (typed events, voice_events.h); nothing happens when no
+    // window is open (the next state shows the result, as for a download that finished).
+    void Tell(const std::function<void(VoiceEventSink&)>& call) const;
     void OpenCatalogue();
     void Download(const std::string& name);
     void CancelDownload(const std::string& name);

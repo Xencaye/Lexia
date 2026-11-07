@@ -1,5 +1,5 @@
 ; Lexia's installer (task H4), an Inno Setup 6 script. It installs the package folder that the build
-; makes (build\package\Lexia: lexia.exe, the DLLs, models, Voices, ui, notices) and replaces Lexia.zip
+; makes (build\package\Lexia: lexia.exe, the DLLs, models, Voices, notices) and replaces Lexia.zip
 ; for people who are not developers.
 ;
 ; Built by CMake when the build is configured with -DLEXIA_INSTALLER=ON (cmake/installer.cmake runs
@@ -14,13 +14,19 @@
 ;   ("<exe>" --minimised: Start minimised is on by default), and Lexia keeps it up to date at each start.
 ; - The last page starts Lexia: it opens its Settings window (no --minimised) and is Off until the
 ;   user turns it on (D9).
-; - Lexia's Settings window needs the Microsoft Edge WebView2 Runtime. Windows 11 has it; a Windows 10
-;   PC may not. Then a task (on by default) runs Microsoft's Evergreen Bootstrapper, which this installer
-;   carries (installer\redist, fetched by scripts\fetch_deps.ps1 -Installer): it downloads the runtime
-;   from Microsoft and installs it, without admin rights too. The task says that it downloads, and the user
-;   can turn it off (ADR-0005: the network only when the user asks); then the last page offers the
-;   download page instead.
-; - An update installs over the old Lexia; a running Lexia must be closed first (AppMutex).
+; - Lexia's Settings window is Lexia's own (Direct2D, ADR-0009): it needs nothing beyond Windows itself,
+;   so the installer carries no runtime and does not use the network.
+; - An update installs over the old Lexia. A running Lexia (its mutex) must be closed first, and Setup and the
+;   uninstaller do it for the person (K.7, close_lexia.isi): they ask, post the registered message Lexia.Quit
+;   (a clean quit, as the tray's Quit), wait up to 10 s, and only then offer to end Lexia by force (taskkill,
+;   with one UAC prompt for an elevated Lexia). SILENT RUNS (/SILENT, /VERYSILENT, silent uninstall) never ask:
+;   they send Lexia.Quit, wait, then run taskkill as the user (Lexia keeps no unsaved work); a Lexia that is
+;   elevated and still runs after that stops the run (a silent run cannot show a UAC prompt).
+; - "Run Lexia as administrator" is a task. Its start state is what the settings file of the person who runs
+;   Setup says ("runAsAdmin"), and the choice is written after the install by lexia.exe --set-run-as-admin
+;   (as the original user, also in an all-users install, so it is that person's own settings.json). With it on,
+;   "Start Lexia now" on the last page makes Lexia relaunch itself elevated: Windows shows its UAC prompt.
+;   A silent run changes the setting only when /TASKS=runasadmin asks for it (it never turns it off).
 ; - The uninstaller removes the program and the Run value, and asks whether to remove the user's data too.
 ;
 ; The installer's words are here, in [Messages] / [CustomMessages], not in src/strings: Inno Setup shows
@@ -38,12 +44,10 @@
 
 #define AppName "Lexia"
 #define AppExe "lexia.exe"
-; The WebView2 Runtime's id in EdgeUpdate's registry keys (Microsoft's documented way to detect it).
-#define WebView2Id "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-#define WebView2Setup "MicrosoftEdgeWebview2Setup.exe"
-#if !FileExists(AddBackslash(SourcePath) + "redist\" + WebView2Setup)
-  #error redist\MicrosoftEdgeWebview2Setup.exe is missing: run scripts\fetch_deps.ps1 -Installer
-#endif
+; The mutex of a running Lexia (src/instance.cpp: Local\Lexia.SingleInstance, the session namespace) and the
+; class of its hidden App window (src/instance.h, kAppWindowClass), which Setup posts Lexia.Quit to.
+#define MutexName "Lexia.SingleInstance"
+#define AppWindowClass "LexiaApp"
 
 [Setup]
 ; AppId names Lexia for Windows (Apps & features) and for updates. Never change it: a new id would
@@ -62,7 +66,8 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ; 64-bit Windows 10 1809 or newer: Lexia is x64, and the Control bar's SVG icons need Direct2D's SVG
-; support (Windows 10 1703+). 1809 is the oldest Windows 10 that Microsoft's WebView2 Runtime supports.
+; support (Windows 10 1703+). 1809 (build 17763) is a conservative floor above that; lower it only after
+; a test on an older Windows 10.
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
@@ -75,9 +80,6 @@ UninstallDisplayName={#AppName}
 WizardStyle=modern dynamic
 Compression=lzma2/max
 SolidCompression=yes
-; A running Lexia holds this mutex (src/instance.cpp, Local\Lexia.SingleInstance): Setup and the
-; uninstaller ask the user to quit it from the tray first, so no file is in use.
-AppMutex=Lexia.SingleInstance
 ; The licence is GPL-3.0-or-later, which is not an agreement to accept: it is installed beside the
 ; program (LICENSE, THIRD-PARTY-NOTICES.txt), not shown as a page to agree to.
 
@@ -88,26 +90,31 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 english.TaskStartup=Start Lexia when I sign in to Windows (in the tray)
 english.TaskDesktop=Create a desktop shortcut
 english.LaunchLexia=Start Lexia now
-english.TaskWebView2=Install the Microsoft Edge WebView2 Runtime, which Lexia's window needs (downloaded from Microsoft, about 150 MB)
-english.InstallingWebView2=Installing the Microsoft Edge WebView2 Runtime (downloading from Microsoft)...
-english.OpenWebView2Page=Open the download page of the Microsoft Edge WebView2 Runtime
+english.WhoSetup=Setup
+english.WhoUninstall=The uninstaller
+english.LexiaRunning=Lexia is running.%n%n%1 can close it for you. Choose Yes to close Lexia now, or No to stop.
+english.LexiaStillRunning=Lexia is still running.%n%nChoose Yes to try to close it again, or No to stop.
+english.LexiaForce=Lexia did not close by itself.%n%nIt can be ended by force. Lexia keeps no unsaved work, but any reading in progress stops. If Lexia runs as administrator, Windows asks for permission first.%n%nEnd Lexia now?
+english.LexiaStillRunningSetup=Lexia is still running, so Setup cannot replace its files. Close Lexia (right-click its icon in the tray, then Quit), and run Setup again.
+english.TaskRunAsAdmin=Run Lexia as administrator (Windows asks for permission at each start; needed to read games that run as administrator)
 english.RemoveUserData=Also remove your Lexia settings, log, Voices and Presets?%n%n%1%n%nChoose No to keep them for a later install.
 
 [Tasks]
 Name: "startup"; Description: "{cm:TaskStartup}"; Flags: unchecked
 Name: "desktopicon"; Description: "{cm:TaskDesktop}"; Flags: unchecked
-; Only shown when the runtime is missing; on by default then.
-Name: "webview2"; Description: "{cm:TaskWebView2}"; Check: not WebView2Installed
+; Unchecked here, but CurPageChanged sets the real start state from the settings file (UsePreviousTasks would
+; otherwise bring back the choice of the last install, which the person may have changed in Lexia since).
+Name: "runasadmin"; Description: "{cm:TaskRunAsAdmin}"; Flags: unchecked
 
 [Files]
 ; The whole package folder, as the build made it. ignoreversion: Lexia's files always replace the old ones.
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
-; The bootstrapper goes to Setup's temporary folder only, and only when the task is chosen.
-Source: "redist\{#WebView2Setup}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Tasks: webview2
 
 [InstallDelete]
 ; An update starts from a clean program folder, so a file that a newer Lexia no longer ships (an old DLL,
-; a removed page) is not left behind. The user's data is not in {app}.
+; such as WebView2Loader.dll) is not left behind. The user's data is not in {app}.
+; {app}\ui held the HTML Settings window of Lexia 0.5, which 0.6 replaced with a native one (ADR-0009):
+; an update of 0.5 removes it.
 Type: filesandordirs; Name: "{app}\ui"
 Type: filesandordirs; Name: "{app}\espeak-ng-data"
 Type: filesandordirs; Name: "{app}\models"
@@ -126,34 +133,108 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
     ValueData: """{app}\{#AppExe}"" --minimised"; Tasks: startup
 
 [Run]
-; First the runtime (if chosen), so that Lexia's window can open when Lexia starts below. /silent /install
-; is Microsoft's documented silent install; it waits until the runtime is in place.
-Filename: "{tmp}\{#WebView2Setup}"; Parameters: "/silent /install"; StatusMsg: "{cm:InstallingWebView2}"; \
-    Flags: waituntilterminated; Tasks: webview2
+; Run as admin (K.7): lexia.exe saves only that setting and ends (no window, no elevation). runasoriginaluser:
+; the setting is the installing person's own, also in an all-users install where Setup itself is elevated.
+; "off" is written only when the file says "on" (the person cleared the task), so a plain install makes no file.
+Filename: "{app}\{#AppExe}"; Parameters: "--set-run-as-admin on"; Flags: runhidden waituntilterminated runasoriginaluser; Tasks: runasadmin
+Filename: "{app}\{#AppExe}"; Parameters: "--set-run-as-admin off"; Flags: runhidden waituntilterminated runasoriginaluser; Tasks: not runasadmin; Check: ShouldWriteRunAsAdminOff
 ; Not elevated, also after an install for all users: Lexia's data is the user's own (runasoriginaluser).
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchLexia}"; Flags: nowait postinstall skipifsilent runasoriginaluser
-; Still no runtime (the task was turned off, or the download failed): offer Microsoft's page.
-Filename: "https://developer.microsoft.com/microsoft-edge/webview2/"; Description: "{cm:OpenWebView2Page}"; \
-    Flags: shellexec postinstall skipifsilent runasoriginaluser unchecked; Check: not WebView2Installed
 
 [Code]
-// The WebView2 Runtime is installed when EdgeUpdate lists it with a version ("pv") other than 0.0.0.0,
-// for the machine (32-bit registry view, where Microsoft keeps it) or for this user.
-function WebView2Version(RootKey: Integer; SubKey: String): String;
+// Closing a running Lexia (K.7): the same code for Setup and, with the "un" prefix, for the uninstaller.
+#define P ""
+#define Q "WizardSilent"
+#define W "WhoSetup"
+#include "close_lexia.isi"
+#undef P
+#undef Q
+#undef W
+#define P "un"
+#define Q "UninstallSilent"
+#define W "WhoUninstall"
+#include "close_lexia.isi"
+
+// Setup: Lexia must be closed before anything is copied. Asked at the start, so an update does not run
+// through the pages first; PrepareToInstall asks again in case Lexia was started while the pages were open.
+function InitializeSetup(): Boolean;
 begin
-  if not RegQueryStringValue(RootKey, SubKey, 'pv', Result) then Result := '';
+  Result := CloseRunningLexia();
 end;
 
-function WebView2Installed: Boolean;
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  if CloseRunningLexia() then Result := '' else Result := CustomMessage('LexiaStillRunningSetup');
+end;
+
+// The uninstaller: the same, before any file is removed.
+function InitializeUninstall(): Boolean;
+begin
+  Result := unCloseRunningLexia();
+end;
+
+// Does the settings file of the person who runs Setup say "runAsAdmin": true? A plain text check, not a JSON
+// parse: Setup has no JSON reader, and Lexia's own file is written by Lexia ("runAsAdmin": true, one key per
+// line, or a hand-edited one). An occurrence after // on its line is a comment and does not count. The file
+// is %LOCALAPPDATA%\Lexia\settings.json (an old copy that sits only beside lexia.exe is not looked for).
+function RunAsAdminInSettingsFile(): Boolean;
 var
-  v: String;
+  raw: AnsiString;
+  text, before, after, line: String;
+  keyPos, i: Integer;
 begin
-  v := WebView2Version(HKLM32, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{#WebView2Id}');
-  if (v = '') or (v = '0.0.0.0') then
-    v := WebView2Version(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\{#WebView2Id}');
-  Result := (v <> '') and (v <> '0.0.0.0');
+  Result := False;
+  if not LoadStringFromFile(ExpandConstant('{localappdata}\{#AppName}\settings.json'), raw) then Exit;
+  text := String(raw);
+  keyPos := Pos('"runAsAdmin"', text);
+  while keyPos > 0 do
+  begin
+    before := Copy(text, 1, keyPos - 1);
+    // The text of the key's own line before it.
+    line := before;
+    for i := Length(before) downto 1 do
+      if before[i] = #10 then
+      begin
+        line := Copy(before, i + 1, Length(before));
+        Break;
+      end;
+    after := Copy(text, keyPos + Length('"runAsAdmin"'), Length(text));
+    if Pos('//', line) = 0 then
+    begin
+      after := TrimLeft(after);
+      if (Length(after) > 0) and (after[1] = ':') then
+      begin
+        after := TrimLeft(Copy(after, 2, Length(after)));
+        Result := Copy(after, 1, 4) = 'true';
+        Exit;
+      end;
+    end;
+    // A commented-out key, or a "runAsAdmin" that is a value: look further on.
+    text := after;
+    keyPos := Pos('"runAsAdmin"', text);
+  end;
 end;
 
+var
+  RunAsAdminTaskSet: Boolean;
+
+// The first time the Tasks page is shown, "Run Lexia as administrator" gets the state of the setting.
+// Later visits (Back, Next) keep what the person chose.
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if (CurPageID = wpSelectTasks) and not RunAsAdminTaskSet then
+  begin
+    RunAsAdminTaskSet := True;
+    if RunAsAdminInSettingsFile() then WizardSelectTasks('runasadmin') else WizardSelectTasks('!runasadmin');
+  end;
+end;
+
+// The [Run] entry that writes "off": only after a page-based install in which the person cleared the task of
+// a setting that was on. A silent run does not turn the setting off.
+function ShouldWriteRunAsAdminOff(): Boolean;
+begin
+  Result := (not WizardSilent) and RunAsAdminInSettingsFile();
+end;
 // The uninstaller: the Run value goes with the program (Lexia may have written it without the task),
 // but only when it starts this installed lexia.exe: a value of another Lexia (a portable copy, a
 // developer build) is left alone. The user decides about their own data; silent uninstalls keep it.

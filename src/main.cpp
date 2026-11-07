@@ -33,6 +33,7 @@
 #include "elevation.h"
 #include "instance.h"
 #include "settings.h"
+#include "stale_data.h"
 #include "version.h"
 #include "log.h"
 #include "strings/string_ids.h"
@@ -58,15 +59,34 @@ static void OpenConsole() {
     SetConsoleOutputCP(CP_UTF8);
 }
 
-// lexia.exe starts here. The order matters: the DLL search path, the command line, one instance only,
-// Run as admin (which may start an elevated Lexia and end this one), DPI and COM, then the App. A
-// failure to start is a message box, as there is no console to show it in.
+// lexia.exe starts here. The order matters: the DLL search path, the command line (with the one-shot
+// --set-run-as-admin), one instance only, Run as admin (which may start an elevated Lexia and end this
+// one), DPI and COM, then the App. A failure to start is a message box, as there is no console to show
+// it in.
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     // First: DLLs loaded from now on come only from the exe's folder and System32, never from
     // the current folder or PATH, where a planted DLL could be picked up.
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 
     const CommandLine cmd = ParseCommandLine(ProgramArguments());
+
+    // --set-run-as-admin on|off (K.7): the installer's way to write the Run as admin setting. It goes first,
+    // before the single-instance check (a running Lexia must not stop it), the elevation step (it must never
+    // elevate, nor ask for UAC) and any window. It saves that one key of the settings file of the person who
+    // runs it and ends: 0 = saved, 1 = bad value or not saved. A running Lexia notices the changed file itself.
+    if (cmd.setRunAsAdmin || cmd.setRunAsAdminInvalid) {
+        if (cmd.setRunAsAdminInvalid) {
+            LogError("--set-run-as-admin needs a value, on or off; nothing was saved.");
+            return 1;
+        }
+        const bool on = *cmd.setRunAsAdmin;
+        if (!SaveSettingValue("runAsAdmin", on ? "true" : "false")) {
+            LogError("--set-run-as-admin ", on ? "on" : "off", ": the setting could not be saved.");
+            return 1;
+        }
+        LogInfo("--set-run-as-admin: Run as admin is now ", on ? "on" : "off", " in the settings file.");
+        return 0;
+    }
 
     // One Lexia at a time: a second launch only asks the first to show its Settings window. An elevated
     // relaunch (ADR-0008) waits a few seconds instead: the instance that started it is ending and gives the
@@ -94,6 +114,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (cmd.console) OpenConsole();
     LogInfo("---- Lexia ", LEXIA_VERSION, " started ----");
     for (const std::string& arg : cmd.unknown) LogWarn("Unknown command-line argument ignored: ", arg);
+
+    // Lexia 0.5's Settings window kept a WebView2 profile here. The native window does not use it, so it is
+    // deleted once (junctions and links inside are not followed: stale_data.h).
+    switch (RemoveStaleWebView2Data(LexiaDataDir())) {
+    case StaleRemoval::Absent: break;
+    case StaleRemoval::Removed:
+        LogInfo("Removed the old WebView2 data folder of Lexia 0.5 (%LOCALAPPDATA%\\Lexia\\WebView2).");
+        break;
+    case StaleRemoval::Failed:
+        LogWarn("The old WebView2 data folder of Lexia 0.5 could not be removed completely; it is tried again at the next start.");
+        break;
+    }
 
     // Real pixels on every monitor, even when the monitors use different scaling (the manifest
     // asks for it too).

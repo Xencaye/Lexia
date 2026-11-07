@@ -19,7 +19,6 @@
 cmake_minimum_required(VERSION 3.21)
 include("${CMAKE_CURRENT_LIST_DIR}/notices.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/sign.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/ui_files.cmake")
 
 if(NOT CONFIG STREQUAL "Release")
     return()
@@ -90,9 +89,6 @@ if(EXISTS "${VOICES_SRC}/voices.json")
 else()
     message(WARNING "Lexia package: ${VOICES_SRC}/voices.json not found; Lexia will not speak.")
 endif()
-
-# The Settings window's pages, without ui/dev/ and the dev script line (ui_files.cmake).
-lexia_copy_ui("${SOURCE_DIR}/ui" "${DEST}/ui")
 
 if(EXISTS "${README_SRC}")
     file(COPY "${README_SRC}" DESTINATION "${DEST}")

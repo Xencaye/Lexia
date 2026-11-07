@@ -26,7 +26,6 @@ struct CliArgs {
     std::string downloadVoice;    // --voice-download <name>; empty = not asked for
     std::string addVoicePath;     // --voice-add <path>: a .zip, .onnx or .onnx.json; empty = not asked for
     std::string voicesDir;        // --voices-dir: where the Voice library writes; empty = the user's Voice folder
-    std::string stringsLang;      // --strings-json <code>: print the Interface language's strings as JSON; empty = not asked for
 };
 
 struct CliParse {
@@ -63,12 +62,6 @@ std::string VoiceCatalogueToText(const std::vector<CatalogueVoice>& voices, cons
 // What --voice-download and --voice-add print: "added <name> (<Language>)", or the problem id,
 // the fact it is about (the language's name, the quality) and the detail. A line ending in a newline.
 std::string VoiceOutcomeToText(const VoiceOutcome& outcome);
-
-// The --strings-json document: one JSON object, every string id -> its text in the Interface
-// language `code` (an unknown code gives English; a text the language lacks is the English one).
-// A {name} placeholder stays as written. Keys are in the order of strings::AllIds(); ends in a newline.
-// The Settings window's preview and the page's tests take their text from this.
-std::string StringsToJson(const std::string& code);
 
 // The --score document, one JSON object on one line:
 // {"distance", "editDistance", "expectedBlocks", "producedBlocks", "blockCountError"}.

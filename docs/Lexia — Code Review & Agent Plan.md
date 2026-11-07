@@ -31,6 +31,9 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`: K0 to K6 and K8 (the
+owner's changes after the first look) are done and merged there. **K7, your check, is the only open step**; then K merges
+to `main`.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -338,8 +341,8 @@ Superseded by the Oct 25 decisions: Lexia is GPL-3.0-or-later (ADR-0003), and Pi
 
 Decided Nov 5, 2026: Lexia 1.0 also runs on Ubuntu (the current LTS, x64). Windows stays the first platform.
 The core is already portable: OCR (ONNX Runtime, OpenCV), layout, Piper and espeak-ng, the Reading queue,
-settings, strings and the `ui/` pages. What is Win32 today is the shell around it: the hotkeys, the screen
-capture, the Overlay and the Control bar, the tray, the audio sink, the Settings window (WebView2), and the
+settings, strings and the Win32-free widget tree of the Settings window (`src/native_ui/`). What is Win32 today is the shell around it: the hotkeys, the screen
+capture, the Overlay and the Control bar, the tray, the audio sink, the Settings window (Direct2D since K; J5), and the
 start-up, single-instance and elevation code. The rules stay: the Overlay never takes focus (ADR-0001), no
 network except on request (ADR-0005), GPL-3-compatible dependencies only.
 
@@ -361,14 +364,113 @@ network except on request (ADR-0005), GPL-3-compatible dependencies only.
   game, and the Control bar in it. *Your check:* a game on Steam for Linux / Proton does not minimise.
 - [ ] **J5 Audio, tray and Settings window.** The audio sink (PipeWire or PulseAudio), the tray icon
   (StatusNotifierItem / AppIndicator; GNOME needs the AppIndicator extension, which Ubuntu ships), and
-  the Settings window: the same `ui/` pages in WebKitGTK instead of WebView2, with the same bridge and
-  the same request filter (ADR-0005).
+  the Settings window. Since K (ADR-0009) there are no `ui/` pages to reuse: the window reuses the
+  Win32-free widget tree of `src/native_ui/` with a Cairo/Pango canvas and AT-SPI, or is a new window.
 - [ ] **J6 Start-up and settings.** Settings and the log in `~/.config/lexia` and `~/.local/state/lexia`
   (XDG), Run at startup as a `~/.config/autostart` entry, one instance only. Run as admin has no Linux
   meaning and is not shown there.
 - [ ] **J7 Package.** A `.deb` for Ubuntu (and maybe a Flatpak or AppImage, decided in J0), with the models,
   the shipped Voices and the third-party notices.
 - [ ] **J8 Your check.** The whole of Lexia on your Ubuntu PC: a browser, a video with subtitles, and a game.
+
+### K — Native Settings window (Lexia 0.6; owns `settings_window.*`, new `src/native_ui/`; replaces `ui/`)
+
+The owner decided on Nov 7 that the Settings window becomes a native Win32 window in the D8 paper design,
+drawn with Direct2D and DirectWrite, with full UI Automation; WebView2 and `ui/` are removed (ADR-0009,
+supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings`, then one PR into `main`.
+
+- [x] **K0 Reference and ADR.** The HTML pages' screenshots (every page, state and sheet, light and dark) in
+  `wireframe/html-reference/`, the visual spec after `ui/` is gone. ADR-0009.
+- [x] **K1 Toolkit and assets.** Icons, pictures and fonts (Atkinson Hyperlegible Next TTF) as resources in the
+  exe; one palette for the window and the Control bar (the contrast check becomes a doctest); the Win32-free
+  widget tree with a `Canvas` interface (tested with a fake canvas); the Direct2D canvas; a shared tooltip.
+  *Done so far (`feat/K.1b`):* the widget tree and every control (`src/native_ui/`: `Widget`, `Screen`, sheets,
+  `IconButton`, `TextLink`, `Button`, `Select`, `Slider`, `SwitchRow`, `KeyChip`, `Notice`, `ProgressBar`,
+  `ScrollArea`, `Label`, `Paragraph`, `Tween`), with 96 doctest cases on a fake canvas. `feat/K.1a`: assets as
+  resources, the fonts, one palette, the shared tooltip. `feat/K.1c`: the Direct2D canvas (`D2dCanvas`, window and
+  off-screen) and the `lexia_settingsshot` tool with the `gallery` page and ctest `settingsshot_smoke`; one
+  `nui::FontWeight`. Nothing in K1 is open once K.1c is merged.
+- [x] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
+  Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; the pages and `--sheet` of `lexia_settingsshot`.
+  *Done (`feat/K.2`):* `settings_window.*` is native (Direct2D, no WebView2 in it; the library stays in CMake until K6);
+  `SettingsUi` + `pages/` (`Frame`, `HomePage`, `HelpPage`, `ReportPage`, `AboutPage`; `VoicesPage` and `SettingsPage` are
+  empty places for K3 / K4); `App::HandlePageMessage(const PageMessage&)`, `pageReady_` and `window.noRuntime` gone;
+  `lexia_settingsshot --page home|voices|settings|report|help|about [--on] [--hover]` and `scripts\settings_shots.ps1`
+  (the `--sheet` switch comes with the sheets in K3); `native_ui_settings_ui_test.cpp` (14 cases). Compared with
+  `wireframe/html-reference/` (light and dark): positions within 1 DIP; the dots of a dotted rule start one pixel later.
+- [x] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
+  `VoiceTab` gets typed events.
+  *Done (`feat/K.3`):* `voices_page.*` (the Voice `Select`, Download / Add from file / Delete, the "no voice" note, Speed
+  (log2) / Pitch / Volume sliders with value text and reset buttons, the otter, Save / Load preset), `voice_sheets.*`
+  (Delete voice, `DownloadSheet` with the views loading / failed / empty / list, one download at a time, scroll offset and
+  focus kept, progress without a rebuild; `ResultSheet`), `voice_library_state.*` (the sheets' data, owned by `SettingsUi`,
+  so a download is known while another page shows), `voice_text.*`; `voice_events.*`: `VoiceTab::Host::toPage(JSON)` is
+  replaced by `Host::events` -> `VoiceEventSink` (typed), `ProblemTextId` is the port of the old `problemText`, the
+  offered-Language filter and the refusal facts are typed (the JSON builders in `ui_host.cpp` stay until K6).
+  Toolkit: `Sheet` border inset, wrapping title, title gap, per-line gaps, max height + flexible body, `Notice::Kind::Plain`,
+  notice line 1.35; `user-profile-03.svg` without an SVG mask. `lexia_settingsshot --voices` / `--sheet` and 25 pictures in
+  `scripts\settings_shots.ps1` with the reference file names; `native_ui_voices_test.cpp` (25 cases),
+  `voice_events_test.cpp` (4 cases). Compared with `wireframe/html-reference/` (light and dark): positions within 1-2 DIPs;
+  a scrolling download list leaves 10 DIPs for its scrollbar (the HTML shots had none); a few words wrap one word
+  differently (DirectWrite and the browser measure a glyph a little differently).
+- [x] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
+  *Done (`feat/K.4`):* `pages/settings_page.*` (rows, key card, play button, hint, five switches), `key_chord.*`
+  (`KeyChordName`, pure), the capture in `settings_window.cpp` (F10, Alt combinations and PrintScreen reach a waiting
+  chip; no hook, nothing logged; Alt+F4 still closes), `SettingsUi::ShowPage(Page, ShowOptions)`,
+  `lexia_settingsshot --select / --capture / --switches` and the five `settings-*` shots of `settings_shots.ps1`;
+  `native_ui_settings_page_test.cpp` and `key_chord_test.cpp` (32 cases). Compared with `wireframe/html-reference/`
+  (light and dark): positions within 1 DIP; the card text and the switch labels sit 1 DIP lower than in the browser.
+  The owner's by-hand check of the capture (F-keys, Alt and Ctrl combinations, F10, PrintScreen; Lexia's keys work
+  again after a capture) is part of K7.
+- [x] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
+  *Done (`feat/K.5`):* `native_ui/access_tree.*` (pure: the accessible projection of the widget tree, the modal sheet
+  that hides the page, `CheckAccess` / `PerformAccess`, `AccessTracker` + `AccessObserver` for focus, property,
+  structure and live-region changes), the action hooks on the widgets (`AccInvoke` / `AccSetValue` / `AccExpand` /
+  `AccSelect`), automation ids on the main controls, `native_ui/uia_provider.*` (`UiaHost` + one COM `Element`: root
+  fragment, one fragment per offered widget, Invoke / Toggle / RangeValue / Value / ExpandCollapse / Selection /
+  SelectionItem / ScrollItem / Window, the events, `UseComThreading`, a shared `alive` context cleared on
+  `WM_DESTROY`, actions queued to the message loop), `SettingsWindow` forwards `WM_GETOBJECT` and the rest;
+  `native_ui_access_test.cpp` (18 cases) and the UIA client exe `lexia_uia_test` (ctest `uia_tree`: skips with exit 0
+  when there is no interactive desktop). A switch is a Button + Toggle with the control type text "switch" (strings
+  `uia.switch`); a slider offers its number (RangeValue), not its value text. **K7 must check with Narrator:** see below.
+- [x] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
+  *Done (`feat/K.6`):* the assets moved to `src/res/{icons,img,fonts}` (still embedded as resources; nothing is read from
+  disk); `ui/` (HTML, CSS, JS, `dev/`, the bridge README), `cmake/copy_ui.cmake`, `cmake/ui_files.cmake`, the package's
+  `ui\` copy, ctest `ui_bridge`, `scripts\ui_preview.ps1` and `scripts\ui_contrast.ps1` are deleted (`palette_test` is the
+  contrast check); the `webview2` vcpkg dependency, `WebView2Loader.dll`, the `webview2` and `wil` notices entries and the
+  WebView2 and WIL rows of `docs/third-party.md` are gone; the installer has no WebView2 task, bootstrapper, registry
+  check or download link (and `scripts\fetch_deps.ps1 -Installer` with `installer\redist` are gone; it still removes an
+  old `{app}\ui` and `*.dll` on an update); dead code: `StringsMessage`, `StateMessage`, `ParsePageMessage`, the JSON
+  builders of `ui_host.*` and `lexia_cli --strings-json` with their tests (`ui_host.*` keeps `UiState`, `PageMessage`,
+  `LinkUrl`, `IsDarkTheme`, `FillVoiceState`; the name is older than its content); `stale_data.*`: at start the old
+  `%LOCALAPPDATA%\Lexia\WebView2` folder is removed once, a junction or link inside is never followed (`stale_data_test.cpp`,
+  4 cases). ADR-0006 stays as a superseded record.
+- [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator (the K5 list: turn
+  Narrator on with Win+Ctrl+Enter; the Settings window opens at the window title; Tab through the home page and hear
+  each name and role; the power button says "Lexia On / Off" with its state, and Space or Enter changes it; the
+  six links read as links and the current page as selected; the Master volume and the Voice sliders say their name and
+  number, and the arrow keys change them; on the Voices page the Voice choice says its value and opens with Alt+Down
+  or Enter, the arrow keys read each Voice and Enter chooses; Delete voice opens a dialog that is read by its title,
+  and the page under it cannot be reached (Narrator scan mode stays inside it) until Esc; on the Settings page each
+  key says its action and key, a press starts the capture and the hint "Press the new key..." is read at once, the five
+  switches read as "switch" with on or off, and a disabled Start minimised says it is unavailable; Narrator's
+  caps lock + F5 / Insert + Space actions work on every button; the download sheet's rows are read and the
+  list scrolls to the focused one; if a switch is read badly try CheckBox in `ControlTypeOf`), dark mode,
+  150 % / 200 % and a move between monitors. After K6 also: install `Lexia-0.6.0-setup.exe` on a PC without the
+  WebView2 Runtime (no runtime task is shown, the window opens), an update over Lexia 0.5 (the old `ui\` folder and
+  `WebView2Loader.dll` are gone from the install folder, the `WebView2` folder in `%LOCALAPPDATA%\Lexia` is removed at
+  the first start and the log says so; settings.json, Voices and Presets stay), and the uninstaller (the program, the
+  Run value; it still asks about `%LOCALAPPDATA%\Lexia`).
+- [x] **K8 The owner's changes after the first look (Nov 7).** On `feat/K.7-fixes`: (1) the key card's read button
+  is the Master volume's speaker icon, left of the title, no ring, and it wiggles a little every 5 s (none with reduced
+  motion; a one-shot wake timer between wiggles, frames only while it moves; `Canvas::PushRotation`); (2) loading a
+  Preset follows the file's Voice: a Voice that is not installed changes nothing and says so ("The voice … is not
+  currently installed"), another installed Voice gets the controls without becoming active, an old file without a
+  Voice goes to the active one (`ChoosePresetTarget`, `PresetVoiceForDisplay` for the untrusted name); (3) Setup and
+  the uninstaller close a running Lexia on request (the `Lexia.Quit` message, let through UIPI so an elevated Lexia
+  hears it too; after 10 s an offer to end it by force, with one UAC prompt for an elevated one; silent runs never ask);
+  (4) a "Run as administrator" task in Setup, checked when the setting is on, written with
+  `lexia.exe --set-run-as-admin on|off` as the installing person. *Your check:* the K8 items in the PR's test list.
 
 ## Order and milestones
 
@@ -393,7 +495,7 @@ Milestones, each ending with your hands-on check:
 2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
 3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
 4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** — G done.
+5. **M5 Lexia 0.6: Read-along** — G done; K, the native Settings window, built (K0 to K6); your K7 check is open (owner, Nov 7).
 6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
 7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland.
 

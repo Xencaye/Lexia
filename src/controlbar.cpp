@@ -8,7 +8,7 @@
 #include <cstring>
 #include <cwchar>
 #include <cwctype>
-#include <filesystem>
+#include <string_view>
 #include <vector>
 
 // GDI+ takes min / max from the global namespace.
@@ -19,22 +19,24 @@ using std::min;
 #include "common.h"
 #include "log.h"
 #include "mouse_role.h"
+#include "native_ui/fonts.h"
+#include "native_ui/palette.h"
 #include "svg_icon.h"
+#include "tooltip_window.h"
 #include "win32_theme.h"
 #include "strings/string_ids.h"
 #include "strings/strings.h"
 
-namespace fs = std::filesystem;
 namespace gp = Gdiplus;
 
 namespace {
 
 // ------------------------------------------------------------------ colours ---
-// The Control bar's colours: the palette of the design (wireframe/palette_and_buttons.png and the
-// control_bar_*.png), as 0xRRGGBB. A tile has a state colour; the icon on it is "glyph"; the Help and
-// size icons have no tile and take the accent colours.
+// The Control bar's colours, as 0xRRGGBB, all taken from the one palette (nui::PaletteFor, the design
+// of wireframe/palette_and_buttons.png and the control_bar_*.png). A tile has a state colour; the icon
+// on it is "glyph"; the Help and size icons have no tile and take the accent colours.
 
-struct Palette {
+struct BarColours {
     uint32_t paper;                          // the bar
     uint32_t tile, tileHot, tilePressed;     // Pause, Skip, Stop
     uint32_t tileOff;                        // ... while they do not work (greyed)
@@ -42,7 +44,6 @@ struct Palette {
     uint32_t word, wordOff;                  // the word beside a tile (Large)
     uint32_t dots;                           // the grip and the divider
     uint32_t accent, accentHot, accentPressed;  // the Help and size icons
-    uint32_t tipBg, tipText;                 // the tooltip
 };
 
 // 0xRRGGBB (the palette's form) and an alpha -> a GDI+ colour.
@@ -50,44 +51,40 @@ gp::Color Rgb(uint32_t rgb, BYTE a = 255) {
     return gp::Color(a, static_cast<BYTE>(rgb >> 16), static_cast<BYTE>(rgb >> 8), static_cast<BYTE>(rgb));
 }
 
-// The colours of the bar in the light or the dark theme.
-Palette PaletteFor(bool dark) {
-    Palette p;
-    if (dark) {
-        // TODO(owner): final dark palette. This is the temporary one of the same roles (D8 spec).
-        p.paper = 0x2A2420;
-        p.tile = 0x8F7A6B;
-        p.tileHot = 0xA28D7D;
-        p.tilePressed = 0xB5A090;
-        p.tileOff = 0x3E352F;
-        p.glyph = 0x2A2420;
-        p.glyphOff = 0x2A2420;
-        p.word = 0xE8DED3;
-        p.wordOff = 0x574C44;
-        p.dots = 0x574C44;
-        p.accent = 0xC9A79E;
-        p.accentHot = 0xE0C4BC;
-        p.accentPressed = 0xEED8D2;
-        p.tipBg = 0xE8DED3;
-        p.tipText = 0x2A2420;
-    } else {
-        p.paper = 0xF5EFE8;
-        p.tile = 0xBEA991;
-        p.tileHot = 0xAB9883;       // a darker tone of the tile
-        p.tilePressed = 0x988774;   // darker again
-        p.tileOff = 0xD9CFC4;       // the design's "line" colour
-        p.glyph = 0xF5EFE8;
-        p.glyphOff = 0xF5EFE8;
-        p.word = 0x6D6154;          // the design's ink
-        p.wordOff = 0xD9CFC4;
-        p.dots = 0xD9CFC4;
-        p.accent = 0x6E504A;
-        p.accentHot = 0x4F3733;
-        p.accentPressed = 0x3A2825;
-        p.tipBg = 0x6D6154;
-        p.tipText = 0xF5EFE8;
-    }
-    return p;
+
+// `a` moved `t` (0..1) of the way to `b`, per channel, rounded.
+uint32_t Mix(uint32_t a, uint32_t b, double t) {
+    auto ch = [&](int shift) {
+        const double x = static_cast<double>((a >> shift) & 0xFF);
+        const double y = static_cast<double>((b >> shift) & 0xFF);
+        return static_cast<uint32_t>(std::lround(x + (y - x) * t));
+    };
+    return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+// The colours of the bar in the light or the dark theme: every colour is a token of nui::Palette, but
+// the hover and pressed states are not (the design draws them as "a darker tone"), so they are derived
+// here from the token they belong to. A tile gets 10% / 20% darker (light: within 1 of 255 of the
+// design's #AB9883 and #988774; dark: the dark tile is the token's #BEA991 as well, as in the HTML
+// pages' tokens.css (deleted in K.6), where the bar used a temporary #8F7A6B before); the Help and size icons go darker in the light theme (30% / 50% towards black: within
+// 2 of 255 of the design's #4F3733 and #3A2825) and lighter in the dark one (15% / 40% towards white).
+BarColours BarColoursFor(bool dark) {
+    const nui::Palette& t = nui::PaletteFor(dark);
+    BarColours c;
+    c.paper = t.paper.rgb;
+    c.tile = t.tile.rgb;
+    c.tileHot = Mix(c.tile, 0x000000, 0.10);
+    c.tilePressed = Mix(c.tile, 0x000000, 0.20);
+    c.tileOff = t.line.rgb;   // a button that does not work: the quiet fill
+    c.glyph = t.paper.rgb;    // the icon on a tile is paper-coloured, lit or greyed
+    c.glyphOff = t.paper.rgb;
+    c.word = t.ink.rgb;
+    c.wordOff = t.line.rgb;
+    c.dots = t.line.rgb;
+    c.accent = t.accent.rgb;
+    c.accentHot = Mix(c.accent, dark ? 0xFFFFFF : 0x000000, dark ? 0.15 : 0.30);
+    c.accentPressed = Mix(c.accent, dark ? 0xFFFFFF : 0x000000, dark ? 0.40 : 0.50);
+    return c;
 }
 
 // "system" follows Windows' app mode (the same setting the Settings window's title bar follows).
@@ -111,6 +108,51 @@ void EnsureGdiplus() {
         }
     };
     static Starter starter;
+}
+
+// ----------------------------------------------------------------------- font ---
+
+// The bar's font for GDI+: Atkinson Hyperlegible Next, from the same unpacked bytes the other drawing
+// paths use (native_ui/fonts.h), put in a private font collection (nothing is installed). If the font
+// is not available (logged by fonts.cpp) or GDI+ will not take it, Segoe UI Bold stands in.
+// The collection must outlive the family and every Font made from it, so all three live in one
+// function-local static: it is built after GDI+ started (EnsureGdiplus is called first) and so is
+// destroyed before GDI+ shuts down.
+struct UiFont {
+    gp::PrivateFontCollection collection;
+    std::unique_ptr<gp::FontFamily> family;
+
+    UiFont() {
+        const std::string_view regular = nui::FontBytes(nui::FontWeight::Regular);
+        const std::string_view bold = nui::FontBytes(nui::FontWeight::Bold);
+        if (!regular.empty() && !bold.empty()) {
+            collection.AddMemoryFont(regular.data(), static_cast<INT>(regular.size()));
+            collection.AddMemoryFont(bold.data(), static_cast<INT>(bold.size()));
+            const INT count = collection.GetFamilyCount();
+            if (count > 0) {
+                std::vector<gp::FontFamily> found(static_cast<size_t>(count));
+                INT got = 0;
+                if (collection.GetFamilies(count, found.data(), &got) == gp::Ok && got > 0) {
+                    for (INT i = 0; i < got; ++i) {
+                        wchar_t name[LF_FACESIZE] = {};
+                        found[static_cast<size_t>(i)].GetFamilyName(name);
+                        if (std::wcscmp(name, nui::kFontFamily) == 0 &&
+                            found[static_cast<size_t>(i)].IsStyleAvailable(gp::FontStyleBold)) {
+                            family.reset(found[static_cast<size_t>(i)].Clone());
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!family) LogWarn("[controlbar] GDI+ would not take the UI font; the bar uses Segoe UI.");
+        }
+        if (!family) family = std::make_unique<gp::FontFamily>(nui::kFallbackFontFamily);
+    }
+};
+
+const gp::FontFamily* BarFontFamily() {
+    static UiFont font;
+    return font.family.get();
 }
 
 // ------------------------------------------------------------------- pixels ---
@@ -268,7 +310,7 @@ gp::RectF ToRectF(const Rect& r, int ox, int oy) {
 
 // -------------------------------------------------------------------- icons ---
 
-// The SVG file (without its folder and extension) a button shows now.
+// The icon (the file stem in src/res/icons, an exe resource: assets.h) a button shows now.
 const char* IconName(BarButton b, bool paused, BarSize size) {
     switch (b) {
     case BarButton::Pause: return paused ? "play-03" : "pause-03";
@@ -278,23 +320,6 @@ const char* IconName(BarButton b, bool paused, BarSize size) {
     case BarButton::Size: return size == BarSize::Large ? "minimise-01" : "maximise-02";
     default: return "";
     }
-}
-
-// <exe>\ui\icons in a package; a dev build (build\Release\lexia.exe) has no ui\ beside it, so look
-// in the folders above too, up to the source tree's ui\icons. Empty if there is none.
-fs::path FindIconsDir() {
-    wchar_t buf[MAX_PATH * 2] = {};
-    GetModuleFileNameW(nullptr, buf, static_cast<DWORD>(std::size(buf)));
-    fs::path dir = fs::path(buf).parent_path();
-    for (int up = 0; up < 6 && !dir.empty(); ++up) {
-        std::error_code ec;
-        const fs::path candidate = dir / L"ui" / L"icons";
-        if (fs::is_directory(candidate, ec)) return candidate;
-        const fs::path parent = dir.parent_path();
-        if (parent == dir) break;
-        dir = parent;
-    }
-    return {};
 }
 
 // A tooltip that is only a word starts with a capital (the labels on the bar are lower case).
@@ -326,8 +351,9 @@ bool EncoderFor(const wchar_t* mime, CLSID* clsid) {
 
 struct ControlBar::Impl {
     ControlBarConfig cfg;
-    HWND hwnd = nullptr, tip = nullptr;
-    Palette pal = {};
+    HWND hwnd = nullptr;
+    TooltipWindow tip;  // its own popup (tooltip_window.h); never takes focus either
+    BarColours pal = {};
     bool dark = false;
     int dpi = 96;
     int margin = 0;  // room round the bar for its shadow, in px
@@ -344,7 +370,6 @@ struct ControlBar::Impl {
     bool dragging = false;
     bool dragMoved = false;
     POINT grab = {};  // cursor minus bar origin when a drag began
-    BarButton tipFor = BarButton::None;
 
     // Drawing
     Pixmap work, shadows;
@@ -354,9 +379,8 @@ struct ControlBar::Impl {
     HGDIOBJ dibOld = nullptr;
     uint32_t* dibBits = nullptr;
     int winW = 0, winH = 0;
-    std::unique_ptr<gp::FontFamily> family;
+    const gp::FontFamily* family = nullptr;  // the UI font (BarFontFamily), owned by a static
     SvgIconCache svgIcons;
-    fs::path iconsDir;
 
     // Words, in the Interface language
     std::wstring label[3], tipText[3], resume, resumeTip, helpTip, sizeTipSmall, sizeTipLarge;
@@ -368,7 +392,6 @@ struct ControlBar::Impl {
     static const UINT_PTR kTipTimer = 2;
 
     static LRESULT CALLBACK BarProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
-    static LRESULT CALLBACK TipProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 
     bool Create(const ControlBarConfig& config);
     void Destroy();
@@ -497,46 +520,6 @@ LRESULT CALLBACK ControlBar::Impl::BarProc(HWND hwnd, UINT msg, WPARAM wp, LPARA
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
-// The tooltip window's procedure: it takes no focus and no mouse, and paints its text.
-LRESULT CALLBACK ControlBar::Impl::TipProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    Impl* self = reinterpret_cast<Impl*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    switch (msg) {
-    case WM_MOUSEACTIVATE:
-        return MA_NOACTIVATE;
-    case WM_NCHITTEST:
-        return HTTRANSPARENT;  // a tooltip is never under the mouse
-    case WM_ERASEBKGND:
-        return 1;
-    case WM_PAINT: {
-        PAINTSTRUCT ps;
-        HDC dc = BeginPaint(hwnd, &ps);
-        if (self) {
-            RECT rc;
-            GetClientRect(hwnd, &rc);
-            const std::wstring text = self->TipTextFor(self->tipFor);
-            const uint32_t bgc = self->pal.tipBg, fgc = self->pal.tipText;
-            HBRUSH bg = CreateSolidBrush(RGB((bgc >> 16) & 0xFF, (bgc >> 8) & 0xFF, bgc & 0xFF));
-            FillRect(dc, &rc, bg);
-            DeleteObject(bg);
-            HFONT font = CreateFontW(-self->Scale(15), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                                     OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                                     DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
-            const HGDIOBJ old = SelectObject(dc, font);
-            SetBkMode(dc, TRANSPARENT);
-            SetTextColor(dc, RGB((fgc >> 16) & 0xFF, (fgc >> 8) & 0xFF, fgc & 0xFF));
-            DrawTextW(dc, text.c_str(), static_cast<int>(text.size()), &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-            SelectObject(dc, old);
-            DeleteObject(font);
-        }
-        EndPaint(hwnd, &ps);
-        return 0;
-    }
-    default:
-        break;
-    }
-    return DefWindowProcW(hwnd, msg, wp, lp);
-}
-
 // The bar's words and tooltips in the Interface language (strings/), read once per bar.
 void ControlBar::Impl::LoadWords() {
     using namespace strings::id;
@@ -578,7 +561,7 @@ float ControlBar::Impl::MeasureWidth(const std::wstring& text, float px) const {
     gp::Bitmap bmp(1, 1, PixelFormat32bppPARGB);
     gp::Graphics g(&bmp);
     g.SetTextRenderingHint(gp::TextRenderingHintAntiAlias);
-    gp::Font font(family.get(), px, gp::FontStyleBold, gp::UnitPixel);
+    gp::Font font(family, px, gp::FontStyleBold, gp::UnitPixel);
     gp::RectF out;
     g.MeasureString(text.c_str(), static_cast<INT>(text.size()), &font, gp::PointF(0, 0),
                     gp::StringFormat::GenericTypographic(), &out);
@@ -591,16 +574,14 @@ bool ControlBar::Impl::Create(const ControlBarConfig& config) {
     cfg = config;
     EnsureGdiplus();
     dark = UseDark(cfg.theme);
-    pal = PaletteFor(dark);
+    pal = BarColoursFor(dark);
     dpi = cfg.dpi > 0 ? cfg.dpi : (cfg.owner ? static_cast<int>(GetDpiForWindow(cfg.owner)) : 96);
     if (dpi <= 0) dpi = 96;
     margin = Scale(32);  // room for the soft shadow to fade
 
-    // The design's words are bold and round; Atkinson Hyperlegible Next is a web font here (woff2),
-    // GDI+ cannot load it, so Segoe UI Bold stands in.
-    family = std::make_unique<gp::FontFamily>(L"Segoe UI");
-    iconsDir = FindIconsDir();
-    if (iconsDir.empty()) LogInfo("[controlbar] No ui\\icons folder found; the buttons show words only.");
+    // The design's words are bold and round: Atkinson Hyperlegible Next Bold (Segoe UI Bold if the
+    // font cannot be loaded). The icons are resources of the exe (svg_icon.h), not files.
+    family = BarFontFamily();
     LoadWords();
     state.size = cfg.size;
 
@@ -613,11 +594,8 @@ bool ControlBar::Impl::Create(const ControlBarConfig& config) {
         wc.lpfnWndProc = BarProc;
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.lpszClassName = L"LexiaControlBar";
-        WNDCLASSEXW tc = wc;
-        tc.lpfnWndProc = TipProc;
-        tc.lpszClassName = L"LexiaControlBarTip";
-        if (!RegisterClassExW(&wc) || !RegisterClassExW(&tc)) {
-            LogError("[controlbar] Could not register the window classes.");
+        if (!RegisterClassExW(&wc)) {
+            LogError("[controlbar] Could not register the window class.");
             return false;
         }
         registered = true;
@@ -631,9 +609,8 @@ bool ControlBar::Impl::Create(const ControlBarConfig& config) {
         return false;
     }
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-    tip = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, L"LexiaControlBarTip", L"", WS_POPUP,
-                          0, 0, 1, 1, hwnd, nullptr, inst, nullptr);
-    if (tip) SetWindowLongPtrW(tip, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    // A bar without a tooltip window still works: ShowTip then does nothing (Create logs why).
+    tip.Create(hwnd, dpi);
 
     HDC screen = GetDC(nullptr);
     memDc = CreateCompatibleDC(screen);
@@ -656,10 +633,7 @@ bool ControlBar::Impl::Create(const ControlBarConfig& config) {
 
 // Ends the bar: its timers, windows and picture buffers. Safe to call twice.
 void ControlBar::Impl::Destroy() {
-    if (tip) {
-        DestroyWindow(tip);
-        tip = nullptr;
-    }
+    tip.Destroy();
     if (hwnd) {
         KillTimer(hwnd, kPollTimer);
         KillTimer(hwnd, kTipTimer);
@@ -725,11 +699,9 @@ void ControlBar::Impl::Layout() {
 }
 
 // The icon of button `b` in `box`, in colour `rgb`, blended into the picture. False if there is no
-// icon (no folder, no file, no Direct2D SVG): the caller shows a word instead.
+// icon (not in the exe, no Direct2D SVG): the caller shows a word instead.
 bool ControlBar::Impl::DrawIcon(gp::Graphics& g, BarButton b, const Rect& box, uint32_t rgb) {
-    if (iconsDir.empty()) return false;
-    const fs::path file = iconsDir / (std::string(IconName(b, state.paused, cfg.size)) + ".svg");
-    const IconPixels* icon = svgIcons.Get(file, box.right - box.left, rgb);
+    const IconPixels* icon = svgIcons.Get(IconName(b, state.paused, cfg.size), box.right - box.left, rgb);
     if (!icon) return false;
     g.Flush(gp::FlushIntentionSync);  // GDI+ has finished with the picture; now we write into it
     BlendPremultiplied(work, box.left + margin, box.top + margin, *icon);
@@ -740,7 +712,7 @@ bool ControlBar::Impl::DrawIcon(gp::Graphics& g, BarButton b, const Rect& box, u
 // vertically in `box`.
 void ControlBar::Impl::DrawWord(gp::Graphics& g, const std::wstring& text, const gp::RectF& box, uint32_t rgb,
                                 bool centred) {
-    gp::Font font(family.get(), static_cast<float>(Scale(18)), gp::FontStyleBold, gp::UnitPixel);
+    gp::Font font(family, static_cast<float>(Scale(18)), gp::FontStyleBold, gp::UnitPixel);
     gp::StringFormat sf(gp::StringFormat::GenericTypographic());
     sf.SetLineAlignment(gp::StringAlignmentCenter);
     sf.SetAlignment(centred ? gp::StringAlignmentCenter : gp::StringAlignmentNear);
@@ -1025,40 +997,19 @@ void ControlBar::Impl::ArmTip() {
 // Shows the hot button's tooltip under the bar (above it if there is no room below), without
 // activating it.
 void ControlBar::Impl::ShowTip() {
-    if (!tip || !inside || dragging || pressed != BarButton::None || hot == BarButton::None) return;
-    tipFor = hot;
-    const std::wstring text = TipTextFor(tipFor);
-    if (text.empty()) return;
-
-    HDC dc = GetDC(tip);
-    HFONT font = CreateFontW(-Scale(15), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-                             CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
-    const HGDIOBJ old = SelectObject(dc, font);
-    SIZE ts = {};
-    GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &ts);
-    SelectObject(dc, old);
-    DeleteObject(font);
-    ReleaseDC(tip, dc);
-
-    const int w = ts.cx + 2 * Scale(12), h = ts.cy + 2 * Scale(6);
+    if (!inside || dragging || pressed != BarButton::None || hot == BarButton::None) return;
+    // The tooltip hangs under the bar, centred on the hot button: the anchor is the button's span at
+    // the bar's height, in screen pixels (the tooltip goes above it if there is no room below).
     Rect target;
     for (const BarItem& it : layout.items) {
         if (it.kind == BarItemKind::Button && it.button == hot) target = it.rect;
     }
-    int x = origin.x + (target.left + target.right) / 2 - w / 2;
-    int y = origin.y + layout.height + Scale(8);
-    if (y + h > cfg.monitor.bottom) y = origin.y - Scale(8) - h;  // no room below: above
-    x = std::max(static_cast<int>(cfg.monitor.left), std::min(x, static_cast<int>(cfg.monitor.right) - w));
-    SetWindowPos(tip, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE);
-    SetWindowRgn(tip, CreateRoundRectRgn(0, 0, w + 1, h + 1, Scale(10) * 2, Scale(10) * 2), TRUE);
-    InvalidateRect(tip, nullptr, FALSE);
-    ShowWindow(tip, SW_SHOWNOACTIVATE);
+    const RECT anchor = {origin.x + target.left, origin.y, origin.x + target.right, origin.y + layout.height};
+    tip.Show(WideToUtf8(TipTextFor(hot)), anchor, dark);
 }
 
 // Hides the tooltip, if it shows.
-void ControlBar::Impl::HideTip() {
-    if (tip) ShowWindow(tip, SW_HIDE);
-}
+void ControlBar::Impl::HideTip() { tip.Hide(); }
 
 // ================================================================== the public face ===
 

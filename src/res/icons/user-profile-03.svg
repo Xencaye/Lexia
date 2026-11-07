@@ -1,0 +1,7 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- Lexia: the original drew each shape with a 4 wide stroke inside a <mask> of the shape (an inner stroke of 2).
+     Direct2D's SVG renderer (the native Settings window) does not do masks, so the same outline is drawn here as
+     two ellipses inset by 1 with a stroke of 2 (the outer edge and the 2 wide band are the same). -->
+<ellipse cx="12" cy="6.94" rx="2.82" ry="2.94" stroke="#6E504A" stroke-width="2"/>
+<ellipse cx="12" cy="16.78" rx="8" ry="3.22" stroke="#6E504A" stroke-width="2"/>
+</svg>

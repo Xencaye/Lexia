@@ -1,5 +1,5 @@
 #pragma once
-// RecolourSvg: the colour of a line icon is fixed in its SVG file (#6E504A in ui/icons). The Control
+// RecolourSvg: the colour of a line icon is fixed in its SVG file (#6E504A in src/res/icons). The Control
 // bar draws each icon in the colour of its state, so it changes the text before it parses it.
 // Pure, Win32-free.
 #include <cstdint>

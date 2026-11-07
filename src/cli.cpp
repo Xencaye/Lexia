@@ -9,12 +9,10 @@
 #include <nlohmann/json.hpp>  // ordered_json: keys stay in the order written, which reads better
 
 #include "language.h"
-#include "strings/string_ids.h"
-#include "strings/strings.h"
 #include "version.h"
 
 // lexia_cli's pure parts: the argument parser, the usage text and the output formats (the expected.txt
-// text, the Blocks as JSON, the Fixture score, the strings table, the Voice catalogue). They are in
+// text, the Blocks as JSON, the Fixture score, the Voice catalogue). They are in
 // lexia_core so the tests can call them; the entry point that does the I/O is cli_main.cpp.
 namespace {
 
@@ -89,7 +87,7 @@ nlohmann::ordered_json BoxToJson(const Rect& r) {
 
 // Two steps: the loop reads every option and its value (and stops at the first bad one); then the
 // checks below make sure the options form one of the commands in CliUsage (an image, --say,
-// --strings-json, or one Voice library command), and say which option is out of place.
+// or one Voice library command), and say which option is out of place.
 CliParse ParseCliArgs(const std::vector<std::string>& args) {
     CliParse p;
     auto fail = [&](const std::string& msg) {
@@ -114,13 +112,6 @@ CliParse ParseCliArgs(const std::vector<std::string>& args) {
             if (i + 1 >= args.size() || Trim(args[i + 1]).empty()) return fail(a + " needs a value");
             const std::string& v = args[++i];
             (a == "--voice-download" ? p.args.downloadVoice : a == "--voice-add" ? p.args.addVoicePath : p.args.voicesDir) = v;
-            continue;
-        }
-        if (a == "--strings-json") {
-            if (i + 1 >= args.size()) return fail(a + " needs a value");
-            const std::string& v = args[++i];
-            if (!strings::IsInterfaceLanguage(v)) return fail("unknown Interface language '" + v + "' (try en)");
-            p.args.stringsLang = v;
             continue;
         }
         if (a == "--version") {
@@ -172,14 +163,6 @@ CliParse ParseCliArgs(const std::vector<std::string>& args) {
     // Which command is it? Each command refuses the options of the others.
     const bool imageOptions = !p.args.imagePath.empty() || p.args.hasRect || !p.args.jsonPath.empty() ||
                               !p.args.drawPath.empty() || !p.args.scorePath.empty();  // an image or its options
-    if (!p.args.stringsLang.empty()) {
-        if (!p.args.sayText.empty() || !p.args.wavPath.empty() || imageOptions || hasControl || !p.args.voicesDir.empty() ||
-            p.args.listVoices || !p.args.downloadVoice.empty() || !p.args.addVoicePath.empty()) {
-            return fail("--strings-json stands alone; it cannot be combined with other options");
-        }
-        p.ok = true;
-        return p;
-    }
     const int libraryAsks = (p.args.listVoices ? 1 : 0) + (p.args.downloadVoice.empty() ? 0 : 1) +
                             (p.args.addVoicePath.empty() ? 0 : 1);
     if (libraryAsks > 1) return fail("--voices-catalogue, --voice-download and --voice-add are separate commands; give one");
@@ -211,7 +194,6 @@ std::string CliUsage() {
        << "                 [--json out.json] [--draw out.png] [--score expected.txt]\n"
        << "       lexia_cli --say \"text\" --wav out.wav [--lang " << LanguageCodes() << "]\n"
        << "                 [--speed n] [--pitch n] [--volume n]\n"
-       << "       lexia_cli --strings-json <code>\n"
        << "       lexia_cli --voices-catalogue\n"
        << "       lexia_cli --voice-download <name> [--voices-dir folder]\n"
        << "       lexia_cli --voice-add <file.zip|file.onnx|file.onnx.json> [--voices-dir folder]\n"
@@ -229,9 +211,6 @@ std::string CliUsage() {
        << "  --speed, --pitch, --volume\n"
        << "            the Voice controls for --say; ranges and defaults: speed 0.5-2 (1), pitch -6 to 6\n"
        << "            semitones (0), volume 0-2 (1)\n"
-       << "  --strings-json code\n"
-       << "            print every string id of the Interface language (en) and its text as one JSON object;\n"
-       << "            scripts\\ui_preview.ps1 gives it to the Settings window preview\n"
        << "  --voices-catalogue\n"
        << "            list the Voices on Hugging Face (rhasspy/piper-voices) for Lexia's Languages in Medium\n"
        << "            quality: name, Language, size, \"installed\" if you have it. This goes online, once.\n"
@@ -281,13 +260,6 @@ std::string BlocksToJson(const std::vector<TextBlock>& blocks, const std::string
     const nlohmann::ordered_json doc = {
         {"language", languageCode}, {"ms", ms}, {"blocks", std::move(jBlocks)}};
     // replace: a stray non-UTF-8 byte from the OCR becomes U+FFFD instead of an exception.
-    return doc.dump(2, ' ', false, nlohmann::ordered_json::error_handler_t::replace) + "\n";
-}
-
-// --strings-json: { "<id>": "<text>" } for every id, which the ui/ preview loads as its strings.
-std::string StringsToJson(const std::string& code) {
-    nlohmann::ordered_json doc = nlohmann::ordered_json::object();
-    for (const char* id : strings::AllIds()) doc[id] = strings::Text(code, id);
     return doc.dump(2, ' ', false, nlohmann::ordered_json::error_handler_t::replace) + "\n";
 }
 

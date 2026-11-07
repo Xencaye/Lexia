@@ -1,5 +1,7 @@
 # The Settings window is HTML/CSS in WebView2; the Overlay stays plain Win32
 
+Status: superseded by ADR-0009 (2026-11-07): the Settings window is native Win32 now.
+
 The Settings window (Home, Voice, Settings, Help tabs) is built in HTML/CSS hosted in WebView2.
 The neumorphic look is plain CSS `box-shadow`, and help videos, Interface-language strings and
 light/dark mode are trivial there; the runtime ships with Windows 11. The Overlay does not use it:

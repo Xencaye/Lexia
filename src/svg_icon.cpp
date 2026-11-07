@@ -11,20 +11,20 @@
 #include <string>
 #include <tuple>
 
-#include "common.h"
+#include "assets.h"
 #include "log.h"
 #include "svg_recolour.h"
 
-// The Control bar's icons: an SVG file of ui/icons drawn at one pixel size and colour with Direct2D,
-// read back into memory as premultiplied BGRA, so the bar's GDI+ painting can blend it in. Each
-// (file, size, colour) is drawn once and kept for the life of the process.
+// The Control bar's icons: an SVG resource of the exe (src/res/icons, assets.h) drawn at one pixel size and
+// colour with Direct2D, read back into memory as premultiplied BGRA, so the bar's GDI+ painting can blend it in. Each
+// (name, size, colour) is drawn once and kept for the life of the process.
 using Microsoft::WRL::ComPtr;
 
 namespace {
 
 // One map for the whole process: the pictures are plain memory, so they outlive a Session's objects.
 // A std::map keeps its nodes where they are, which the returned pointers rely on.
-using Key = std::tuple<std::wstring, int, uint32_t>;
+using Key = std::tuple<std::string, int, uint32_t>;
 std::map<Key, IconPixels>& Kept() {
     static std::map<Key, IconPixels> kept;
     return kept;
@@ -128,25 +128,32 @@ struct SvgIconCache::Impl {
 SvgIconCache::SvgIconCache() : impl_(std::make_unique<Impl>()) {}
 SvgIconCache::~SvgIconCache() = default;
 
-// The picture of `file` at `size` px in colour rgb (0xRRGGBB), or nullptr if it cannot be drawn (the
-// button then shows its word). The pointer stays valid for the life of the process.
-const IconPixels* SvgIconCache::Get(const std::filesystem::path& file, int size, uint32_t rgb) {
+// The SVG text of an icon of the exe, in colour `rgb`. Icons are small (a few hundred bytes), so the
+// copy is cheap. Empty if the exe has no such icon.
+std::string RecolouredIconSvg(std::string_view name, uint32_t rgb) {
+    const std::string_view bytes = AssetBytes(AssetKind::Icon, name);
+    if (bytes.empty()) return {};
+    return RecolourSvg(std::string(bytes), rgb);
+}
+
+// The picture of icon `name` at `size` px in colour rgb (0xRRGGBB), or nullptr if it cannot be drawn
+// (the button then shows its word). The pointer stays valid for the life of the process.
+const IconPixels* SvgIconCache::Get(std::string_view name, int size, uint32_t rgb) {
     if (size <= 0) return nullptr;
-    const Key key{file.wstring(), size, rgb & 0xFFFFFFu};
+    const Key key{std::string(name), size, rgb & 0xFFFFFFu};
     auto& kept = Kept();
     const auto found = kept.find(key);
     if (found != kept.end()) return found->second.px.empty() ? nullptr : &found->second;
 
-    // Not kept yet. A file that cannot be read or drawn is remembered as empty, so it is tried once.
+    // Not kept yet. An icon that is missing or cannot be drawn is remembered as empty, so it is tried
+    // once (AssetBytes logs a missing one by itself, once per name).
     IconPixels icon;
     icon.size = size;
-    std::string text;
-    if (!ReadFileToString(file, &text, 1 << 20)) {
-        LogWarn("[controlbar] Could not read the icon ", file.string(), "; its button shows the word only.");
-    } else if (impl_->Init()) {
-        if (!impl_->Render(RecolourSvg(std::move(text), rgb), size, icon.px)) {
+    const std::string svg = RecolouredIconSvg(name, rgb);
+    if (!svg.empty() && impl_->Init()) {
+        if (!impl_->Render(svg, size, icon.px)) {
             icon.px.clear();
-            LogWarn("[controlbar] Could not draw the icon ", file.string(), "; its button shows the word only.");
+            LogWarn("[controlbar] Could not draw the icon ", std::string(name), "; its button shows the word only.");
         }
     }
     const auto it = kept.emplace(key, std::move(icon)).first;

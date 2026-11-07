@@ -20,13 +20,10 @@ A plain list of what Lexia builds on and ships, with licences. All are GPL-3-com
 | ucd-tools (espeak-ng submodule) | GPL-3.0-or-later (Unicode data under the Unicode licence) | Unicode character data for espeak-ng, linked into `piper.dll` |
 | Microsoft Visual C++ runtime | Microsoft's redistribution terms for Visual Studio | `msvcp140*.dll`, `vcruntime140*.dll`, `concrt140.dll` copied into the package so the PC needs no installer. Not covered by Lexia's licence |
 | Piper Voice `en_US-ljspeech-medium` | Dataset: public domain. Model: no licence stated; the trainer declares it public domain | The English Voice, `voices\`. Trained by Bryce Beattie (https://brycebeattie.com/files/tts/) from scratch on the LJ Speech Dataset by Keith Ito (https://keithito.com/LJ-Speech-Dataset/), which is public domain. The model card and the `rhasspy/piper-voices` repository state no licence for the model weights; Beattie's page lists the Voice as "License: public domain". No attribution is required, credit given as a courtesy. Provided as is. See "Voices" below |
-| Microsoft Edge WebView2 SDK 1.0.4258.31 | BSD-3-Clause | Shows the Settings window's pages (`src/settings_window.cpp`). Via vcpkg (`webview2`); only the loader `WebView2Loader.dll` ships next to the exe. The WebView2 Runtime itself is Microsoft's (part of Windows 11 and Edge) and is not shipped |
-| WIL 1.0.260126.7 | MIT | Header-only; the `webview2` port depends on it. Lexia does not include it, and it is not shipped; listed because vcpkg installs it |
-| Atkinson Hyperlegible Next | SIL Open Font License 1.1 | The font of the Settings window (`ui\fonts\`, copied unchanged; the licence file is beside it) |
-| Stratis UI Icons | CC BY 4.0 | The line icons of the Settings window and the Control bar (`ui\icons\`, SVG; the source is in `ui\icons\SOURCE.txt`). `discord.svg`, `github.svg` and `itch.svg` are those sites' logos, used only to link to Lexia there |
-| Microsoft Edge WebView2 Runtime, Evergreen Bootstrapper | Microsoft's distribution terms for the WebView2 Runtime (redistribution allowed) | `MicrosoftEdgeWebview2Setup.exe`, carried in the installer only (not in the package folder) and run when a PC has no WebView2 Runtime; it downloads the runtime from Microsoft. Fetched by `scripts\fetch_deps.ps1 -Installer` and kept only with a valid Microsoft Authenticode signature |
+| Atkinson Hyperlegible Next | SIL Open Font License 1.1 | The font of the Settings window (`src\res\fonts\`, copied unchanged and embedded in the exe as resources; the licence file is beside it) |
+| Stratis UI Icons | CC BY 4.0 | The line icons of the Settings window and the Control bar (`src\res\icons\`, SVG, embedded in the exe as resources; the source is in `src\res\icons\SOURCE.txt`). `discord.svg`, `github.svg` and `itch.svg` are those sites' logos, used only to link to Lexia there |
 | Inno Setup 6 | Inno Setup License (a zlib-style licence) | Builds the installer (`installer\lexia.iss`, task H4). A build tool, not part of Lexia's code; the setup program it makes carries its own small runtime, which its licence lets anyone redistribute. Its uninstaller (`unins000.exe`) stays in the Lexia folder, so it has an entry in `THIRD-PARTY-NOTICES.txt` (`licenses/components/inno-setup.txt`) |
-| Old Book Illustrations engravings | Public domain | The pictures of the Settings window (`ui\img\`, JPEG) and the Lexia logo (`src\res\lexia_logo.png`, made into the exe and tray icons by `scripts\make_tray_icons.ps1`), from https://www.oldbookillustrations.com/ |
+| Old Book Illustrations engravings | Public domain | The pictures of the Settings window (`src\res\img\`, JPEG, embedded in the exe as resources) and the Lexia logo (`src\res\lexia_logo.png`, made into the exe and tray icons by `scripts\make_tray_icons.ps1`), from https://www.oldbookillustrations.com/ |
 
 Voices the user downloads later (Voice library, task B5) come from the Hugging Face `rhasspy/piper-voices` catalogue, only when the user asks, and are not part of the package; each has its own licence, which is the user's to check. The Voices Lexia ships are the ones above.
 
@@ -53,7 +50,7 @@ Voices are separate data files in `voices/`, listed in `voices/voices.json` (wit
 
 The package step fails (so does the build) when a Voice with `"ship": true` has no `voice-<name>.txt`, and when a `.exe` or `.dll` in the package is covered by no `@covers` line. The ctest `package_notices` (`tests/notices_test.cmake`) checks both.
 
-To add a component (the ones planned: SoundTouch, the WebView2 SDK, the Atkinson Hyperlegible font):
+To add a component (the ones planned: SoundTouch, the Atkinson Hyperlegible font):
 
 1. Check its licence is GPL-3-compatible (ADR-0003) and add a row to the table above.
 2. Add `licenses/components/<name>.txt`. Take the licence text from the vcpkg port's `copyright` file or the component's own source with `@include`, or add the text to `licenses/texts/` if it is a standard one (the SIL OFL for a font, for instance) and refer to it with `@licence-text`. If the component brings a DLL, add `@covers` for it. Fonts and other data files are not checked by `@covers`; name them in "Used for".

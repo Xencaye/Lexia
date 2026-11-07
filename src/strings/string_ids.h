@@ -49,7 +49,6 @@
     X(AppStartFailed, "app.startFailed")                                                         \
     /* Settings window (D0 ui, D3, D8): the frame, Home, Voices, Settings, Report, Help, About */\
     X(WindowTitle, "window.title")  /* the title of the Settings window */                       \
-    X(WindowNoRuntime, "window.noRuntime")  /* a message box: WebView2 Runtime is missing */     \
     X(WindowNavMain, "window.nav.main")  /* accessible name of the top links */                  \
     X(WindowNavMore, "window.nav.more")  /* accessible name of the bottom links */               \
     X(WindowNavHome, "window.nav.home")                                                          \
@@ -59,6 +58,7 @@
     X(WindowNavHelp, "window.nav.help")                                                          \
     X(WindowNavAbout, "window.nav.about")                                                        \
     X(WindowVolume, "window.volume")  /* accessible name of the Master volume slider */          \
+    X(UiaSwitch, "uia.switch")  /* what a screen reader calls a switch (the localized control type) */ \
     X(WindowVolumeValue, "window.volumeValue")  /* {value}: percent */                           \
     X(WindowHomePower, "window.home.power")  /* the power button's accessible name */            \
     X(WindowHomeEnable, "window.home.enable")  /* the button under the power button while Lexia is Off */\
@@ -91,11 +91,13 @@
     X(WindowPresetSavedTitle, "window.preset.savedTitle")                                    \
     X(WindowPresetSaved, "window.preset.saved")  /* {name}: the file name */                 \
     X(WindowPresetLoadedTitle, "window.preset.loadedTitle")                                  \
-    X(WindowPresetLoaded, "window.preset.loaded")  /* {name}: the file name */               \
+    X(WindowPresetLoaded, "window.preset.loaded")  /* {voice}: the Voice that is active */   \
     X(WindowPresetFailedTitle, "window.preset.failedTitle")                                  \
     X(WindowPresetBadFile, "window.preset.badFile")  /* presetFailed badFile */              \
     X(WindowPresetCannotWrite, "window.preset.cannotWrite")  /* presetFailed cannotWrite */  \
     X(WindowPresetNoVoice, "window.preset.noVoice")  /* presetFailed noVoice */              \
+    X(WindowPresetLoadedOther, "window.preset.loadedOther")  /* {voice}: a Voice that is not active */ \
+    X(WindowPresetVoiceNotInstalled, "window.preset.voiceNotInstalled")  /* {voice}: from the file */ \
     /* Settings page (D0 ui 2 and 3, D8) */                                                      \
     X(WindowKeysTitle, "window.keys.title")                                                      \
     X(WindowKeysReadRow, "window.keys.readRow")  /* the short name of a Key in the list */       \

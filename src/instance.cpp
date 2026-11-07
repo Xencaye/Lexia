@@ -9,6 +9,13 @@ UINT OpenSettingsMessage() {
     return msg;
 }
 
+// The message the installer posts to a running Lexia: "quit, the clean way" (App::Quit). The name is also
+// written in installer/lexia.iss; change both together.
+UINT QuitMessage() {
+    static const UINT msg = RegisterWindowMessageW(L"Lexia.Quit");
+    return msg;
+}
+
 SingleInstance::SingleInstance(unsigned waitMs) { Acquire(waitMs); }
 
 SingleInstance::~SingleInstance() { Release(); }
