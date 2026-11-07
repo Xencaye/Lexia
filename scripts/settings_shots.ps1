@@ -36,6 +36,9 @@ $shots = @(
     @('home-on',        @('--page', 'home', '--on')),
     @('home-off-hover', @('--page', 'home', '--hover', 'power')),
     @('home-on-hover',  @('--page', 'home', '--on', '--hover', 'power')),
+    # K10: the window's minimise and close buttons, hovered (they are in every shot, idle)
+    @('home-minimise-hover', @('--page', 'home', '--hover', 'minimise')),
+    @('home-close-hover',    @('--page', 'home', '--hover', 'close')),
     @('help',           @('--page', 'help')),
     @('report',         @('--page', 'report')),
     @('about',          @('--page', 'about')),

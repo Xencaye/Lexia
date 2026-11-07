@@ -79,7 +79,7 @@ private:
     bool CreateMessageWindow();
     UiState BuildUiState() const;
     void HandlePageMessage(const PageMessage& m);  // a user action of the Settings window (typed, ui_host.h)
-    void ApplyWindowTheme();  // the Settings window's title bar follows the theme setting
+    void ApplyWindowTheme();  // the Settings window's paper follows the theme setting
     void UpdateTray();        // the tray icon's On / Off look and tooltip follow the state
     void ShowTrayMenu(POINT at);
     void OpenNotices();

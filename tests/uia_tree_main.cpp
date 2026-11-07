@@ -473,6 +473,70 @@ void Actions(Client& c, SettingsWindow& w) {
     }
 }
 
+// ---- K10: the window has no title bar; its own minimise and close buttons are Buttons with names
+
+void WindowButtons(Client& c, SettingsWindow& w) {
+    const HWND hwnd = c.hwnd;
+    // No caption and no frame: the client area is the whole window (WM_NCCALCSIZE), 800 x 600 DIPs.
+    RECT window = {}, client = {};
+    GetWindowRect(hwnd, &window);
+    GetClientRect(hwnd, &client);
+    Check(client.right - client.left == window.right - window.left && client.bottom - client.top == window.bottom - window.top,
+          "WindowButtons: the client area is the whole window (no title bar)");
+    const UINT dpi = GetDpiForWindow(hwnd);
+    Check(client.right - client.left == MulDiv(800, static_cast<int>(dpi), 96) &&
+              client.bottom - client.top == MulDiv(600, static_cast<int>(dpi), 96),
+          "WindowButtons: the window is 800 x 600 DIPs");
+
+    for (nui::Page page : {nui::Page::Home, nui::Page::Voices, nui::Page::Settings}) {
+        ShowPage(page, w);
+        std::vector<Node> tree = TreeOf(c);
+        const Node* minimise = Find(tree, T(strings::id::kWindowMinimise), UIA_ButtonControlTypeId);
+        const Node* close = Find(tree, T(strings::id::kWindowClose), UIA_ButtonControlTypeId);
+        const std::string where = std::string(nui::PageName(page)) + ": ";
+        Check(minimise != nullptr, where + "the minimise button is a Button called " + T(strings::id::kWindowMinimise));
+        Check(close != nullptr, where + "the close button is a Button called " + T(strings::id::kWindowClose));
+        if (minimise) {
+            Check(minimise->id == "frame.minimise", where + "minimise has the automation id frame.minimise");
+            Check(Pattern<IUIAutomationInvokePattern>(minimise->el.Get(), UIA_InvokePatternId) != nullptr,
+                  where + "minimise can be invoked");
+        }
+        if (close) {
+            Check(close->id == "frame.close", where + "close has the automation id frame.close");
+            Check(Pattern<IUIAutomationInvokePattern>(close->el.Get(), UIA_InvokePatternId) != nullptr,
+                  where + "close can be invoked");
+        }
+    }
+
+    // Invoke on minimise minimises the window (a posted WM_SYSCOMMAND). Close is NOT invoked here: it would end the
+    // window before the checks that come after this one (the end of the test destroys it itself).
+    ShowPage(nui::Page::Home, w);
+    std::vector<Node> tree = TreeOf(c);
+    const Node* minimise = Find(tree, T(strings::id::kWindowMinimise), UIA_ButtonControlTypeId);
+    ClearCommands();
+    if (minimise) {
+        Check(!IsIconic(hwnd), "WindowButtons: the window is not minimised before the test");
+        auto invoke = Pattern<IUIAutomationInvokePattern>(minimise->el.Get(), UIA_InvokePatternId);
+        Check(invoke && SUCCEEDED(invoke->Invoke()), "WindowButtons: Invoke on minimise succeeds");
+        bool iconic = false;
+        for (int i = 0; i < 60 && !iconic; ++i) {
+            iconic = IsIconic(hwnd) != FALSE;
+            if (!iconic) Sleep(50);
+        }
+        Check(iconic, "WindowButtons: Invoke on minimise minimises the window");
+        // Back to normal for the checks that follow.
+        OnUi([&] { ShowWindow(hwnd, SW_RESTORE); });
+        for (int i = 0; i < 60 && IsIconic(hwnd); ++i) Sleep(50);
+        Check(!IsIconic(hwnd), "WindowButtons: the window can be restored");
+    }
+    // Neither button sent the App anything (they are the window's own).
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        Check(g_commands.empty(), "WindowButtons: the window buttons send no PageMessage");
+    }
+    ShowPage(nui::Page::Home, w);
+}
+
 // ---- events: a focus change and a property change reach a client's handlers
 
 class FocusHandler : public IUIAutomationFocusChangedEventHandler {
@@ -685,6 +749,7 @@ int RunClient(HWND hwnd, SettingsWindow* window) {
 
     ControlsOfAllPages(c, *window);
     Actions(c, *window);
+    WindowButtons(c, *window);
     Events(c, *window);
     ComPtr<IUIAutomationElement> held = SheetAndModality(c, *window);
 
