@@ -75,6 +75,8 @@ $shots = @(
     @('settings-switch-darkMode',       @('--page', 'settings', '--select', 'darkMode')),
     @('settings-switch-leftHanded',     @('--page', 'settings', '--select', 'leftHanded')),
     @('settings-capture',  @('--page', 'settings', '--capture', 'pause')),
+    # K11: the read button while its card is read aloud: the stop icon (volume-07), no wiggle
+    @('settings-reading',  @('--page', 'settings', '--select', 'read', '--reading')),
     @('settings-switches', @('--page', 'settings', '--switches'))
 )
 

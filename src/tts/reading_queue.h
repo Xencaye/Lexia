@@ -98,6 +98,12 @@ public:
     // Cuts off the Block and the Announcement being spoken and empties the queue (a pause ends too).
     void Stop();
 
+    // Takes one Reading out of the queue (K11: the Settings page's card button stops its own Reading and
+    // nothing else). If it is the one being spoken it is cut off (a pause ends too, like Stop) and the next
+    // Reading starts at its first Block; if it is still waiting it is just dropped; an id that is not in the
+    // queue (played, stopped, never added, 0) changes nothing. An Announcement is left alone.
+    void StopReading(uint64_t id);
+
     // A Session starts: a playing queue is kept, a paused one is emptied like Stop.
     void SessionStarted();
 

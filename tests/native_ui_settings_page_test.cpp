@@ -886,3 +886,127 @@ TEST_CASE("Settings: the read button still reads the key card with Enter, whatev
     CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
     CHECK(r.Page_().ReadButton()->Access().role == Role::Button);
 }
+
+// ------------------------------------------------------------------ the read button: stop (K11) ---
+
+namespace {
+
+// Is an Icon of this name drawn inside the read button's box in the last frame?
+bool ReadButtonDrawsIcon(Rig& r, const char* name) {
+    const RectF box = r.Page_().ReadButton()->Abs();
+    for (const Call* c : r.ui.canvas.Of(Call::Icon)) {
+        if (c->text == name && c->rect.x >= box.x && c->rect.Right() <= box.Right() && c->rect.y >= box.y &&
+            c->rect.Bottom() <= box.Bottom())
+            return true;
+    }
+    return false;
+}
+
+}  // namespace
+
+TEST_CASE("Settings: the read button shows the speaker until the host says its card is read") {
+    Rig r;
+    CHECK_FALSE(r.Page_().ReadButton()->Reading());
+    CHECK(ReadButtonDrawsIcon(r, "volume-05"));
+    CHECK_FALSE(ReadButtonDrawsIcon(r, "volume-07"));
+
+    // Clicking sends readKeyCard and changes nothing by itself: the host answers with the next state.
+    r.sent.clear();
+    const PointF c = Centre(*r.Page_().ReadButton());
+    r.ui.Click(c.x, c.y);
+    r.ui.Frame();
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
+    CHECK(r.sent[0].action == "read");
+    CHECK_FALSE(r.Page_().ReadButton()->Reading());
+    CHECK(ReadButtonDrawsIcon(r, "volume-05"));
+}
+
+TEST_CASE("Settings: while its card is read the button is the stop icon, named and told as stop") {
+    Rig r;
+    UiState s = Rig::State();
+    s.readingCard = "read";
+    r.Push(s);
+    r.ui.Frame();
+    KeyReadButton* b = r.Page_().ReadButton();
+    CHECK(b->Reading());
+    CHECK(ReadButtonDrawsIcon(r, "volume-07"));
+    CHECK_FALSE(ReadButtonDrawsIcon(r, "volume-05"));
+    const std::string stop =
+        strings::Format("en", strings::id::kWindowKeysStopReading, {{"action", r.Words(strings::id::kWindowKeysRead)}});
+    CHECK(b->Access().name == stop);
+    CHECK(b->Tooltip() == stop);
+    CHECK(b->Access().name != strings::Format("en", strings::id::kWindowKeysReadAloud,
+                                              {{"action", r.Words(strings::id::kWindowKeysRead)}}));
+
+    // A press while it shows stop is the same command: the host knows the card is read, so it stops it.
+    r.sent.clear();
+    const PointF c = Centre(*b);
+    r.ui.Click(c.x, c.y);
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
+    CHECK(r.sent[0].action == "read");
+    CHECK(b->Reading());  // still: the host has not answered
+
+    // The reading ended: the next state has none, and the speaker and the old name come back.
+    r.Push(Rig::State());
+    r.ui.Frame();
+    CHECK_FALSE(b->Reading());
+    CHECK(ReadButtonDrawsIcon(r, "volume-05"));
+    CHECK(b->Access().name == strings::Format("en", strings::id::kWindowKeysReadAloud,
+                                              {{"action", r.Words(strings::id::kWindowKeysRead)}}));
+}
+
+TEST_CASE("Settings: another selected card shows the speaker, and its press starts that card") {
+    Rig r;
+    UiState s = Rig::State();
+    s.readingCard = "read";
+    r.Push(s);
+    // Hover the speech row: its card shows, and the Key that is read is another one.
+    const RectF row = r.Page_().RowFor("speech")->Abs();
+    r.ui.Move(row.x + 20, row.y + 12);
+    r.ui.Frame();
+    REQUIRE(r.Page_().SelectedAction() == "speech");
+    CHECK_FALSE(r.Page_().ReadButton()->Reading());
+    CHECK(ReadButtonDrawsIcon(r, "volume-05"));
+    r.sent.clear();
+    const PointF c = Centre(*r.Page_().ReadButton());
+    r.ui.Click(c.x, c.y);
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].action == "speech");
+
+    // Back on the card that is read: it shows stop again.
+    const RectF first = r.Page_().RowFor("read")->Abs();
+    r.ui.Move(first.x + 20, first.y + 12);
+    r.ui.Frame();
+    CHECK(r.Page_().ReadButton()->Reading());
+}
+
+TEST_CASE("Settings: a switch's card is read and stopped in the same way, with its own words") {
+    Rig r;
+    UiState s = Rig::State();
+    s.readingCard = "runAsAdmin";
+    r.Push(s);
+    r.Page_().SwitchFor("runAsAdmin")->Focus();  // the keyboard reaches the row: its card shows
+    r.ui.Frame();
+    REQUIRE(r.Page_().SelectedAction() == "runAsAdmin");
+    CHECK(r.Page_().ReadButton()->Reading());
+    CHECK(r.Page_().ReadButton()->Access().name ==
+          strings::Format("en", strings::id::kWindowSwitchesStopReading,
+                          {{"action", r.Words("window.switches.runAsAdminTitle")}}));
+    CHECK(ReadButtonDrawsIcon(r, "volume-07"));
+}
+
+TEST_CASE("Settings: the read button does not wiggle while it shows stop") {
+    Rig r;
+    UiState s = Rig::State();
+    s.readingCard = "read";
+    r.Push(s);
+    const double t0 = r.ui.now;
+    // Where the speaker would be shaking (5 s on, a little into the wiggle): nothing turns while it is "stop".
+    r.ui.screen.Tick(t0 + 5.0 + 0.075);
+    r.ui.now = t0 + 5.0 + 0.075;
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 0);
+    CHECK_FALSE(r.ui.screen.NeedsTick());
+}

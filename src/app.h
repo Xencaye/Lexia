@@ -11,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "card_reading.h"
 #include "jobqueue.h"
 #include "ocr.h"
 #include "read_along.h"
@@ -56,6 +57,7 @@ public:
     void OnSettingsFileChanged();  // the debounced reload; public for the window procedure
     void SyncSpeechKeys();         // the Pause and Speech keys follow whether Lexia is speaking
     void OnSpeechKeyTimer();       // the Speech key's tap window ran out
+    void OnCardReadingTimer();      // the light timer of a card reading: has it ended? (K11)
     void OnSettingsWindowClosed();  // the window is gone: drop it (a posted message, not in its own callback)
     void OnWordMarkEnded();         // the word mark layer ended by itself: delete it (a posted message, not in its own callback)
     void OnTrayMessage(WPARAM wp, LPARAM lp);  // an event of the tray icon
@@ -85,7 +87,11 @@ private:
     void OpenNotices();
     void OpenLink(LinkId id);  // the page asked for one of the fixed links (ShellExecute)
     void CaptureKey();     // the page waits for a key: Lexia's keys are released meanwhile
-    void ReadKeyCard(const std::string& cardId);  // speaks what that Key or switch does (the card's play button)
+    // The card's play / stop button (K11): speaks what that Key or switch does, or, when that card is being read,
+    // stops it. Always PushState (the button's icon follows UiState::readingCard).
+    void ReadKeyCard(const std::string& cardId);
+    void CheckCardReading();  // has the card's Reading ended (by itself, or stopped elsewhere)? then the state is pushed
+    void EndCardReading();    // forgets the card reading and its timer; no state push
     void EndKeyCapture();  // the wait is over (cancelled, the page reloaded, or the window went)
     void SetKey(const std::string& action, const std::string& key);  // checks, saves, applies; always PushState
     void SetRunAtStartup(bool on);  // the Run key is the truth; the setting follows it
@@ -114,6 +120,7 @@ private:
                                         // and already reported, so a retry stays quiet
     bool quit_ = false;
     bool capturingKey_ = false;         // the Settings window waits for a key: none of ours is registered
+    CardReading cardReading_;           // K11: the Settings card being read aloud (UiState::readingCard)
 
     // Hidden window that the settings watcher notifies. It lives on the UI thread, so its
     // messages are dispatched by Run() and by a Session's loop alike.

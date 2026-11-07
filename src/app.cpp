@@ -39,6 +39,8 @@ static const UINT kMsgWordMarkEnded = WM_APP + 14;  // the word mark layer ended
 static const UINT kMsgRunOnUi = WM_APP + 20;  // lParam: a heap std::function<void()> to run on the UI thread (the Voice tab's workers)
 static const UINT_PTR kReloadTimer = 1;
 static const UINT_PTR kSpeechKeyTimer = 2;
+static const UINT_PTR kCardReadingTimer = 3;  // K11: runs only while a Settings card is being read aloud
+static const UINT kCardReadingPollMs = 100;    // how soon the button turns back after the reading ended
 static const UINT kReloadDelayMs = 300;  // an editor may save in several steps
 
 // A clock for the Speech key's tap window: milliseconds that only go forward (the wall clock can jump).
@@ -70,6 +72,7 @@ LRESULT CALLBACK App::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     App* app = reinterpret_cast<App*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (app && msg == kMsgSpeechActivity) {
         app->SyncSpeechKeys();
+        app->CheckCardReading();  // the queue emptied: a card reading that ended or was stopped shows it at once
         return 0;
     }
     if (msg == kMsgRunOnUi) {  // a worker thread asked for this to run here; the message owns it
@@ -83,6 +86,10 @@ LRESULT CALLBACK App::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     if (app && msg == kMsgSettingsWindowClosed) {
         app->OnSettingsWindowClosed();
+        return 0;
+    }
+    if (app && msg == WM_TIMER && wp == kCardReadingTimer) {
+        app->OnCardReadingTimer();
         return 0;
     }
     if (app && msg == WM_TIMER && wp == kSpeechKeyTimer) {
@@ -357,6 +364,7 @@ UiState App::BuildUiState() const {
     s.elevated = elevated;
     s.leftHanded = settings_.leftHanded;
     s.readAlong = settings_.readAlong;
+    s.readingCard = cardReading_.Card();  // K11: "" when no card is read
     s.masterVolume.value = settings_.speechVolume;
     auto key = [](const char* action, const Hotkey& k) {
         return UiKey{action, k.IsBound() ? k.text : std::string()};
@@ -417,6 +425,7 @@ void App::OnSettingsWindowClosed() {
     if (settingsWindow_ && !IsWindow(settingsWindow_->Handle())) {
         settingsWindow_.reset();
         EndKeyCapture();  // nobody is left to answer: give the keys back
+        EndCardReading();  // no button is left to show it (the speech itself goes on to its end)
     }
 }
 
@@ -550,9 +559,20 @@ void App::EndKeyCapture() {
 // The card's play button: speak what the selected Key or switch does, so a person who cannot read the card well
 // yet (Lexia may still be Off) hears it. The words are the card's own, from the string table (CardDescId:
 // window.keys.<action>Desc or window.switches.<name>Desc, one Block per line), in the Interface language; the
-// page sends only the card's id. It is a Reading of its own: it takes the place of what was being spoken, so a
-// second press starts it again.
+// page sends only the card's id. It is a Reading of its own: it takes the place of what was being spoken. K11: the
+// button then shows "stop" (UiState::readingCard) until the Reading ends, and a press on it stops that Reading; the
+// press after that starts the card again from the beginning. The message stays `readKeyCard` for both: the App
+// knows whether the card is being read (CardReading), so the page needs no second command.
 void App::ReadKeyCard(const std::string& cardId) {
+    // The button of the card that is being read is "stop" (K11): stop that Reading only, not what was queued after
+    // it (a Pick), and show the speaker again. The next press starts the card from its first Block.
+    if (cardReading_.OnPress(cardId, [this](uint64_t rid) { return speaker_.HasReading(rid); }) ==
+        CardReading::Press::Stop) {
+        speaker_.StopReading(cardReading_.Id());
+        EndCardReading();
+        PushState();
+        return;
+    }
     const std::string id = CardDescId(cardId);
     const std::string text = strings::Text(settings_.interfaceLanguage, id);
     if (text == id) return;  // no such card: the table gave the id back, which must not be spoken
@@ -565,7 +585,32 @@ void App::ReadKeyCard(const std::string& cardId) {
         if (end == std::string::npos) break;
         start = end + 1;
     }
-    if (!blocks.empty()) speaker_.SpeakReading(blocks, /*append=*/false);
+    // A reading started now replaces what was spoken (append = false), the card reading before it included.
+    // Id 0 (nothing queued) leaves no card reading, so the button stays "read aloud".
+    const uint64_t readingId = blocks.empty() ? 0 : speaker_.SpeakReading(blocks, /*append=*/false);
+    cardReading_.Started(cardId, readingId);
+    if (readingId != 0 && window_) {
+        SetTimer(window_, kCardReadingTimer, kCardReadingPollMs, nullptr);  // restarts a running one
+    } else if (window_) {
+        KillTimer(window_, kCardReadingTimer);
+    }
+    PushState();
+}
+
+// The timer of a card reading: the Reading queue may stay busy after the card's Reading is done (a Pick queued
+// behind it), so the busy / idle message alone would not tell; this asks the queue itself, every 100 ms, and
+// only while a card is read.
+void App::OnCardReadingTimer() { CheckCardReading(); }
+
+void App::CheckCardReading() {
+    if (!cardReading_.Update([this](uint64_t id) { return speaker_.HasReading(id); })) return;
+    EndCardReading();  // the card reading is already forgotten: only the timer is left
+    PushState();       // the button turns back to "read aloud"
+}
+
+void App::EndCardReading() {
+    cardReading_.Clear();
+    if (window_) KillTimer(window_, kCardReadingTimer);
 }
 
 // The page heard a key. Whatever the answer, the capture is over and the page gets a new `state`

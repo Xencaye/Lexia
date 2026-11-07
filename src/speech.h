@@ -78,6 +78,9 @@ public:
     void Resume();
     void Skip();
     void Stop();
+    // Stops only the Reading with this id (the id SpeakReading returned), not the ones queued after it; see
+    // ReadingQueue::StopReading. Nothing happens for an id that is no longer queued. UI thread.
+    void StopReading(uint64_t id);
     void SessionStarted();
 
     // The Speech key (tts/speech_key.h): a tap is Skip, a second tap in time is Stop. `nowMs` is a

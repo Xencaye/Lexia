@@ -310,6 +310,7 @@ void Speaker::Stop() {
     impl_->speechKey.Cancel();  // a first tap still waiting must not skip what comes next
     impl_->queue.Stop();
 }
+void Speaker::StopReading(uint64_t id) { impl_->queue.StopReading(id); }
 void Speaker::SessionStarted() {
     // A first tap still waiting has paused the queue for its window; that Pause is not the
     // person's, so its Skip is done now and the queue's rule then sees a playing queue.

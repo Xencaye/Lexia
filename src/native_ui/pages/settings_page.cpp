@@ -108,7 +108,8 @@ void KeyReadButton::Paint(Canvas& canvas, const Palette& p) {
     // for frames (NoteAnimationUntil).
     float angle = 0;
     Screen* screen = GetScreen();
-    if (screen && !screen->ReducedMotion()) {
+    // No wiggle while the card is read: the button is "stop" then, and a shake would ask for a press on "play".
+    if (screen && !screen->ReducedMotion() && !reading_) {
         const double now = screen->Now();
         if (start_ < 0) start_ = now;
         const double elapsed = now - start_;
@@ -120,12 +121,20 @@ void KeyReadButton::Paint(Canvas& canvas, const Palette& p) {
     }
     if (angle != 0.0f) {
         canvas.PushRotation({icon.x + icon.w / 2, icon.y + icon.h / 2}, angle);
-        canvas.Icon(icon, "volume-05", glyph);
+        canvas.Icon(icon, IconName(), glyph);
         canvas.PopRotation();
     } else {
-        canvas.Icon(icon, "volume-05", glyph);
+        canvas.Icon(icon, IconName(), glyph);
     }
     if (RingVisible()) DrawFocusRing(canvas, p, r, kReadRadius);
+}
+
+void KeyReadButton::SetReading(bool reading) {
+    if (reading == reading_) return;
+    reading_ = reading;
+    // The wiggle schedule is counted from the first paint; the next wiggle after "stop" starts from the
+    // schedule as it was, which is fine: it is still a quiet button between wiggles.
+    Invalidate();
 }
 
 AccessInfo KeyReadButton::Access() const {
@@ -362,9 +371,15 @@ void SettingsPage::ShowChip(KeyRow& row) {
 void SettingsPage::ShowCard() {
     const std::string full = selected_.empty() ? std::string() : T(CardTitleId(selected_).c_str());
     cardTitle_->SetText(full);
-    const std::string readAloud =
-        F(IsSwitchCard(selected_) ? strings::id::kWindowSwitchesReadAloud : strings::id::kWindowKeysReadAloud,
-          {{"action", full}});
+    // K11: the host says which card it reads (UiState::readingCard); the button shows "stop" only on that card.
+    // Another selected card shows "read aloud" again, and a press on it starts that card (the host replaces the
+    // reading). The name changes with the icon, so a screen reader hears "Stop reading ..." (UIA Name event).
+    const bool isSwitch = IsSwitchCard(selected_);
+    const bool reading = haveState_ && !selected_.empty() && last_.readingCard == selected_;
+    read_->SetReading(reading);
+    const char* labelId = reading ? (isSwitch ? strings::id::kWindowSwitchesStopReading : strings::id::kWindowKeysStopReading)
+                                  : (isSwitch ? strings::id::kWindowSwitchesReadAloud : strings::id::kWindowKeysReadAloud);
+    const std::string readAloud = F(labelId, {{"action", full}});
     read_->SetName(readAloud);
     read_->SetTooltip(readAloud);
     cardBody_->SetText(selected_.empty() ? std::string() : T(CardDescId(selected_).c_str()));

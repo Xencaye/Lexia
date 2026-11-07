@@ -94,6 +94,7 @@ set(LEXIA_ESPEAK_SRC "${CMAKE_BINARY_DIR}/lp/espeak_ng/src/espeak_ng_external") 
 
 # lexia_core: everything that is not UI, so the exe, the tests and the CLI link the same code.
 add_library(lexia_core STATIC
+    src/card_reading.cpp
     src/cli.cpp
     src/command_line.cpp
     src/codepoint.cpp
@@ -403,6 +404,7 @@ add_executable(lexia_tests
     tests/startup_test.cpp
     tests/stretch_speech_test.cpp
     tests/stretch_test.cpp
+    tests/card_reading_test.cpp
     tests/settings_test.cpp
     tests/read_along_test.cpp
     tests/reading_queue_test.cpp
