@@ -107,14 +107,15 @@ _Avoid_: current word, spoken word
 
 **Word mark**:
 The underline bar drawn under the Heard word, in the hover colour, for the Readings Picked in a
-Session. The Overlay draws it while the Session lasts; with the setting "keep the word mark" on, the
+Session. It exists only with the setting "enable read-along" (`readAlong`, Off by default: then no Word mark
+is drawn at all, as in 0.5). With it On the Overlay draws it while the Session lasts, and the
 Word mark layer goes on drawing it after the Session ends, until the Session's
 Readings are done. It sits under the part of its Line that the word takes up, which is an estimate,
 because OCR finds Lines, not words.
 _Avoid_: word highlight, karaoke, cursor
 
 **Word mark layer**:
-The click-through window that draws the Word mark after the Overlay is left (setting `keepWordMark`,
+The click-through window that draws the Word mark after the Overlay is left (only with the setting `readAlong`,
 Off by default). It covers the monitor of the Session, draws only the bar, never takes focus or a
 click, and ends with the last Reading of its Session, or on Stop, Off, Quit or a new Session. The
 Control bar does not stay with it.

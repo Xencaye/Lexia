@@ -403,7 +403,8 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     ss.hoverTol = ScaleForDpi(8, dpi);
     ss.barThickness = ScaleForDpi(3, dpi);
     ss.barGap = ScaleForDpi(1, dpi);
-    ss.heardWord = &cb.heardWord;
+    // Read-along off: no heard-word source, so no bar is ever drawn and no timer is started below.
+    ss.heardWord = style.readAlong ? &cb.heardWord : nullptr;
 
     HDC winDc = GetDC(hwnd);
     ss.backDc = CreateCompatibleDC(winDc);
@@ -451,7 +452,7 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
 
     StartAnalysis(hwnd, ss);
     // A failed SetTimer only means no word mark; the Session works without it.
-    const bool wordTimer = cb.heardWord && SetTimer(hwnd, kTimerWordMark, kWordMarkMs, nullptr) != 0;
+    const bool wordTimer = style.readAlong && cb.heardWord && SetTimer(hwnd, kTimerWordMark, kWordMarkMs, nullptr) != 0;
 
     MSG msg;
     while (!ss.done) {

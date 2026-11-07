@@ -236,6 +236,23 @@ TEST_CASE("access: Settings offers the key rows with their chips, the card and s
     CHECK(minimised->Access().focusable);
 }
 
+// K9: a switch has a card like a Key. The row stays a Toggle (no selection pattern, so a screen reader reads it
+// as a switch), and the card, which is the same group, takes the switch's title as its name.
+TEST_CASE("access: selecting a switch changes the card's name, and the switch keeps its Toggle") {
+    Rig r;
+    r.Show(Page::Settings);
+    Widget* card = r.Find(T(strings::id::kWindowKeysRead), Role::Group);
+    REQUIRE(card);
+    CHECK(card->Access().name == T(strings::id::kWindowKeysRead));
+    Widget* dark = r.Find(T(strings::id::kWindowSettingsDarkMode), Role::Switch);
+    REQUIRE(dark);
+    CHECK_FALSE(dark->Access().selectable);
+    CHECK(dark->Access().toggle != Toggle::None);
+    dark->Focus();  // the keyboard reaches the row: its card shows
+    CHECK(card->Access().name == T("window.switches.darkModeTitle"));
+    CHECK(r.Find(T("window.switches.darkModeTitle"), Role::Group) == card);
+}
+
 TEST_CASE("access: Report, Help and About offer their texts and links") {
     Rig r;
     for (Page p : {Page::Report, Page::Help, Page::About}) {

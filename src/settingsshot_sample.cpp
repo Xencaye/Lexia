@@ -21,7 +21,7 @@ UiState SampleState(bool on, bool dark, const std::string& voices) {
     s.runAsAdmin = false;
     s.elevated = false;
     s.leftHanded = false;
-    s.keepWordMark = false;
+    s.readAlong = false;
     s.masterVolume = {50, 0, 100, 100, 5};  // the thumb at the middle of the track, as in the reference shots
     s.keys = {{"read", "F8"}, {"pause", "F7"}, {"speech", "F6"}};
 

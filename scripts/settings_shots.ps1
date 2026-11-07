@@ -64,6 +64,13 @@ $shots = @(
     @('settings-read',     @('--page', 'settings', '--select', 'read')),
     @('settings-pause',    @('--page', 'settings', '--select', 'pause')),
     @('settings-speech',   @('--page', 'settings', '--select', 'speech')),
+    # K9: the card of each switch (no HTML reference: the owner's new page)
+    @('settings-switch-readAlong',      @('--page', 'settings', '--select', 'readAlong')),
+    @('settings-switch-runAtStartup',   @('--page', 'settings', '--select', 'runAtStartup')),
+    @('settings-switch-startMinimised', @('--page', 'settings', '--select', 'startMinimised')),
+    @('settings-switch-runAsAdmin',     @('--page', 'settings', '--select', 'runAsAdmin')),
+    @('settings-switch-darkMode',       @('--page', 'settings', '--select', 'darkMode')),
+    @('settings-switch-leftHanded',     @('--page', 'settings', '--select', 'leftHanded')),
     @('settings-capture',  @('--page', 'settings', '--capture', 'pause')),
     @('settings-switches', @('--page', 'settings', '--switches'))
 )

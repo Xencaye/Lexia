@@ -241,6 +241,7 @@ void SwitchRow::Paint(Canvas& canvas, const Palette& p) {
     const float t = TweenValue(on_);
     TextStyle st;
     st.underline = hovered_ && enabled_;  // a disabled row has no hover look
+    st.weight = selected_ ? FontWeight::Bold : FontWeight::Regular;  // the row whose card shows (K9)
     st.align = TextAlign::Right;
     const float labelW = canvas.MeasureText(label_, st).w;
     const RectF pill{r.Right() - kSwitchW, r.y + (r.h - kSwitchH) / 2, kSwitchW, kSwitchH};
@@ -262,6 +263,22 @@ void SwitchRow::Paint(Canvas& canvas, const Palette& p) {
         const float left = pill.x - kSwitchGap - labelW;
         DrawFocusRing(canvas, p, {left, r.y, r.Right() - left, r.h}, 2);
     }
+}
+
+void SwitchRow::SetSelected(bool selected) {
+    if (selected == selected_) return;
+    selected_ = selected;
+    Invalidate();
+}
+
+// The hover and focus flags come here through Widget::StateChanged. As in KeyChip, compare with the last seen
+// values so `onReach_` runs once per change. A disabled row still reports (it has a card too, and keeps the focus).
+void SwitchRow::StateChanged() {
+    Clickable::StateChanged();
+    const bool reached = (hovered_ && !wasHovered_) || (focused_ && !wasFocused_);
+    wasHovered_ = hovered_;
+    wasFocused_ = focused_;
+    if (reached && onReach_) onReach_();
 }
 
 AccessInfo SwitchRow::Access() const {

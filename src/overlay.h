@@ -37,6 +37,10 @@ struct OverlayStyle {
     BarSize barSize = BarSize::Large;         // the Control bar's size and place, as remembered
     int barX = -1, barY = -1;                 // offsets from the monitor's top left corner; -1 = default
     bool leftHanded = false;                  // the right button Picks and the left one Leaves (mouse_role.h); fixed for the Session
+    // K9: the "enable read-along" setting, read once per Session. Off (the default) = no word mark at all: the
+    // Overlay does not poll the heard word and draws no bar (like 0.5). On = the G1 word mark here (and, after the
+    // Overlay, the App's G2 layer).
+    bool readAlong = false;
 };
 
 // Recognises an area of the Session's Shot. Called on a JobQueue thread, never the UI thread.
@@ -68,7 +72,7 @@ struct OverlayCallbacks {
     std::function<SpeechState()> speechState;  // is anything being spoken or paused (the bar polls it)
     // The word that is heard now (Speaker::HeardWordNow), polled on a window timer (~30 ms) to draw the
     // word mark: an underline bar in `OverlayStyle::hoverColor` under the word, for Readings Picked in
-    // this Session. Empty function = no word mark.
+    // this Session. Empty function, or `OverlayStyle::readAlong` off = no word mark.
     std::function<std::optional<HeardWord>()> heardWord;
     // The Control bar's size or place changed: size, x, y (offsets from the monitor's corner). The
     // app remembers them.
@@ -79,7 +83,7 @@ struct OverlayCallbacks {
 };
 
 // What a Session leaves behind when it ends (G2): the Readings it Picked with their Blocks as the Pick
-// found them (Shot coordinates). With "keep the word mark" on, the App gives this to the click-through
+// found them (Shot coordinates). With read-along on, the App gives this to the click-through
 // layer (read_along_layer.h) if one of the Readings is still being read.
 struct OverlayResult {
     ReadAlongTrack track;

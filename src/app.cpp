@@ -162,7 +162,7 @@ void App::OnSettingsFileChanged() {
     if (s.startMinimised == fileSettings_.startMinimised) next.startMinimised = settings_.startMinimised;
     if (s.runAsAdmin == fileSettings_.runAsAdmin) next.runAsAdmin = settings_.runAsAdmin;
     if (s.leftHanded == fileSettings_.leftHanded) next.leftHanded = settings_.leftHanded;
-    if (s.keepWordMark == fileSettings_.keepWordMark) next.keepWordMark = settings_.keepWordMark;
+    if (s.readAlong == fileSettings_.readAlong) next.readAlong = settings_.readAlong;
     if (s.speechVolume == fileSettings_.speechVolume) next.speechVolume = settings_.speechVolume;
     if (s.voices == fileSettings_.voices) next.voices = settings_.voices;
     if (s.activeVoices == fileSettings_.activeVoices) next.activeVoices = settings_.activeVoices;
@@ -356,7 +356,7 @@ UiState App::BuildUiState() const {
     static const bool elevated = IsElevated();  // cannot change while Lexia runs
     s.elevated = elevated;
     s.leftHanded = settings_.leftHanded;
-    s.keepWordMark = settings_.keepWordMark;
+    s.readAlong = settings_.readAlong;
     s.masterVolume.value = settings_.speechVolume;
     auto key = [](const char* action, const Hotkey& k) {
         return UiKey{action, k.IsBound() ? k.text : std::string()};
@@ -450,8 +450,8 @@ void App::HandlePageMessage(const PageMessage& m) {
     case PageMessageType::SetStartMinimised: SetStartMinimised(m.on); break;
     case PageMessageType::SetRunAsAdmin: SetRunAsAdmin(m.on); break;
     case PageMessageType::SetLeftHanded: SetBoolSetting("leftHanded", m.on, settings_.leftHanded, fileSettings_.leftHanded); break;  // read at the next Session
-    case PageMessageType::SetKeepWordMark:
-        SetBoolSetting("keepWordMark", m.on, settings_.keepWordMark, fileSettings_.keepWordMark);
+    case PageMessageType::SetReadAlong:
+        SetBoolSetting("readAlong", m.on, settings_.readAlong, fileSettings_.readAlong);
         if (!m.on) EndWordMarkLayer(/*flush=*/false);  // turned off while a mark is up: it goes now
         break;
     case PageMessageType::SetMasterVolume: SetMasterVolume(static_cast<int>(std::lround(m.value))); break;
@@ -547,12 +547,15 @@ void App::EndKeyCapture() {
     RegisterKeys();  // a key another program holds is reported, as at start-up
 }
 
-// The key card's play button: speak what the key does, so a person who cannot read the card well yet (Lexia
-// may still be Off) hears it. The words are the card's own, from the string table (window.keys.<action>Desc,
-// one Block per line), in the Interface language; the page sends only which key. It is a Reading of its
-// own: it takes the place of what was being spoken, so a second press starts it again.
-void App::ReadKeyCard(const std::string& action) {
-    const std::string text = strings::Text(settings_.interfaceLanguage, "window.keys." + action + "Desc");
+// The card's play button: speak what the selected Key or switch does, so a person who cannot read the card well
+// yet (Lexia may still be Off) hears it. The words are the card's own, from the string table (CardDescId:
+// window.keys.<action>Desc or window.switches.<name>Desc, one Block per line), in the Interface language; the
+// page sends only the card's id. It is a Reading of its own: it takes the place of what was being spoken, so a
+// second press starts it again.
+void App::ReadKeyCard(const std::string& cardId) {
+    const std::string id = CardDescId(cardId);
+    const std::string text = strings::Text(settings_.interfaceLanguage, id);
+    if (text == id) return;  // no such card: the table gave the id back, which must not be spoken
     std::vector<std::string> blocks;
     size_t start = 0;
     while (start <= text.size()) {
@@ -744,7 +747,7 @@ void App::ApplySettings(const Settings& wanted) {
         RegisterKeys();
     }
 
-    if (!s.keepWordMark) EndWordMarkLayer(/*flush=*/false);  // edited off in settings.json
+    if (!s.readAlong) EndWordMarkLayer(/*flush=*/false);  // edited off in settings.json
     ApplyWindowTheme();
     PushState();
 }
@@ -895,6 +898,7 @@ void App::OpenOverlay() {
     style.barX = settings_.controlBar.x;
     style.barY = settings_.controlBar.y;
     style.leftHanded = settings_.leftHanded;  // read once per Session: a change applies at the next one
+    style.readAlong = settings_.readAlong;    // likewise: off = no word mark in the Overlay and none after it
 
     // Runs on a JobQueue thread; RunOverlay waits for the jobs before `bgr` goes away. The
     // engine is fetched per call, so the Analysis re-run after a Language switch uses the new one.
@@ -939,9 +943,9 @@ void App::OpenOverlay() {
 
     OverlayResult result = RunOverlay(shot, recognize, jobs_, style, cb);
 
-    // "Keep the word mark after I leave" (G2): if a Reading of this Session is still being read, a
+    // Read-along on (G2): if a Reading of this Session is still being read, a
     // click-through layer goes on drawing the bar under the heard word. The Control bar does not stay.
-    if (settings_.keepWordMark && settings_.enabled && !quit_) StartWordMarkLayer(mon, std::move(result.track));
+    if (style.readAlong && settings_.readAlong && settings_.enabled && !quit_) StartWordMarkLayer(mon, std::move(result.track));
 }
 
 // Starts the word mark layer over monitor `mon` for the Readings of `track`, if any of them is still in

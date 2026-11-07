@@ -103,10 +103,10 @@ TEST_CASE("Settings: one row per Key of the state, the language action left out,
     CHECK(rows[0]->Selected());
     CHECK_FALSE(rows[1]->Selected());
 
-    // The rows sit where the old page put them: 179, then 41 apart; the chips end at 253.
-    CHECK(rows[0]->Abs().y == doctest::Approx(179));
-    CHECK(rows[1]->Abs().y == doctest::Approx(220));
-    CHECK(rows[2]->Abs().y == doctest::Approx(261));
+    // The rows sit where the owner's new page puts them (K9): 137, then 41 apart; the chips end at 253.
+    CHECK(rows[0]->Abs().y == doctest::Approx(137));
+    CHECK(rows[1]->Abs().y == doctest::Approx(178));
+    CHECK(rows[2]->Abs().y == doctest::Approx(219));
     CHECK(r.Chip("read")->Abs().Right() == doctest::Approx(253));
     CHECK(r.Chip("read")->Abs().w >= 70);
     CHECK(r.Chip("read")->Abs().h == doctest::Approx(24));
@@ -134,7 +134,7 @@ TEST_CASE("Settings: the card shows the selected Key: title, the lines of its te
     r.ui.Frame();
     bool card = false, wine = false;
     for (const Call* c : r.ui.canvas.Of(Call::FillRect))
-        card |= c->rect.x == 273 && c->rect.y == 160 && c->rect.w == 355 && c->rect.h == 342 &&
+        card |= c->rect.x == 273 && c->rect.y == 115 && c->rect.w == 355 && c->rect.h == 393 &&
                 c->colour.rgb == r.ui.pal.card.rgb;
     for (const Call* c : r.ui.canvas.Of(Call::Picture)) wine |= c->text == "wine";
     CHECK(card);
@@ -145,7 +145,7 @@ TEST_CASE("Settings: the card shows the selected Key: title, the lines of its te
     CHECK(r.Page_().ReadButton()->Abs().h == 28);
     CHECK(r.Page_().ReadButton()->Abs().Right() < r.Page_().CardTitle()->Abs().x);
     CHECK(r.Page_().CardTitle()->Abs().x == doctest::Approx(273 + 20 + 24 + 10));
-    CHECK(r.Page_().CardTitle()->Abs().y == doctest::Approx(178));
+    CHECK(r.Page_().CardTitle()->Abs().y == doctest::Approx(133));
     const Call* icon = nullptr;  // the card's one (the Master volume has its own at the bottom of the window)
     for (const Call* c : r.ui.canvas.Of(Call::Icon)) {
         if (c->text == "volume-05" && c->rect.y < 300) icon = c;
@@ -162,26 +162,127 @@ TEST_CASE("Settings: the card shows the selected Key: title, the lines of its te
         ring |= c->rect.x >= r.Page_().ReadButton()->Abs().x - 1 && c->rect.Right() <= r.Page_().ReadButton()->Abs().Right() + 1;
     }
     CHECK_FALSE(ring);
-    CHECK(r.Page_().CardBody()->Abs().y == doctest::Approx(228));
+    CHECK(r.Page_().CardBody()->Abs().y == doctest::Approx(183));
 }
 
-TEST_CASE("Settings: the headings and the six switches are the page's words") {
+TEST_CASE("Settings: no headings, and the six switches are the page's words in the owner's order") {
     Rig r;
-    CHECK(r.ui.canvas.FindText(r.Words(strings::id::kWindowKeysTitle)));
-    CHECK(r.ui.canvas.FindText(r.Words(strings::id::kWindowSettingsMisc)));
+    // K9: the "keybinds" and "misc" headings are gone: nothing is drawn above the key rows or the switches.
+    CHECK_FALSE(r.ui.canvas.FindText("keybinds"));
+    CHECK_FALSE(r.ui.canvas.FindText("misc"));
+    CHECK(r.Page_().ReadAlong()->Access().name == r.Words(strings::id::kWindowSettingsReadAlong));
     CHECK(r.Page_().RunAtStartup()->Access().name == r.Words(strings::id::kWindowSettingsRunAtStartup));
     CHECK(r.Page_().StartMinimised()->Access().name == r.Words(strings::id::kWindowSettingsStartMinimised));
     CHECK(r.Page_().RunAsAdmin()->Access().name == r.Words(strings::id::kWindowSettingsRunAsAdmin));
     CHECK(r.Page_().DarkMode()->Access().name == r.Words(strings::id::kWindowSettingsDarkMode));
     CHECK(r.Page_().LeftHanded()->Access().name == r.Words(strings::id::kWindowSettingsLeftHanded));
-    CHECK(r.Page_().KeepWordMark()->Access().name == r.Words(strings::id::kWindowSettingsKeepWordMark));
-    // 349, then 28 apart, 250 wide.
-    CHECK(r.Page_().RunAtStartup()->Abs().y == doctest::Approx(349));
-    CHECK(r.Page_().LeftHanded()->Abs().y == doctest::Approx(349 + 4 * 28));
-    CHECK(r.Page_().KeepWordMark()->Abs().y == doctest::Approx(349 + 5 * 28));
-    // The last switch ends above the dotted rule of the bottom links (it crossed it before G2 moved the block up).
-    CHECK(r.Page_().KeepWordMark()->Abs().y + r.Page_().KeepWordMark()->Abs().h <= nui::layout::kRuleBottom.y);
+    // First at y = 335, then 28 apart, 250 wide: read-along, run at startup, start minimized, run as admin,
+    // dark mode, left-handed.
+    SwitchRow* order[] = {r.Page_().ReadAlong(),     r.Page_().RunAtStartup(), r.Page_().StartMinimised(),
+                          r.Page_().RunAsAdmin(),    r.Page_().DarkMode(),     r.Page_().LeftHanded()};
+    for (int i = 0; i < 6; ++i) CHECK(order[i]->Abs().y == doctest::Approx(335 + i * 28));
+    // The last switch ends above the dotted rule of the bottom links.
+    CHECK(r.Page_().LeftHanded()->Abs().y + r.Page_().LeftHanded()->Abs().h <= nui::layout::kRuleBottom.y);
     CHECK(r.Page_().RunAtStartup()->Abs().w == doctest::Approx(250));
+    // The page's order is the one ui_host.h names, and each automation id is "settings.<card id>".
+    const std::vector<std::string>& ids = SwitchCardIds();
+    REQUIRE(ids.size() == 6);
+    for (size_t i = 0; i < ids.size(); ++i) {
+        CHECK(r.Page_().SwitchFor(ids[i]) == order[i]);
+        CHECK(order[i]->AutomationId() == "settings." + ids[i]);
+    }
+}
+
+// ------------------------------------------------------------------------- switch cards ---
+
+TEST_CASE("Settings: a switch has a card: hover selects it, the card shows its title and text") {
+    Rig r;
+    CHECK(r.Page_().SelectedAction() == "read");
+    const RectF row = r.Page_().RunAtStartup()->Abs();
+    r.ui.Move(row.x + 20, row.y + 12);
+    CHECK(r.Page_().SelectedAction() == "runAtStartup");
+    CHECK(r.Page_().CardTitle()->Text() == r.Words("window.switches.runAtStartupTitle"));
+    CHECK(r.Page_().CardBody()->PlainText() == r.Words("window.switches.runAtStartupDesc"));
+    CHECK(r.Page_().RunAtStartup()->Selected());
+    CHECK_FALSE(r.Page_().RowFor("read")->Selected());  // only one row is selected, Key or switch
+    // The play button's name is the switch version, not the Key's "what the ... key does".
+    CHECK(r.Page_().ReadButton()->Access().name ==
+          strings::Format("en", strings::id::kWindowSwitchesReadAloud,
+                          {{"action", r.Words("window.switches.runAtStartupTitle")}}));
+
+    // The selection stays when the pointer leaves, and a Key row takes it back.
+    r.ui.Move(700, 300);
+    CHECK(r.Page_().SelectedAction() == "runAtStartup");
+    const RectF key = r.Page_().RowFor("pause")->Abs();
+    r.ui.Move(key.x + 20, key.y + 12);
+    CHECK(r.Page_().SelectedAction() == "pause");
+    CHECK_FALSE(r.Page_().RunAtStartup()->Selected());
+}
+
+TEST_CASE("Settings: every switch has a title and a description in the string table, and a card of its own") {
+    Rig r;
+    for (const std::string& id : SwitchCardIds()) {
+        const std::string title = CardTitleId(id), desc = CardDescId(id);
+        // A text missing from the English table comes back as its own id.
+        CHECK(r.Words(title.c_str()) != title);
+        CHECK(r.Words(desc.c_str()) != desc);
+        CHECK_FALSE(r.Words(desc.c_str()).empty());
+        r.Page_().OnShow(ShowOptions{id, ""});
+        CHECK(r.Page_().SelectedAction() == id);
+        CHECK(r.Page_().CardTitle()->Text() == r.Words(title.c_str()));
+        CHECK(r.Page_().CardBody()->PlainText() == r.Words(desc.c_str()));
+    }
+}
+
+TEST_CASE("Settings: pressing or focusing a switch selects it, and a press still sends its own message") {
+    Rig r;
+    r.sent.clear();
+    const PointF c = Centre(*r.Page_().DarkMode());
+    r.ui.Click(c.x, c.y);
+    CHECK(r.Page_().SelectedAction() == "darkMode");
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].type == PageMessageType::SetTheme);
+
+    // The keyboard: the focus coming to a switch selects it too.
+    r.Page_().ReadAlong()->Focus();
+    CHECK(r.Page_().SelectedAction() == "readAlong");
+    CHECK(r.Page_().CardTitle()->Text() == r.Words("window.switches.readAlongTitle"));
+}
+
+TEST_CASE("Settings: the read button sends the selected switch's id; a state does not change the selection") {
+    Rig r;
+    const RectF row = r.Page_().RunAsAdmin()->Abs();
+    r.ui.Move(row.x + 20, row.y + 12);
+    r.sent.clear();
+    const PointF c = Centre(*r.Page_().ReadButton());
+    r.ui.Click(c.x, c.y);
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
+    CHECK(r.sent[0].action == "runAsAdmin");
+    UiState s = Rig::State();
+    s.runAsAdmin = true;
+    r.Push(s);
+    CHECK(r.Page_().SelectedAction() == "runAsAdmin");
+    CHECK(r.Page_().CardTitle()->Text() == r.Words("window.switches.runAsAdminTitle"));
+}
+
+TEST_CASE("Settings: while a chip waits for a key the card stays on that key, a switch does not take it") {
+    Rig r;
+    r.ClickChip("pause");
+    REQUIRE(r.Page_().CapturingAction() == "pause");
+    const RectF row = r.Page_().DarkMode()->Abs();
+    r.ui.Move(row.x + 20, row.y + 12);
+    CHECK(r.Page_().SelectedAction() == "pause");
+    CHECK(r.Page_().CardTitle()->Text() == r.Words(strings::id::kWindowKeysPause));
+}
+
+TEST_CASE("CardIds: a switch's ids are window.switches.*, a Key's are window.keys.*") {
+    CHECK(IsSwitchCard("readAlong"));
+    CHECK_FALSE(IsSwitchCard("read"));
+    CHECK(CardTitleId("leftHanded") == "window.switches.leftHandedTitle");
+    CHECK(CardDescId("leftHanded") == "window.switches.leftHandedDesc");
+    CHECK(CardTitleId("speech") == "window.keys.speech");
+    CHECK(CardDescId("speech") == "window.keys.speechDesc");
 }
 
 // ------------------------------------------------------------------------------- selection ---
@@ -563,14 +664,14 @@ TEST_CASE("Settings: the switches show the state, and a press changes nothing un
     s.runAsAdmin = true;
     s.dark = true;
     s.leftHanded = true;
-    s.keepWordMark = true;
+    s.readAlong = true;
     r.Push(s);
     CHECK(r.Page_().RunAtStartup()->Checked());
     CHECK_FALSE(r.Page_().StartMinimised()->Checked());
     CHECK(r.Page_().RunAsAdmin()->Checked());
     CHECK(r.Page_().DarkMode()->Checked());
     CHECK(r.Page_().LeftHanded()->Checked());
-    CHECK(r.Page_().KeepWordMark()->Checked());
+    CHECK(r.Page_().ReadAlong()->Checked());
 }
 
 TEST_CASE("Settings: each switch sends its own message with the opposite value") {
@@ -581,7 +682,7 @@ TEST_CASE("Settings: each switch sends its own message with the opposite value")
     s.runAsAdmin = false;
     s.dark = false;
     s.leftHanded = false;
-    s.keepWordMark = false;
+    s.readAlong = false;
     r.Push(s);
     r.sent.clear();
 
@@ -594,7 +695,7 @@ TEST_CASE("Settings: each switch sends its own message with the opposite value")
     click(r.Page_().RunAsAdmin());
     click(r.Page_().DarkMode());
     click(r.Page_().LeftHanded());
-    click(r.Page_().KeepWordMark());
+    click(r.Page_().ReadAlong());
     REQUIRE(r.sent.size() == 6);
     CHECK(r.sent[0].type == PageMessageType::SetRunAtStartup);
     CHECK(r.sent[0].on == false);
@@ -606,7 +707,7 @@ TEST_CASE("Settings: each switch sends its own message with the opposite value")
     CHECK(r.sent[3].theme == "dark");
     CHECK(r.sent[4].type == PageMessageType::SetLeftHanded);
     CHECK(r.sent[4].on == true);
-    CHECK(r.sent[5].type == PageMessageType::SetKeepWordMark);
+    CHECK(r.sent[5].type == PageMessageType::SetReadAlong);
     CHECK(r.sent[5].on == true);
     // Nothing flipped by itself.
     CHECK(r.Page_().RunAtStartup()->Checked());

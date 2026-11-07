@@ -1,21 +1,23 @@
 #pragma once
 // The Settings page (K.4, ADR-0009), ported from old ui/index.html (#page-settings), old ui/js/settings.js and
-// old ui/css/pages.css. Left: the heading "keybinds" and one row per Key (its name and a KeyChip), the heading
-// "misc" and five switches. Right: the key card of the selected Key (wine engraving, a read button (the speaker icon) that
-// reads the card aloud, the title, what the Key does) and, under it, the hint that shows while a chip waits for a key.
+// old ui/css/pages.css; K9 is the owner's new layout. Left: one row per Key (its name and a KeyChip), then six
+// switches (read-along, run at startup, start minimized, run as admin, dark mode, left-handed); no headings.
+// Right: the card of the selected row (wine engraving, a read button (the speaker icon) that reads the card
+// aloud, the title, what the Key or switch does) and, under it, the hint that shows while a chip waits for a key.
 //
 // What the page owns (the state message does not carry it, as before): which row is selected (a hover, a focus
-// or a press selects it, the card follows; while a chip waits for a key the card stays on that key) and which
+// or a press selects it (a switch row too, K9), the card follows; while a chip waits for a key the card stays on that key) and which
 // chip waits for a key. Everything else is drawn from the last UiState, and a user action is one PageMessage:
 //   a press on a chip        CaptureKey { action }      the host lets go of Lexia's keys
 //   a key (with modifiers)   SetKey { action, key }     the host checks and keeps it or not, new state follows
 //   Esc, Tab, a press outside or the focus gone while waiting
 //                            CancelKeyCapture { action }
-//   the read button          ReadKeyCard { action }
-//   the switches             SetRunAtStartup / SetStartMinimised / SetRunAsAdmin / SetTheme / SetLeftHanded / SetKeepWordMark
+//   the read button          ReadKeyCard { action = the card's id: a Key, or a switch name from SwitchCardIds() }
+//   the switches             SetRunAtStartup / SetStartMinimised / SetRunAsAdmin / SetTheme / SetLeftHanded / SetReadAlong
 // The capture reads the key chip's OnKey: a chip that waits takes every key, Tab and Esc too (Screen), and the
 // window gives it the keys DefWindowProc would eat (settings_window.cpp).
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "native_ui/controls.h"
@@ -84,7 +86,9 @@ public:
     // For the picture tool and the tests.
     const std::vector<KeyRow*>& Rows() const { return rows_; }
     KeyRow* RowFor(const std::string& action) const;
-    const std::string& SelectedAction() const { return selected_; }
+    SwitchRow* SwitchFor(const std::string& cardId) const;  // a switch by its card id ("readAlong" ...)
+    bool HasCard(const std::string& cardId) const;
+    const std::string& SelectedAction() const { return selected_; }  // the selected card's id: a Key or a switch
     const std::string& CapturingAction() const { return capturing_; }
     Label* CardTitle() const { return cardTitle_; }
     Paragraph* CardBody() const { return cardBody_; }
@@ -95,31 +99,31 @@ public:
     SwitchRow* RunAsAdmin() const { return admin_; }
     SwitchRow* DarkMode() const { return dark_; }
     SwitchRow* LeftHanded() const { return left_; }
-    SwitchRow* KeepWordMark() const { return keepMark_; }
+    SwitchRow* ReadAlong() const { return readAlong_; }
 
 protected:
     void Relayout(Canvas& canvas) override;
 
 private:
     void BuildRows(const UiState& state);
-    void Select(const std::string& action);
+    void Select(const std::string& cardId);
+    void ShowSelection();  // bold on the selected row, Keys and switches
     void StartCapture(const std::string& action);
     // Ends the wait. `sendCancel`: tell the host (every end but a heard key). Then the chip shows its key again.
     void EndCapture(bool sendCancel);
     void OnChipKey(const std::string& action, const KeyEvent& ev);
     void ShowChip(KeyRow& row);
     void ShowCard();
-    SwitchRow* AddSwitch(const char* labelId, float index);  // the index-th row of the "misc" list
+    SwitchRow* AddSwitch(const std::string& cardId, const char* labelId);  // the next row of the switch list
 
     std::vector<KeyRow*> rows_;
+    std::vector<std::pair<std::string, SwitchRow*>> switches_;  // card id and row, in SwitchCardIds() order
     std::vector<UiKey> keys_;  // the last state's keys (the language action left out)
     std::string selected_, capturing_;
     bool haveState_ = false;
     UiState last_;  // the last state: what the switches and chips show, and what a switch sends the opposite of
 
-    Label* keysHeading_ = nullptr;
     Panel* keysHost_ = nullptr;  // holds the KeyRows (made with the first state)
-    Label* miscHeading_ = nullptr;
     KeyCard* card_ = nullptr;
     Label* cardTitle_ = nullptr;
     KeyReadButton* read_ = nullptr;
@@ -130,7 +134,7 @@ private:
     SwitchRow* admin_ = nullptr;
     SwitchRow* dark_ = nullptr;
     SwitchRow* left_ = nullptr;
-    SwitchRow* keepMark_ = nullptr;
+    SwitchRow* readAlong_ = nullptr;
 };
 
 }  // namespace nui

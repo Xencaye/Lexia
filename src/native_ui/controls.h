@@ -141,11 +141,23 @@ public:
     AccessInfo Access() const override;
     // 0 (off) .. 1 (on) as drawn now, for the tests.
     float OnAmount() const { return TweenValue(on_); }
+    // K9: the Settings page shows a card for the switch that is selected. `SetOnReach` is called when the pointer
+    // comes onto the row or the focus comes to it (the page selects it, like a KeyRow); a selected row is drawn
+    // in bold, as the selected Key is.
+    void SetOnReach(std::function<void()> fn) { onReach_ = std::move(fn); }
+    void SetSelected(bool selected);
+    bool Selected() const { return selected_; }
+
+protected:
+    void StateChanged() override;
 
 private:
     std::string label_;
     bool checked_ = false;
     Tween on_;
+    bool selected_ = false;
+    bool wasHovered_ = false, wasFocused_ = false;  // to see which flag just changed
+    std::function<void()> onReach_;
 };
 
 // ---------------------------------------------------------------------------------- KeyChip ---

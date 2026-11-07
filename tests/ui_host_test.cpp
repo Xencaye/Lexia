@@ -143,3 +143,16 @@ TEST_CASE("FillVoiceState: a Voice with no stored controls shows the defaults") 
     CHECK(s.controls.at("pitch").value == doctest::Approx(0.0));
     CHECK(s.controls.at("volume").value == doctest::Approx(1.0));
 }
+
+// K9: the card ids shared by the Settings page and App::ReadKeyCard.
+TEST_CASE("SwitchCardIds: the six switches in the page's order; a Key is not a switch card") {
+    const std::vector<std::string>& ids = SwitchCardIds();
+    REQUIRE(ids.size() == 6);
+    CHECK(ids.front() == "readAlong");
+    CHECK(ids.back() == "leftHanded");
+    for (const std::string& id : ids) CHECK(IsSwitchCard(id));
+    CHECK_FALSE(IsSwitchCard("read"));
+    CHECK_FALSE(IsSwitchCard(""));
+    CHECK(CardDescId("runAsAdmin") == "window.switches.runAsAdminDesc");
+    CHECK(CardDescId("pause") == "window.keys.pauseDesc");
+}
