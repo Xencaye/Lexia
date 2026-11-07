@@ -61,7 +61,7 @@
     X(WindowMinimise, "window.minimise")  /* tooltip and accessible name of the window's minimise button (K10) */ \
     X(WindowClose, "window.close")  /* tooltip and accessible name of the window's close button (K10) */ \
     X(WindowVolume, "window.volume")  /* accessible name of the Master volume slider */          \
-    X(UiaSwitch, "uia.switch")  /* what a screen reader calls a switch (the localized control type) */ \
+    X(UiaSwitch, "uia.switch")  /* what a screen reader calls a switch (the localised control type) */ \
     X(WindowVolumeValue, "window.volumeValue")  /* {value}: percent */                           \
     X(WindowHomePower, "window.home.power")  /* the power button's accessible name */            \
     X(WindowHomeEnable, "window.home.enable")  /* the button under the power button while Lexia is Off */\

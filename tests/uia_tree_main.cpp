@@ -355,7 +355,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
                   "Settings: switch " + T(id) + " has Toggle");
             BSTR b = nullptr;
             sw->el->get_CurrentLocalizedControlType(&b);
-            Check(Narrow(b) == T(strings::id::kUiaSwitch), "Settings: switch " + T(id) + " is localized as a switch");
+            Check(Narrow(b) == T(strings::id::kUiaSwitch), "Settings: switch " + T(id) + " is localised as a switch");
             SysFreeString(b);
         }
         Check(keyRows == 3, "Settings: three key rows (" + std::to_string(keyRows) + ")");

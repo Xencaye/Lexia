@@ -124,6 +124,7 @@ adds one from disk. Both write to `%LOCALAPPDATA%\Lexia\voices` unless `--voices
 - Any change to grouping/reading order must run the fixture score before and after and report both.
   No fixture may get worse beyond the tolerance in `scripts/score_layout.ps1`.
 - Text the user sees or hears (hint bar, Announcements, Control bar, tray, Settings window) goes through `strings/`, never a literal in the code.
+- **British English everywhere** (owner, Nov 7): UI text (`strings/table_en.cpp`), the installer, docs and comments ("minimise", "colour", "analyse", "recognise"). Identifiers and keys that come from other APIs or older files keep their spelling (`SC_MINIMIZE`, `hoverColor` in settings.json, `RecognizeBlocks`).
 - Diagnostics go through the logger (`log.h`, P0.7), not `std::cout`.
 - New dependencies go in `vcpkg.json`; check the licence first and add it to the package's
   third-party notices (`licenses/components/`, see `docs/third-party.md`).

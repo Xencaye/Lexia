@@ -53,7 +53,7 @@ _Avoid_: options, preferences, config
 
 **Key card**:
 The card on the Settings page that says what the selected Key or switch does (a Key, or one of the switches
-read-along, run at startup, start minimized, run as admin, dark mode, left-handed). Its read button (a speaker)
+read-along, run at startup, start minimised, run as admin, dark mode, left-handed). Its read button (a speaker)
 reads the card aloud, and while that card is being read it is a stop button (K11).
 _Avoid_: help panel, description box
 
@@ -251,8 +251,9 @@ _Avoid_: elevated mode, admin mode
 Lexia has no quit key; quitting is done from the tray menu (D2). Closing the Settings window does not quit.
 (With `lexia.exe --console`, Ctrl+C also ends it, but not cleanly: speech is cut off.)
 
-The UI words are American English (`strings/table_en.cpp`: "minimize", "analyzes", "colors"); this glossary and
-the other docs keep the spelling of the project (minimise, colour).
+Lexia uses British English everywhere: the UI words (`strings/table_en.cpp`: "minimise", "analyses", "colours"), the
+installer, this glossary and the other docs. Code identifiers and file keys that come from other APIs or older files
+keep their spelling (`SC_MINIMIZE`, `hoverColor` in settings.json).
 
 ## Testing
 

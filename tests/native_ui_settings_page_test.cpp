@@ -176,7 +176,7 @@ TEST_CASE("Settings: no headings, and the six switches are the page's words in t
     CHECK(r.Page_().RunAsAdmin()->Access().name == r.Words(strings::id::kWindowSettingsRunAsAdmin));
     CHECK(r.Page_().DarkMode()->Access().name == r.Words(strings::id::kWindowSettingsDarkMode));
     CHECK(r.Page_().LeftHanded()->Access().name == r.Words(strings::id::kWindowSettingsLeftHanded));
-    // First at y = 335, then 28 apart, 250 wide: read-along, run at startup, start minimized, run as admin,
+    // First at y = 335, then 28 apart, 250 wide: read-along, run at startup, start minimised, run as admin,
     // dark mode, left-handed.
     SwitchRow* order[] = {r.Page_().ReadAlong(),     r.Page_().RunAtStartup(), r.Page_().StartMinimised(),
                           r.Page_().RunAsAdmin(),    r.Page_().DarkMode(),     r.Page_().LeftHanded()};

@@ -57,7 +57,7 @@ HRESULT FromResult(nui::AccessResult r) {
 
 // The control type for a role. A switch is a Button with the Toggle pattern: UI Automation has no switch type
 // (WinUI's ToggleSwitch does the same), and CheckBox would make a screen reader say "check box", which is
-// not what the person sees. The localized control type says "switch" (strings uia.switch).
+// not what the person sees. The localised control type says "switch" (strings uia.switch).
 CONTROLTYPEID ControlTypeOf(nui::Role role) {
     switch (role) {
         case nui::Role::Button: return UIA_ButtonControlTypeId;

@@ -1,7 +1,7 @@
 #pragma once
 // The Settings page (K.4, ADR-0009), ported from old ui/index.html (#page-settings), old ui/js/settings.js and
 // old ui/css/pages.css; K9 is the owner's new layout. Left: one row per Key (its name and a KeyChip), then six
-// switches (read-along, run at startup, start minimized, run as admin, dark mode, left-handed); no headings.
+// switches (read-along, run at startup, start minimised, run as admin, dark mode, left-handed); no headings.
 // Right: the card of the selected row (wine engraving, a read button (the speaker icon) that reads the card
 // aloud, the title, what the Key or switch does) and, under it, the hint that shows while a chip waits for a key.
 //

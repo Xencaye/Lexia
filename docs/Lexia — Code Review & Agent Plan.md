@@ -287,8 +287,8 @@ The C++ side of D2–D7 waited for your approval of D0 (Oct 28). D8 (Nov 3) repl
   - Run at startup and start minimised.
   - Theme: System / Light / Dark (a new `theme` setting). The Interface language choice and the Language key come in 0.8 (ADR-0007).
   - About: version, GPL-3.0-or-later and the third-party notices.
-- [x] **D9 Start options** (owner, Nov 5). A **start minimized** switch between run at startup and run as admin: on by default, drawn lighter and unusable while run at startup is off; on = the Run value gets `--minimised` (a start at logon stays in the tray), off = a start at logon opens the window. A manual start, and the first start after the installer, always open the Settings window, which now comes to the front (also after the elevated relaunch: `AllowSetForegroundWindow`). Every start writes the Run value again (this exe's path, the switch as the setting says). On / Off is **Off** on the very first start (no settings.json) and remembered after that.
-  *Your check:* a fresh start (delete `%LOCALAPPDATA%\Lexia\settings.json`) is Off and opens the window; turn On, Quit, start again: still On; run at startup with start minimized on and off, then sign out and in.
+- [x] **D9 Start options** (owner, Nov 5). A **start minimised** switch between run at startup and run as admin: on by default, drawn lighter and unusable while run at startup is off; on = the Run value gets `--minimised` (a start at logon stays in the tray), off = a start at logon opens the window. A manual start, and the first start after the installer, always open the Settings window, which now comes to the front (also after the elevated relaunch: `AllowSetForegroundWindow`). Every start writes the Run value again (this exe's path, the switch as the setting says). On / Off is **Off** on the very first start (no settings.json) and remembered after that.
+  *Your check:* a fresh start (delete `%LOCALAPPDATA%\Lexia\settings.json`) is Off and opens the window; turn On, Quit, start again: still On; run at startup with start minimised on and off, then sign out and in.
 - [x] **D10 Read the key card aloud** (owner, Nov 5). The key card's play button on the Settings page reads that key's description aloud (`readKeyCard { action }`: the host speaks `window.keys.<action>Desc` from the string table, one Block per line, in place of what was being spoken), so a person hears what a key does before Lexia is even On. It replaces the per-key demo clips of D7.
   *Your check:* select each key, press play, with Lexia Off and On.
 - [ ] **D7 Help tab and videos.** A tutorial: silent, with captions in the Interface language, bundled. This replaces the old first-run welcome. (The per-key clips are replaced by D10.)
@@ -490,7 +490,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
 - [x] **K9 The owner's new Settings page (Nov 7).** Built on `feat/K9-settings-layout` (made from `feat/G2`), merged into `main` (PR #5). The owner's
   mockup, measured pixel by pixel at 800 x 600 DIPs: (1) **no headings** ("keybinds" and "misc" and their strings are
   gone); (2) the key rows start at y = 137 (rows at 137, 178, 219); (3) the switches start at y = 335, 28 apart, in the
-  order **enable read-along**, run at startup, start minimized, run as admin, dark mode, left-handed; (4) the card is
+  order **enable read-along**, run at startup, start minimised, run as admin, dark mode, left-handed; (4) the card is
   355 x 393 at (273, 115) and its contents keep their offsets from the card's top (the engraving moved down to keep
   its distance from the card's bottom edge; the capture hint under the card moved to y = 514). The top and bottom
   links, the rules and the volume are unchanged (owner decision). (5) **One read-along switch**: the old G2 setting is
@@ -538,7 +538,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
     (`native_ui/window_hit.*`, pure: Caption on paper, pictures and plain text, Client on controls, `ScrollArea`s, and
     everything while a sheet or an open list is up), the window (`WM_NCCALCSIZE`, `WM_NCHITTEST`, `WM_NCMOUSEMOVE`,
     `WM_NCACTIVATE`, `DwmExtendFrameIntoClientArea`; the DWM dark title bar code is gone), strings `window.minimise` /
-    `window.close` ("Minimize" / "Close"), `lexia_settingsshot --hover minimise|close`. Tests: `native_ui_window_hit_test`,
+    `window.close` ("Minimise" / "Close"), `lexia_settingsshot --hover minimise|close`. Tests: `native_ui_window_hit_test`,
     the new K10 cases in `native_ui_settings_ui_test` and `native_ui_access_test`, and `uia_tree` (no caption, two named
     Buttons with Invoke, Invoke on minimise minimises the window). The shot's buttons measure x 730..745 y 21 (dash) and x 765..778 y 15..28 (X).
   *Your check:* drag the window by the empty area, minimise and close with the mouse, Tab + Enter, Alt+Space and
@@ -597,7 +597,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
     bar buttons (Pause/Resume, Skip, Stop, Help, Size; no Language or Close); Settings window (native, no title bar,
     pages, Master volume in the frame); Key card (new term); Preset file (Voices page; loads into the Voice the file
     names); Interface language (no Overlay hints); Language key (offered Languages); Run as admin (Setup task); the
-    quit note (the tray exists); UI words are American English.
+    quit note (the tray exists); UI words are British English (since K12).
   - **Verification:** Release build with 0 warnings, `ctest` 883 of 883 (`uia_tree` and `read_along_layer` ran), `score_layout.ps1` OK (no Fixture worse). `git grep -i "word mark"` finds only the glossary's "Avoid" lists and this note. The 16, 32 and 256 px frames were looked at.
   *Your check:* the exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and on a
     light taskbar: the dark tile #1E1E1E can be hard to see on a dark taskbar), the Setup icon and the installer's
