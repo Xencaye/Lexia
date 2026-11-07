@@ -1,728 +1,225 @@
-# Lexia — Code Review & Agent Plan
+# Lexia — Plan
 
-Oct 23, 2026 · @Eleonora · updated Oct 25, 2026 after the design grilling (see [Decisions](#decisions-oct-25-2026)) · status updated Nov 5, 2026
-
-**Lexia 0.6.0 was released on Nov 8, 2026** (tag `v0.6.0`: the installer and a portable zip): read-along (G1, G2),
-the native Settings window (K), the owner's logo, and the final light and dark palette (K12, K13). Future changes go
-into **Lexia 0.7** (`vcpkg.json` says 0.7.0). **Lexia 0.5.0** was released on Nov 5, 2026 (tag
-`v0.5.0`). Lexia 0.5 turned the console
-prototype into an app people with dyslexia can install and use without editing files:
-- neural voices, English only (ADR-0007; language support is planned for Lexia 0.8);
-- a Reading queue with Pause / Skip / Stop;
-- spoken Announcements;
-- a Settings window;
-- a Control bar on the Overlay;
-- an installer.
+@Eleonora · started Oct 23, 2026 · cleaned up Nov 8, 2026 (the finished tasks are one line each; their full
+records are in git history and in the PRs)
 
 Every term below is defined in `GLOSSARY.md`, and every decision with a trade-off is in `docs/adr/`.
 On-screen wording follows the glossary.
 
 ## Status (Nov 8, 2026)
 
-**Lexia 0.6.0 is released** (Nov 8, tag `v0.6.0`): `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, from
-`main` after PRs #1 to #10 (K, G1, G2, the H5 plan, K9 to K13) and the release PR. Future changes go into **Lexia 0.7**.
-**Lexia 0.5.0 was released** (Nov 5, tag `v0.5.0`): `Lexia-0.5.0-setup.exe` and `Lexia-0.5.0-portable.zip`.
-Done and merged into `main`: Phase 0, A1–A4, B1–B6, C1–C5, D2–D6, D8, D9, D10, E3–E5, H1–H4 and I1 (D2–D8 in
-PR #31; a cleanup of unused code in #32 and a readability pass with comments in #33, the D8 fixes in #35,
-D9 the start options in #37, the About page in #38, H4 the installer in #39, D10 in #40, all Nov 5).
-No GitHub issue is open.
-**History reset (Nov 5):** the repo `Xencaye/Lexia` restarted from one commit of the current files. The PR and issue
-numbers in this plan (#1–#42) and the tag `v0.5.0` are in the old history, now the private repo `Xencaye/Lexia-archive`.
-Carried over from 0.5 into 0.6 (the owner's):
-
-- **D7**: the owner supplies the tutorial video (the key card is read aloud instead of clips: D10).
-- **D8**: the owner's by-hand tests; the final dark palette came in K13 (Nov 8), with the colour pairs of the design that fail the contrast check listed there.
-- **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
-- **A5** (owner): the check in games, a browser and a video with subtitles.
-
-Merged into `main` (Nov 7 and 8, PRs #1 to #10; released as 0.6.0): **K, the native Settings window** (ADR-0009, PR #1: K0 to K6 and K8); G1 (the read-along bar on the Overlay, PR #2), G2 (the read-along layer after you leave the Overlay, PR #3) and the H5 plan (PR #4); K9 (the owner's new Settings page and the one switch "enable read-along" for G1 and G2, PR #5); K10 (the window's own minimise and close buttons, no Windows title bar, PR #6); the final switch-card texts (PR #7); K11 (the card's read button is also a stop button, PR #8). **K12** (the owner's new logo SVGs for the icons; the feature called read-along everywhere; glossary audit) (PR #9). **K13** (the final light and dark palette, the engravings as SVG, the logo colour; the Control bar greyed only during the Analysis) (PR #10). **Your open checks:** K7 (done on `main`), and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13 (each task below has its list).
-Next: Lexia 0.7 (future changes, owner Nov 8). Later: E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
-Ubuntu (Lexia 1.0).
-
-## Verdict
-
-No rebuild. The module split (capture → ocr → layout → overlay → speech) is the right shape, C++ is still the right language, and the build/packaging setup is better than most hobby projects at this stage.
-
-What needs work before agents can move fast is not the features but the scaffolding around them:
-
-1. **A way to verify without you.** Today every change waits for you to build and judge the result by eye. Claude Code running on your Windows PC can build itself, but it still can't *see* whether grouping got better. An offline test harness (screenshot in → blocks out, compared against expected results) fixes that.
-2. **One owner of app state.** `main.cpp` holds everything in one function and one thread. That is fine now, but the tray icon, settings window and a second speech engine all need a central `App` object and OCR off the UI thread.
-3. **Small correctness fixes** in the build (UTF-8 source, warnings, an app manifest) that will bite as soon as Bulgarian strings and a GUI arrive.
-
-Scope note: this review covers `CMakeLists.txt`, `vcpkg.json` and `main.cpp`. The other modules (ocr, layout, overlay, speech, settings, capture, language) weren't shared, so task P0.1 is a full audit of them by an agent that can see the whole repo.
-
-## Code review findings
-
-High = fix in Phase 0. Medium = fix when the area is touched. Low = nice to have.
-
-| # | Where | Finding | Fix | Priority |
-| --- | --- | --- | --- | --- |
-| R1 | CMakeLists | No `/utf-8`. MSVC reads source in the system code page (cp1251 on a Bulgarian Windows), so Cyrillic literals and `—` in comments can be mangled or warn. | `target_compile_options(lexia PRIVATE /utf-8)` | High |
-| R2 | CMakeLists | No warning level. Bugs that `/W4 /permissive-` would catch go unnoticed, and agents have no compiler feedback to learn from. | `/W4 /permissive-`, fix warnings once, then keep at zero | High |
-| R3 | CMakeLists | Everything compiles into one exe, so nothing can be tested in isolation. | Split into `lexia_core` (static lib: layout, ocr, language, settings) + `lexia` exe + `lexia_tests` + `lexia_cli` | High |
-| R4 | CMakeLists | No app manifest. DPI awareness is set in code, which works, but a GUI later needs Common Controls v6 and a manifest is the documented way to declare per-monitor DPI v2. | Add `lexia.manifest` to the sources | Medium |
-| R5 | CMakeLists | ONNX Runtime is linked by raw `.lib` path and its DLLs found by `file(GLOB)` at configure time. An empty glob makes the copy command fail with a confusing error. | Wrap in an `IMPORTED` target (`onnxruntime::onnxruntime`) with `IMPORTED_LOCATION`, copy via `$<TARGET_RUNTIME_DLLS>` | Medium |
-| R6 | CMakeLists | Packaging runs after every build, Debug included. | Run only for Release (`$<CONFIG:Release>`) or move to a `package` target | Low |
-| R7 | CMakeLists | Console subsystem. Fine for now; a tray app shouldn't open a console window for friends. | `WIN32` subsystem + optional `--console` flag that calls `AllocConsole` | Medium (Phase 3) |
-| R8 | main.cpp | `Run()` owns all state as locals and handles every hotkey inline. Adding a tray menu and settings window means duplicating that logic. | Extract an `App` class with `OpenOverlay()`, `Stop()`, `SwitchLanguage()`, `ApplySettings()`; hotkeys, tray and settings window all call it | High |
-| R9 | main.cpp | Drag-OCR runs inside `onSelect` on the UI thread, so the overlay freezes while it runs. Full-screen analysis on overlay open presumably does the same. | OCR worker thread with a job queue; results posted back with `PostMessage` | Medium |
-| R10 | main.cpp | `LastAnalysisMs()` is a global read from a different module — hidden coupling. | Return timing inside the result struct | Low |
-| R11 | main.cpp | Empty-text check uses `find_first_not_of(' ')`, so text that is only newlines or tabs is spoken as "nothing". | Use `Trim(text).empty()` from common.h. **Fixed** (Nov 5, PR #33, in `App::OpenOverlay`) | Low |
-| R12 | main.cpp | If `ocr.Init(cand)` fails during a language switch, the engine may be left half-initialised and the old language gone. | Build a new `OcrEngine`, swap only on success | Medium |
-| R13 | main.cpp | A hotkey clash makes the app exit. For a tray app the user should get a notification and a way to pick another key. | Report and continue; mark the action unbound | Medium (Phase 3) |
-| R14 | main.cpp | All diagnostics go to `std::cout`. With no console on a friend's PC there is nothing to send you. | Small logger writing to `%LOCALAPPDATA%\Lexia\lexia.log` (keep console output too) | High |
-| R15 | main.cpp | Colour conversion `0xRRGGBB → COLORREF` lives in `main`. | Have settings return `COLORREF` directly | Low |
-| R16 | Repo | No tests, no CI, no `CLAUDE.md`. | Phase 0 | High |
-| R17 | main.cpp:88; settings.cpp:149,151,162; ocr.cpp:76,91-92,98,374 | `fs::path::string()` converts to the ANSI code page and throws `std::system_error` for characters outside it (a Cyrillic folder on an English Windows). main.cpp:88 runs at every start and nothing catches it: crash on startup. When it does convert, cp1251 bytes go to a UTF-8 console as mojibake. | `.u8string()` wherever a path is printed (P0.7) | High |
-| R18 | layout.h:4,18; common.h:3,11,17 | layout.* pulls in `<windows.h>` and uses `RECT`/`POINT`, against the "layout.* free of Win32" rule. | Plain `Rect`/`Point` in common.h; convert in ocr/overlay (P0.4) | Medium |
-| R19 | overlay.cpp:288 | A Click before the Analysis finishes runs `while (!g_ready) Sleep(15)` on the UI thread with no message pump: the Overlay freezes and F8/Esc/F7 do nothing until it ends (they are queued). | Hold the Click and handle it when the Analysis is done (C2) | Medium |
-| R20 | overlay.cpp:242; ocr.cpp:129,150; main.cpp:182-199 | No exception boundary in the Analysis worker or `main()`. Only `Ort::Exception` is caught, so `cv::Exception`, `bad_alloc` or R17's `system_error` end in `std::terminate` with no message or log. | Catch `std::exception` in the worker (empty Blocks, set ready) and in `main()`; log it (C2, P0.7) | Medium |
-| R21 | main.cpp:158-160 | Every Pick's recognised text goes to stdout. A mechanical cout→logger swap in P0.7 would put it in lexia.log, against the intent of ADR-0005 (the log is meant to be sent to you). | Drop the text, or log it only at an off-by-default level (P0.7) | Medium |
-| R22 | settings.cpp:19 | settings.json lives next to the exe. If installed under Program Files (Inno's usual `{autopf}` default) it is read-only, so defaults can't be written and C3 can't save the Language. | `%LOCALAPPDATA%\Lexia\settings.json`, exe folder as fallback for the zip (H4, C3) | Medium |
-| R23 | ocr.cpp:123-127 vs 380; overlay.cpp:263-269 | `OcrEngine::Init` replaces `rec_`/`dict_`/`useSpace_` unlocked while `ReadLines` may run on other threads. Safe today only because the Overlay loop has no HK_LANG branch; C3 would make it a data race. | Switch only after `worker.join()`, or swap a new engine under a mutex (C3, see R12) | Medium |
-| R24 | capture.cpp:21-22,34 | `CreateCompatibleDC` and `BitBlt` results are unchecked. A failed capture (secure desktop, locked session) is a black Shot reported as success, so B3's "Screen capture failed" never fires for these failures. | Check both, return false (B3) | Low |
-| R25 | capture.cpp:34 | DIB bits are read right after `BitBlt` without the `GdiFlush()` the CreateDIBSection docs require. | `GdiFlush()` after `BitBlt` | Low |
-| R26 | common.h:28; ocr.cpp:180; layout.cpp:56 | `HasLetterOrDigit` counts any byte ≥ 0x80 as a letter, so lines of only "—", "•", "…" pass the filters and are read aloud. | Decode UTF-8 and test letter ranges (A3, E3) | Low |
-| R27 | layout.cpp:142 | The hyphen re-join tests `std::islower` on the first byte only, so it never fires for Cyrillic: "раз-/дел" is read as "раз- дел". | Also accept lowercase Cyrillic; run the fixture score (A3, E3) | Low |
-| R28 | layout.cpp:14 | `SortReadingOrder` is a file-`static` template not declared in layout.h, but P0.5 is to test it. | Declare it in layout.h (P0.5) | Low |
-| R29 | speech.h:6; speech.cpp:18; language.h:24 | `Utf8ToWide` lives in speech.* (CLAUDE.md says common.h), so B1 deleting SAPI removes it from under main.cpp:100-101,166. `GuessLanguage` takes `std::wstring`, against "UTF-8 internally". | Move `Utf8ToWide` to common.h; `GuessLanguage` takes UTF-8 (P0.4) | Low |
-| R30 | CMakeLists.txt:40; ocr.cpp:18-19,53 | `MODELS_DIR` bakes the build machine's absolute path into the Release exe; a package without `models\` falls back to it and prints it. | Define `MODELS_DIR` only for Debug, CLI and tests (P0.3) | Low |
-| R31 | vcpkg.json | No `builtin-baseline`, so OpenCV and nlohmann-json versions depend on the vcpkg checkout doing the build. | Add `builtin-baseline` (P0.8) | Low |
-| R32 | overlay.cpp:81-93,151; layout.cpp:166 | Fixed pixel sizes with no DPI scaling: hint pill in the stock font with fixed offsets, 6 px click/drag threshold, 8 px hover tolerance. At 200% the hint is tiny and thresholds half as wide. | Overlay scales by `GetDpiForWindow()/96`; pass the tolerance into `FindBlockAt` so layout.* stays Win32-free (D4) | Low |
-| R33 | main.cpp:186-187 | `SetProcessDpiAwarenessContext` is imported statically, so the exe won't load before Windows 10 1703 and the `SetProcessDPIAware` fallback is dead code. | Drop the fallback; declare DPI in the manifest (with R4) | Low |
-| R34 | overlay.cpp:34-36 | Overlay state (`g_sel`, `g_ready`, `g_analysisMs`) is file-scope globals, so `RunSelector` can't be re-entered. | Move into a per-Session struct (C1, with R10) | Low |
-| R35 | settings.cpp:180-183; main.cpp:72 | Two actions on the same key in settings.json aren't detected. The second `RegisterHotKey` fails, main.cpp:72 says "another app may be using it", and Lexia exits. | Reject duplicates in settings parsing (note + default for the second one) (P0.5 test, with R13) | Medium |
-
-ADR-0001 and ADR-0005 hold in the code.
-
-Unverified, for the owner to test: GDI `BitBlt` returning black for exclusive-fullscreen or HDR games; the detector using every core while a game runs (stutter?); SAPI `SetVoice` changing the voice of text already queued; whether ONNX Runtime allows a second `Ort::Env` (R12's fix would create one).
-
-Things that are good and should stay: pimpl around ONNX and SAPI (SAPI goes away in B1; keep the pattern for Piper), `WS_EX_NOACTIVATE` overlay for full-screen games (ADR-0001), per-value fallback in settings, models resolved next to the exe first, STA COM with `Run()` scoped so SAPI is released before `CoUninitialize`.
-
-## Working with Claude Code
-
-The biggest speed-up is that Claude Code runs on your Windows PC, so it can run the CMake build and read the errors itself. The paste-errors-back loop goes away.
-
-**Setup (once)**
-
-1. Put the project in git and push to a private GitHub repo. Agents work on branches; you review diffs. Done: private repo `Xencaye/Lexia`.
-2. Install Claude Code on the Windows machine where the build already works, and start it from a "Developer PowerShell for VS" with `VCPKG_ROOT` set, so it inherits the toolchain.
-3. Drop the supplied `CLAUDE.md` in the repo root. Every session reads it: build commands, module map, rules.
-4. Keep `models/` and `onnxruntime/` out of git (`.gitignore`), with a `scripts/fetch_deps.ps1` that downloads them, so worktrees can be set up quickly.
-
-**How to split work between agents**
-
-- **One task = one branch = one worktree.** Parallel agents only on tasks that touch different modules (the plan marks which). Two agents editing `main.cpp` at once will collide.
-- **Every task has a check the agent can run itself**: it builds with zero warnings, `lexia_tests` passes, and for layout work the fixture score doesn't drop.
-- **You stay the eyes and ears.** Anything about how it looks, sounds or behaves in a game is a manual check on your list, not something to delegate.
-- **Start each task in plan mode** for anything bigger than a bug fix, read the plan, then let it run.
-- **Small PRs.** Ask agents to stop at the task boundary and summarise; don't chain three tasks into one diff.
-
-**Suggested agent roles**
-
-| Role | Does | Works in |
-| --- | --- | --- |
-| Lead (your main session) | Picks the next task, writes the brief, reviews diffs, merges | main branch |
-| Builder | Implements one task on its own worktree | `feat/<task-id>` |
-| Reviewer | Fresh session reads the diff against the task's acceptance criteria and R-findings; doesn't edit | read-only |
-| Researcher | Licences, API docs, voice availability; writes findings to `docs/notes/` | no code |
-| Designer | Unused since Oct 28: Figma is scrapped. The `ui/` pages are the design (D0) and the Builder makes them | no code |
-
-## Phase 0 — Foundations (do first, mostly sequential)
-
-Goal: by the end of Phase 0 an agent can change layout or speech code and prove it didn't break anything without asking you. Expect 1–2 weeks of evenings.
-
-Tracked as GitHub issues [#1–#11](https://github.com/Xencaye/Lexia/issues), with the order set by native blocked-by links: pick any open issue with no open blockers. P0.4, P0.5 and P0.6 are split into two issues each, one PR per issue (branches `feat/P0.4b`, `feat/P0.5b`, `feat/P0.6b` for the second parts).
-
-- [x] **P0.1 Repo audit.** Agent reads every module and adds findings R17+ to this doc (threading, error handling, leaks, Unicode, DPI). No code changes. *Done when:* findings list exists with priorities.
-- [x] **P0.2 Git + fetch script.** `.gitignore` for `build/`, `models/`, `onnxruntime/`; `scripts/fetch_deps.ps1` downloads the pinned ONNX Runtime zip and the 5 model files and checks SHA-256. *Done when:* a fresh clone builds after running the script. Issue: [#1](https://github.com/Xencaye/Lexia/issues/1).
-- [x] **P0.3 Build hygiene (R1, R2, R5, R6, R30).** `/utf-8 /W4 /permissive-`, ORT as an imported target, package only in Release, `MODELS_DIR` not baked into Release. *Done when:* Release build has 0 warnings. Issue: [#2](https://github.com/Xencaye/Lexia/issues/2).
-- [x] **P0.4 Split targets (R3).** `lexia_core` static lib + `lexia` exe. No behaviour change. *Done when:* app runs exactly as before (your manual check: F8, click, drag, F7, Ctrl+Alt+L).
-  - **P0.4** [#4](https://github.com/Xencaye/Lexia/issues/4): the split, plus one core entry point for "recognise an area of the Shot → Blocks" used by both the Analysis and the Drag, so `lexia_cli` runs the app's pipeline rather than a copy.
-  - **P0.4b** [#5](https://github.com/Xencaye/Lexia/issues/5): `layout.*` Win32-free (R18), `SortReadingOrder` declared (R28), `Utf8ToWide` to common.h and `GuessLanguage` on UTF-8 (R29).
-- [x] **P0.5 Unit tests.** Add a test framework via vcpkg (doctest or Catch2) and `lexia_tests` with tests for `SortReadingOrder`, `GroupBlocks`, `BlocksToText`, `FindBlockAt`, settings parsing (bad values → default), `GuessLanguage`. Hook to `ctest`. *Done when:* `ctest -C Release` passes.
-  - **P0.5a** [#7](https://github.com/Xencaye/Lexia/issues/7): doctest, `lexia_tests`, `ctest` hook, layout tests.
-  - **P0.5b** [#8](https://github.com/Xencaye/Lexia/issues/8): settings parsing from a string, duplicate keys rejected (R35), `ParseHotkey`, `GuessLanguage`.
-- [x] **P0.6 `lexia_cli` + fixture harness — the key task.**
-  - **CLI**: `lexia_cli <image.png> [--lang en|bg] [--rect x,y,w,h] [--json out.json] [--draw out.png]` runs the same OCR + layout as the app. It writes the Blocks as JSON and an annotated image (boxes numbered in Reading order).
-  - **Fixtures**: `tests/fixtures/<name>/{screen.png, expected.txt}`. A Fixture stores expected **Blocks only**, not Lines: `expected.txt` holds one Block per paragraph, separated by blank lines, in Reading order.
-  - **Score**: `scripts/score_layout.ps1` runs every Fixture and prints a per-Fixture score, e.g. the normalised edit distance between produced and expected text, plus the Block-count error.
-
-  *Done when:* the score runs in one command and gives a number per Fixture.
-  - **P0.6a** [#9](https://github.com/Xencaye/Lexia/issues/9): `lexia_cli`, writing JSON, the annotated image, and `expected.txt`-format text on stdout.
-  - **P0.6b** [#10](https://github.com/Xencaye/Lexia/issues/10): the Fixture score as a unit-tested pure function exposed by the CLI, `score_layout.ps1` with a baseline and tolerance, and one seed Fixture.
-- [x] **P0.7 Logger (R14, R17, R21).** `log.h` with levels, writes to `%LOCALAPPDATA%\Lexia\lexia.log` and the console; replace `std::cout` diagnostics; paths printed as UTF-8. **Recognised text is never logged by default** (ADR-0005; logs may be attached to bug reports). *Done when:* the log file appears and rotates at \~1 MB. Issue: [#6](https://github.com/Xencaye/Lexia/issues/6).
-- [x] **P0.8 CI (optional but cheap) (R31).** GitHub Actions `windows-latest`: vcpkg cache, `builtin-baseline`, build, `ctest`. OCR fixtures can run too if models are cached. *Done when:* PRs show a green check. Issue: [#11](https://github.com/Xencaye/Lexia/issues/11).
-
-Your part in Phase 0: collect 15–30 screenshots where grouping goes wrong or right (browser article, game dialogue box, subtitles, PDF, menu, chat app) and write the text you *expected* to hear into `expected.txt`. That is the material the layout agent will optimise against. Issue: [#3](https://github.com/Xencaye/Lexia/issues/3) (`ready-for-human`).
-
-## Workstreams and tasks
-
-Each workstream lists the files it owns. Streams that own different files can run in parallel worktrees.
-
-### A — Text grouping and reading order (owns `layout.*`; needs P0.5, P0.6)
-
-Target Reading order is the order a person reads in: down each column before moving across. Today's code sorts in rows.
-
-- [x] **A1 Baseline.** Run the fixture score on current code, commit the numbers to `docs/notes/layout-baseline.md`.
-- [x] **A2 Failure taxonomy.** Agent looks at each annotated fixture image and classifies failures: columns merged, lines split, wrong order, UI chrome mixed in, single words dropped. Ranks by frequency.
-- [x] **A3 Fix in order of frequency.** One failure class per PR. Typical levers: line-height–relative gap thresholds, column detection by x-overlap, left-alignment and font-height similarity, ignoring tiny isolated boxes. *Done when:* average score improves and no fixture gets worse by more than a set tolerance. Done for L1, L3 and L4 (Dist 0.1998 -> 0.1412, BlkErr 4.22 -> 2.39); L2 is deferred (`docs/notes/layout-failures.md`).
-- [x] **A4 Parameters to settings.** Expose 2–3 tuning knobs (paragraph gap, column gap) in settings.json, hidden from the UI.
-- [ ] **A5 Your check.** Re-test on Undertale, a browser and a video with subtitles.
-
-### B — Speech engine (owns `speech.*`, new `tts/`; needs P0.4)
-
-Piper replaces SAPI for all speech (ADR-0003, ADR-0004). Lexia plays its own audio. **Medium-quality
-Piper voices only**: no Low/High models and no quality setting (a "lighter voices" toggle was
-considered on Oct 25 and dropped for now).
-
-- [x] **B1 Piper engine.**
-  - Piper (`OHF-Voice/piper1-gpl`, espeak-ng) runs in-process via ONNX Runtime, replacing `SapiEngine`.
-  - Audio goes through a sink interface, so B2 can be tested with a fake sink.
-  - Expose phoneme/word timings, which B3 and G need.
-  - Ship one Voice per Language that Lexia offers: English (ADR-0007: English only for now).
-  - Each Reading is spoken Block by Block.
-
-  *Done when:* `lexia_cli --say "text" --lang bg --wav out.wav` works. *Your check:* pick the English Voice by ear (this was F1), and confirm Bulgarian sounds right.
-- [x] **B2 Reading queue: Pause, Skip, Stop** (needs B1).
-  - New Picks join the end of the queue, and the queue plays across Sessions.
-  - **Pause / Resume.**
-  - **Skip**: next Block, then the next Reading. If paused, it resumes from there.
-  - **Stop**: empties the queue.
-  - Starting a Session while **playing** keeps the queue. Starting one while **paused** empties it.
-
-  *Done when:* unit tests cover every rule, using the fake sink.
-- [x] **B3 Announcements** (needs B2, I1).
-  - Status messages spoken in the Interface language. An Announcement pauses the Reading at a word boundary, and the Reading resumes afterwards. If the queue was paused, it stays paused.
-  - The newest Announcement replaces any that are waiting or playing. Skip ends only the Announcement, and Stop also cuts it off.
-  - Events that produce one:
-    - Language switched. Say the Language's own name in its own Voice.
-    - No other Language installed.
-    - A Pick found no text.
-    - Screen capture failed.
-    - A Voice is missing.
-  - Starting or ending a Session is not announced.
-- [x] **B4 Voice controls and Presets.** Settings per Voice:
-  - **Speed**: `length_scale`.
-  - **Pitch**: shifted after synthesis, e.g. with SoundTouch (LGPL; add it to the notices).
-  - **Volume**.
-  - **Expressiveness**: Piper's noise parameters, clamped to a safe range.
-
-  Each has a Reset. **Presets** are named sets of these values, several per Voice. Stored in `settings.json`.
-  Changed in D8 (Nov 3): Expressiveness is removed from the UI and the code, and a Preset is a file (save / load).
-- [x] **B5 Voice library.**
-  - **Download**: from Hugging Face `rhasspy/piper-voices` `voices.json`, filtered to Lexia's Languages and to Medium quality. Only on user request (ADR-0005).
-  - **Add from file**: `.onnx` plus `.onnx.json`, or a zip of both.
-
-  Both copy into `voices\`. Each Voice is attached to the Language matching its config's language code, and a Voice for a language Lexia can't read is refused. The UI is in D5.
-- [x] **B6 Voice licences (Researcher).** Check every Voice Lexia ships. Dimitar's dataset is CC0, but the model was fine-tuned from the English *lessac* voice, and its model card gives no licence for the model itself. Record each Voice in the H2 notices.
-  Findings: `docs/notes/voice-licences.md`. English: kristin, norman or ljspeech (medium). Dimitar can't ship as it is.
-
-### C — App core and threading (owns `main.cpp`, new `app.*`; needs P0.4; do before D)
-
-- [x] **C1 `App` class (R8, R15).** Move state out of `Run()`. Hotkeys, tray and Settings window call `App` methods. Owns the **On / Off** state, remembered across restarts. Off unregisters every key.
-- [x] **C2 OCR worker (R9, R10).** Background thread, job queue, results via `PostMessage`. Overlay shows a small spinner during drag OCR.
-- [x] **C3 Language switch.** Safe switch (R12) and hotkey clash handling (R13). The chosen Language is saved to `settings.json`. Switching during a Session re-runs the Analysis on the same Shot, and Picked areas stay. The switch stays in the C++ code, but Lexia 0.5 shows no Language key or control (ADR-0007); they come back in 0.8.
-- [x] **C4 Live settings reload.** Watch settings.json (or reload on demand) and apply without restart.
-- [x] **C5 Keys** (needs C1, B2).
-  - **Read** F8, unchanged.
-  - **Pause** F7.
-  - **Speech** F6: tap = Skip, three taps within about 0.4 s of each other = Stop (D8; it was a double tap).
-  - **Language**: unbound by default, and not shown in the Settings window until 0.8 (ADR-0007).
-  - No quit key; quitting is done from the tray.
-
-  The Pause and Speech keys are registered only while something is speaking or paused (ADR-0001). *Your check:* in Undertale, F6 and F7 reach the game when Lexia is silent.
-
-### D — Tray, Settings window and Control bar (owns new `ui/`; needs C1 and an approved D0)
-
-The C++ side of D2–D7 waited for your approval of D0 (Oct 28). D8 (Nov 3) replaced the D0 look; D2–D6 and D8 are merged into `main` (PR #31, Nov 5).
-
-- [x] **D0 The `ui/` pages (Builder).** Real HTML/CSS pages for the Settings window, made from your wireframes in `wireframe\` (`home`, `voice`, `settings`, `help`, `overlay_large`, `overlay_mini` = Small) and opened in a browser with sample data (`scripts\ui_preview.ps1`). Figma is scrapped (Oct 28): the Figma call limit stopped that work, and the real pages are the design. On Oct 28 the owner asked for a redesign from scratch: the tabs and the Control bar keep the wireframe, the rest is placed freely, and Lexia 0.5 shows **no Language control at all** (ADR-0007). Where wireframe wording differs from the glossary, the glossary wins: "next" → Skip, "mood" → Expressiveness, "keybindings" → Keys, "Enable overlay" → On / Off, Mini → Small.
-  - **Style**: neumorphism after the owner's reference image (soft raised cards that group tiles, rounded rectangles, colour only in thin rings and arcs), in neutral greys: light is almost white, dark is dark grey, no blue tone. Within these hard rules:
-    - Text contrast ≥ 4.5:1. Toggle and other states ≥ 3:1 (WCAG 1.4.11) through fill, knob, word or bold, not through an outline (no strokes since Oct 28).
-    - A visible focus ring on every control.
-    - Atkinson Hyperlegible font.
-    - Every screen in **light and dark**, in **English** (Bulgarian screens wait with the language, ADR-0007).
-  - **Screens**:
-    - **Home**: a large On / Off control (power icon, not a muted speaker), a reminder of the keys, and Report bug. No Language selector (0.8).
-    - **Voice**: the Voice, and Add voice (Download / From file). No Language picker (0.8). Speed, Pitch, Volume and Expressiveness sliders, each with Reset. A Preset dropdown and Save preset.
-    - **Settings**: Keys list (Read F8, Pause F7, Speech F6), each with a description and a silent captioned demo clip. Run at startup, Start minimised, Theme (System / Light / Dark), About. No Language key and no Interface language choice (0.8).
-    - **Help**: a tutorial video.
-    - **Voice download**: the catalogue, progress and a no-network error.
-    - **Add from file**: success, plus the refusal "Lexia can't read German yet".
-    - **Tray menu**: On/Off, Open Lexia, Quit.
-    - **Installer pages** (H4): not part of the `ui/` pages. Inno Setup cannot show this style, so they are designed with H4.
-    - **Control bar**: Large (icons and labels) and Small (icons only, tooltips like "Skip (F6)"); ◆ switches between them.
-      - Buttons: Pause/Resume (⏸/▶ by state), Skip ⏭, Stop ■, Close ✕. No Language button (0.8).
-      - States: Analysis running, idle (Pause/Skip/Stop greyed), speaking, paused.
-      - A solid panel in the chosen theme, defaulting to top-centre and draggable.
-  - **Your choices (Oct 28)**:
-    - Neumorphism in light and dark, in rounded rectangles (changed from fully round on Oct 28). **No strokes** (owner, Oct 28): buttons and boxes are made only by shadows and gradients, with no black or white outline. A state never shows with shadow alone (a toggle also has a knob and the word On or Off; the selected tab is pressed in, Bold and in the accent; a disabled control is flat and faded).
-    - One accent for controls: purple `#5e4fa2` (a lighter tint in dark). The Spectral palette (`wireframe\palette.png`) is only a small rainbow detail: the ring on the power button when Lexia is On, the progress of a Voice download and the Voice control gauges. The selected tab has no strip: it looks pressed in (Oct 28).
-    - Icons: Fluent Emoji, 3D style (MIT) (changed from flat on Oct 28). *Replaced in D8.1 (Nov 3) by the Stratis UI line icons (CC BY 4.0); the emoji files are removed.*
-    - Home On / Off is a large round power button, with the word On or Off under it.
-    - Theme setting: System / Light / Dark. The default is System, which follows Windows.
-  - **What D0 gives**:
-    - `ui/index.html`, `css/`, `js/`, the font and the icons, and the page's one message contract (the bridge, in `ui/README.md`). A mock host gives sample data in a browser.
-    - HTML previews of the Control bar (`ui/dev/controlbar.html`) and the tray menu (`ui/dev/tray.html`) as the spec for D4 and D2. The real ones are Win32 (ADR-0006).
-    - The bridge tests (`ui_bridge` in ctest, headless Edge), and `scripts\ui_contrast.ps1` for the contrast of the colour pairs.
-    - Screenshots of every screen and state in light and dark: `.\scripts\ui_preview.ps1 -Screens`.
-  - **D3 later**: packages `ui/` and not `ui/dev/`, and adds the notices entries for Atkinson Hyperlegible Next (OFL) and the icons (`docs/third-party.md`; Fluent Emoji (MIT) at that time, the Stratis UI icons (CC BY 4.0) since D8.1).
-
-  *Done when:* you approve the pages in the browser preview, from the screenshots. **Approved by the owner on Oct 28, 2026.**
-- [x] **D1 Decision: native Win32 or a separate shell.** Decided: the Settings window is HTML/CSS in **WebView2** inside the C++ process. The Overlay and Control bar stay plain Win32 (ADR-0006).
-- [x] **D2 Tray icon.** On/Off, Open Lexia, Quit. `WIN32` subsystem (R7), manifest (R4).
-- [x] **D3 Settings window shell + Home tab.**
-  - WebView2 with the `ui/` pages from D0 (neumorphic CSS, light/dark, bundled assets), destroyed on close. Package `ui/` but not `ui/dev/`, and take the `dev/dev_host.js` line out of `index.html` (`ui/README.md`). Add the notices entries for Atkinson Hyperlegible Next (OFL) and the icons (Fluent Emoji (MIT) at that time; since D8.1 the Stratis UI icons (CC BY 4.0) and the engravings).
-  - The C++ side of the bridge in `ui/README.md`.
-  - **Home**: On / Off and the keys reminder.
-  - **Report bug** opens a pre-filled GitHub issue (Lexia and Windows versions only; logs are never attached automatically).
-- [x] **D4 Control bar on the Overlay.**
-  - Replaces the hint bar.
-  - Large/Small size, remembered. Movable, top-centre by default, with the position remembered.
-  - Shows the Analysis status. Close ends the Session.
-  - Clicks and drags that start on the bar are never Picks. The bar exists only during a Session, and the Overlay stays `WS_EX_NOACTIVATE`.
-  - Rename the selector to Overlay in code (`RunSelector`).
-
-  *Your check:* in Undertale, using the bar doesn't minimise the game. Do bar clicks also reach the game? Note which.
-- [x] **D5 Voice tab.** UI for B4 and B5. Lists and downloads Voices only for the Languages Lexia offers (`Language::offered`, ADR-0007): the host sends only those, and the page has no Language picker. The B5 core still knows Bulgarian.
-- [x] **D6 Settings tab.**
-  - The Keys editor with descriptions and demo clips.
-  - Run at startup and start minimised.
-  - Theme: System / Light / Dark (a new `theme` setting). The Interface language choice and the Language key come in 0.8 (ADR-0007).
-  - About: version, GPL-3.0-or-later and the third-party notices.
-- [x] **D9 Start options** (owner, Nov 5). A **start minimised** switch between run at startup and run as admin: on by default, drawn lighter and unusable while run at startup is off; on = the Run value gets `--minimised` (a start at logon stays in the tray), off = a start at logon opens the window. A manual start, and the first start after the installer, always open the Settings window, which now comes to the front (also after the elevated relaunch: `AllowSetForegroundWindow`). Every start writes the Run value again (this exe's path, the switch as the setting says). On / Off is **Off** on the very first start (no settings.json) and remembered after that.
-  *Your check:* a fresh start (delete `%LOCALAPPDATA%\Lexia\settings.json`) is Off and opens the window; turn On, Quit, start again: still On; run at startup with start minimised on and off, then sign out and in.
-- [x] **D10 Read the key card aloud** (owner, Nov 5). The key card's play button on the Settings page reads that key's description aloud (`readKeyCard { action }`: the host speaks `window.keys.<action>Desc` from the string table, one Block per line, in place of what was being spoken), so a person hears what a key does before Lexia is even On. It replaces the per-key demo clips of D7.
-  *Your check:* select each key, press play, with Lexia Off and On.
-- [ ] **D7 Help tab and videos.** A tutorial: silent, with captions in the Interface language, bundled. This replaces the old first-run welcome. (The per-key clips are replaced by D10.)
-  - Status (D6 builder): the Help tab and its pages are in the window, and the `ui/img` and `ui/captions` folders are packaged as they are (`cmake/ui_files.cmake` copies all of `ui/` except `dev/` and `README.md`). The videos are the owner's content and are still to come; the page shows its poster and a placeholder caption until then.
-- [x] **D8 UI overhaul (paper design).** The owner's new design (`wireframe/*.png`, Nov 3) replaces the D0 look of the Settings window and the Control bar. Merged into `main` (PR #31, Nov 5; branches D8.1 pages, D8.2 host, D8.3 core and wiring, D8.4 Control bar).
-  - Six pages: home, voices, settings, and report, help, about. The window is a fixed 800 x 600 DIPs.
-  - New features: Master volume, Run as admin (ADR-0008), dark mode from Windows, left-handed mouse, Presets as files, Delete voice.
-  - Removed: Expressiveness, the Start minimised setting (the Run value now gets `--minimised`), and the Close button of the Control bar.
-  - Icons: Stratis UI (CC BY 4.0). Pictures: public-domain engravings. The logo (K12): the owner's design (rounded square, crop, Off version) made from the public-domain engraving "Faust—Scene III Headpiece" of Old Book Illustrations; the Off look also contains the Stratis UI icon volume-07 (CC BY 4.0).
-
-  - Fixes after the owner's review (Nov 5): a bold menu word keeps its room, so the other menu items do not move (`components.css`, `data-bold-room`); the About text goes around the engraving (`shape-outside`, measured on `wireframe/about.png`, and 14 px as in the design); the Control bar's Pause button is as wide as the word it shows, so every gap is 18 px as in the mockup (the bar gets wider when Pause becomes Resume and keeps its left edge); the Master volume moves in steps of 5 %, like the Voice controls. The bar's colours stay: the light theme already matches the mockups, and the dark one waits for the owner's palette. Second About mockup (Nov 5): the second block and the icons 33 px higher, new line edges (27, 23, 15 / 11, 7, 0 px), and a smaller two-line notice whose "here" opens THIRD-PARTY-NOTICES.txt; the package step also copies that file and LICENSE next to the dev exe, so the link works from `build\Release` too.
-
-  *Your check:* the by-hand tests. The final dark palette came in K13 (Nov 8); its low-contrast pairs are listed there.
-
-### E — Bulgarian (owns `language.*`; needs P0.6, B1 for E5) — on hold until 0.8
-
-On hold since Oct 28 (ADR-0007): Lexia 0.5 offers English only. Language support is planned for Lexia 0.8. E3–E5 are done and stay in the code; Bulgarian is in the Language table but not offered. E1 and E2 wait until Bulgarian is brought back.
-
-- [ ] **E1 Cyrillic fixtures** (on hold). 10+ Bulgarian screenshots with expected text.
-- [ ] **E2 OCR quality** (on hold). Score `rec_cyrillic.onnx`; note confusions.
-- [ ] **E6 The owner's Bulgarian Voice (owner).** The owner records their own voice and trains a Bulgarian Medium Piper Voice from it (decided Nov 5, 2026; it replaces Dimitar, whose model has no clear licence). Train from the clean Piper base (`rhasspy/piper-checkpoints/_base_model`, CC BY 4.0), not from a lessac-derived checkpoint. *Done when:* the Voice is in `voices/voices.json` with `ship: true`, it has a licence entry `licenses/components/voice-<name>.txt` (`docs/third-party.md`), and `lexia_cli --say "..." --lang bg --wav out.wav` speaks with it. *Your check:* listen to it.
-- [x] **E3 Alphabet lock.** When decoding, ignore characters outside the current Language's Alphabet (its own letters plus Latin, digits and punctuation). For Bulgarian this removes ы, э, ё, ђ, і, ў. *Done when:* unit tests show no out-of-Alphabet output.
-- [x] **E4 Lookalike fix.** In a word that mixes scripts using lookalike letters (о/o, с/c, р/p, А/A…), convert them to the word's majority script. Pure text logic, unit-tested.
-- [x] **E5 Voice per script stretch.** The recogniser stays the Language the user chose. The *Voice* is picked per stretch of one script: the Voice of the Language that script matches, but only for stretches of two or more words. A single word stays in the surrounding Voice. This replaces the old "auto language" task.
-
-### F — Neural voice prototype — closed
-
-Superseded by the Oct 25 decisions: Lexia is GPL-3.0-or-later (ADR-0003), and Piper replaces SAPI (ADR-0004). F1's listen test became your check in B1, F2 is decided, and F3 became B1.
-
-### G — Read-along highlighting (Lexia 0.6; needs B1, C2, D4)
-
-- [x] **G1** Map word timings from Piper (B1) back to OCR line boxes; draw the current word on the overlay.
-  - **Done on `feat/G1`.** The current word is an **underline bar** (3 px at 96 dpi, DPI-scaled; 1 px gap under the Line's box) in `OverlayStyle::hoverColor`, drawn after the Picked areas, for Readings Picked in this Session. G1 had no setting; since K9 it is drawn only with "enable read-along" (`readAlong`, Off by default). The Picked area frame is as before.
-  - **How words are mapped.** `read_along.*` (pure, tested): `CutIntoWords` cuts a Piper chunk (one sentence) into word pieces; `SpokenWordRanges` maps the spoken words of the chunk to byte ranges of the Block's text (the sentence by index, within the stretch that `SpeakStretches` spoke; 1:1 when the word counts agree, else by proportion of phonemes against letters, a digit counting as three letters, so "2024" said as "twenty twenty-four" stays on "2024"); `WordBoxes` maps a range to one box per Line (it finds each Line's place in `Block.text` by matching, so it follows `GroupBlocks`' hyphen re-join; x by the share of the Line's characters, because OCR gives Line boxes, not word boxes); `UnderlineBar`; `ReadAlongTrack` (Readings by id → Blocks → bars, for G2 to reuse after the Session).
-  - **Queue.** `ReadingQueue::Add` returns a Reading id; each word piece carries (id, Block, range); `HeardWordNow()` is the first not-yet-played piece in the sink (none during an Announcement, after Skip/Stop, for a piece with no word). `Speaker::SpeakReading` returns the id; `Speaker::HeardWordNow()`. The Overlay polls it on a 30 ms window timer (`OverlayCallbacks::heardWord`); `SelectHandler` now returns a `PickOutcome` (found + reading id).
-  - **Limits.** The word's x position is an estimate (a proportional font makes it a few pixels off inside a long Line); if espeak cuts a sentence somewhere this code does not (an abbreviation like "Mr."), the later sentences of that stretch may be one off until the Block ends.
-  - *Your check:* the bar sits under the word you hear; at a hyphen at a Line end; on numbers; after Pause, Skip and Stop; with two Picks queued.
-- [x] **G2** Setting to keep the overlay up while reading for highlighting. (The Control bar currently exists only during a Session; revisit together.)
-  - **Done on `feat/G2`** (made from `feat/G1`). Owner decisions (Nov 7): a new setting (`readAlong` in settings.json since K9; on G2 it had another name, "keep the read-along bar", never released), a switch on the Settings page, Off by default. **K9: the switch is now "enable read-along" and it controls G1 too: Off = no read-along at all, as in 0.5; On = the read-along bar on the Overlay and the layer below.** On: when you leave the Overlay (Read key, Esc, right-click, the Control bar's Help) while a Reading of that Session is still being read (speaking or paused), the Overlay closes as before, but a **click-through layer** stays on the monitor and goes on drawing the G1 underline bar under the heard word until that Session's Readings are done. The Control bar does **not** stay (it ends with the Session). Off: as in G1.
-  - **How.** `read_along_layer.*` (`lexia.exe`): `ReadAlongLayer`, a top-level popup `WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST`, shown with `SWP_NOACTIVATE`, `MA_NOACTIVATE`, `HTTRANSPARENT`; it draws only the bars into a 32-bit premultiplied DIB (`UpdateLayeredWindowIndirect` with the changed rectangle), polls `Speaker::HeardWordNow()` every 30 ms, and ends itself when no Reading of its `ReadAlongTrack` is in the Reading queue (`Speaker::HasReading` / `ReadingQueue::HasReading`, `ReadAlongTrack::AnyActive`). `RunOverlay` now returns an `OverlayResult` with the Session's track; `App::OpenOverlay` starts the layer after it (only if the setting is on and a Reading is still active). `App` owns at most one; it goes on Stop, Off, Quit, turning the setting off, a new Session (destroyed and `DwmFlush`ed **before the Shot is taken**, so it is never in the screenshot) and when it ends itself (it posts `WM_APP+14` to the App window; it is never deleted inside its own window procedure).
-  - **Security.** The layer only draws: no input (styles above), no file, no network, no recognised text in the log.
-  - *Your check:* with the switch on, read something in a browser and in Undertale, press the Read key to leave while it is still speaking: the bar goes on under the heard word, the mouse and keys still reach the game or page (the layer never takes focus), the bar goes away when the Reading ends, on Stop (Control bar of a new Session, the Speech key triple tap), on Off and Quit, and is not in the next Shot; Pause keeps the bar on its word; with the switch off nothing stays.
-
-### H — Distribution (owns `cmake/package.cmake`, new `installer/`)
-
-- [x] **H1 Version 0.5.0** from `vcpkg.json` into the exe resources, README and About. `vcpkg.json` currently says `0.6.0`; you confirm which is right before this lands.
-- [x] **H2 Licences.** A `LICENSE` file (GPL-3.0-or-later) and third-party notices: ONNX Runtime, OpenCV, nlohmann-json, PaddleOCR models, Piper, espeak-ng, SoundTouch, WebView2 SDK, Atkinson Hyperlegible (OFL), and every shipped Voice (B6).
-- [x] **H3** Optional signing step, off by default.
-- [x] **H4 Installer: Inno Setup** (decided), replacing `Lexia.zip`. Pages from D0: light or dark, run at startup, install location (an Interface language page only in 0.8, ADR-0007). It bundles the models of the offered Languages, Voices, notices, and WebView2 bootstrap handling for Windows 10.
-  - Status (Nov 5): the script `installer/lexia.iss` and the CMake option `-DLEXIA_INSTALLER=ON` (`cmake/installer.cmake`). Per-user by default (all users offered), Run at startup as a task, Start Lexia on the last page (its window opens, Lexia is Off: D9), the WebView2 Runtime installed when it is missing (a task, on by default, that runs Microsoft's Evergreen Bootstrapper carried in the installer; it downloads the runtime from Microsoft, so the task says so and can be turned off: ADR-0005; the last page then offers Microsoft's page), an update closes nothing by force (AppMutex), the uninstaller removes the Run value and asks about the user's data. Built and tested on Nov 5: a silent install into a test folder (451 files, the Apps entry, the Start menu shortcut) and a silent uninstall (all gone, the user's data kept); the uninstaller removes the Run value only when it starts the installed lexia.exe, so a value of another Lexia (a portable copy, a developer build) stays. Its pages follow Windows' light / dark mode (`WizardStyle=modern dynamic`). Still open: the owner's check of the pages, signing the installer (`-DLEXIA_SIGN`), and a CI job. The first start after the install is Off and opens its window (D9, merged).
-- [ ] **H5 Free signing through SignPath Foundation** (planned Nov 7; **moved to Lexia 1.0** the same day by the owner: SignPath asks that the project can be found with a simple Google search, which Lexia cannot be yet; 0.6.0 and 0.8 ship unsigned. The CI job of H4 is part of it). SignPath Foundation gives free code signing to open-source projects: the certificate is issued to "SignPath Foundation", so Windows shows that name as the publisher, not Lexia's. Signing runs only from a GitHub Actions release workflow on GitHub-hosted runners, and every release needs a manual approval in SignPath. Acceptance is at SignPath's discretion and the wait is not stated, so **1.0 ships unsigned if the approval has not come by the release**; nothing below blocks a release.
-  - **H5.0 Be found (owner).** Lexia must appear in a simple Google search (SignPath's reputation check): a project page, the GitHub repo and releases linked from places people read. Then apply.
-  - **H5.1 Apply (owner).** Before: multi-factor authentication on GitHub (and later on SignPath) for every team member; `Xencaye/Lexia` public, with the released 0.5.0 (done: GitHub release "Lexia 0.5.0"). Apply at signpath.org with the repo URL. Done when SignPath gives an organisation id, a project slug and a release signing policy.
-  - **H5.2 Check the eligibility rules (agent, then owner).** Every component under an OSI-approved licence, nothing proprietary: list each shipped part against `licenses/components/` (ONNX Runtime MIT, OpenCV Apache-2.0, PaddleOCR models Apache-2.0, Piper and espeak-ng GPL-3.0, SoundTouch LGPL-2.1, miniz MIT, nlohmann-json MIT, Atkinson Hyperlegible OFL, Stratis UI CC BY 4.0, the engravings public domain, the Voice `en_US-ljspeech-medium` public domain). Ask SignPath in the application whether public-domain and CC BY data files (the Voice, icons, pictures) are acceptable, as they are data, not code. Also: an uninstaller (H4 has one), no hidden system changes (Run at startup and Run as administrator are tasks the person chooses), and privacy (ADR-0005).
-  - **H5.3 Code signing policy page (agent).** A section "Code signing policy" in `README.md` (the project's home page), linked from the GitHub release notes: the line "Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)", the roles (committers and reviewers, approvers: the owner), and the privacy statement "This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it" (true: the Voice library downloads only on a request, ADR-0005; the installer's WebView2 task is gone since K.6).
-  - **H5.4 Release workflow (agent).** A new `.github/workflows/release.yml`, separate from `ci.yml`: runs on a `v*` tag on `main` (and `workflow_dispatch` on `main` for a test-signing run), `windows-latest`, **no caches** (SignPath's origin verification asks for no cached results of earlier builds: a cold build of OpenCV, so a long timeout), `fetch_deps.ps1` with the Voices, configure with `-DLEXIA_INSTALLER=ON -DLEXIA_WARNINGS_AS_ERRORS=ON`, build, `ctest`, `score_layout.ps1`. Inno Setup 6 from the runner image if it is there, else installed at a pinned version. Actions pinned to a commit SHA as in `ci.yml`; `permissions: contents: read, actions: read`; the SignPath API token only in the repository secret `SIGNPATH_API_TOKEN`, given only to the signing steps.
-  - **H5.5 Two signing requests (agent).** Inno Setup packs `lexia.exe` into the setup file, so `lexia.exe` is signed first: (1) upload the package folder's `lexia.exe` (`actions/upload-artifact`), sign it with `signpath/github-action-submit-signing-request` (`wait-for-completion`, `output-artifact-directory`), put it back into `build\package\Lexia\`; (2) build the installer and the zip from that folder (a CMake option or script step that runs only the installer step on an existing folder), upload `Lexia-<v>-setup.exe`, sign it, and attach the signed setup file and `Lexia-<v>-portable.zip` to a draft GitHub release. Each request needs the owner's approval in SignPath. The artifact configuration (kept in the repo, e.g. `.signpath/artifact-configuration.xml`) sets `product-name="Lexia"` and `product-version` from a `version` parameter; the version comes from `vcpkg.json`, as everywhere.
-  - **H5.6 What is signed (agent).** Only Lexia's own binaries: `lexia.exe` and the setup file. SignPath's rule is that a team signs only binaries from source it maintains, so **`piper.dll` (piper1-gpl and espeak-ng, upstream code) is not signed under SignPath**; it and the vendors' DLLs ship as they are (allowed inside a signed installer). `-DLEXIA_SIGN` (local signing, H3) stays for a certificate of the owner's own and keeps signing `piper.dll` there. `lexia.exe` has a VERSIONINFO already (product name and version from `vcpkg.json`): check it agrees with the artifact configuration.
-  - **H5.7 Docs (agent).** `docs/signing.md` gets a SignPath section (the workflow, the approval, the secret, how to verify: `signtool verify /pa /v`), CLAUDE.md the release steps (tag, approve two requests, publish the draft release), this plan the status. *Done when:* a `v1.0.0` tag on `main` gives a draft release with a setup file whose signature names SignPath Foundation, `signtool verify /pa` passes on `lexia.exe` and the setup file, and the setup file installs and uninstalls on a clean PC. *Your check:* approve the requests in SignPath, then run the setup file on another PC: the UAC prompt shows "Verified publisher: SignPath Foundation" (the SmartScreen warning can still show until the files have reputation).
-
-### I — Interface language (owns new `strings/`; needs P0.4)
-
-- [x] **I1 String table.** All of Lexia's own text goes through one table: Announcements, Control bar, Settings window, settings messages, installer. English and Bulgarian; the Interface language is chosen at install (English preselected) and in Settings, separately from the Language. Adding a language means adding one table. Since Oct 28 only English is offered (ADR-0007); the Bulgarian table stays and is tested. The choice of Interface language comes in 0.8.
-
-### J — Linux on Ubuntu (Lexia 1.0; owns new `platform/linux/`; needs the 0.8 code)
-
-Decided Nov 5, 2026: Lexia 1.0 also runs on Ubuntu (the current LTS, x64). Windows stays the first platform.
-The core is already portable: OCR (ONNX Runtime, OpenCV), layout, Piper and espeak-ng, the Reading queue,
-settings, strings and the Win32-free widget tree of the Settings window (`src/native_ui/`). What is Win32 today is the shell around it: the hotkeys, the screen
-capture, the Overlay and the Control bar, the tray, the audio sink, the Settings window (Direct2D since K; J5), and the
-start-up, single-instance and elevation code. The rules stay: the Overlay never takes focus (ADR-0001), no
-network except on request (ADR-0005), GPL-3-compatible dependencies only.
-
-- [ ] **J0 Decision: X11, Wayland, or both (ADR).** Ubuntu's default session is GNOME on Wayland. Wayland lets
-  no program take global keys, read the screen or show a window that never takes focus without the
-  desktop's help: the screenshot portal asks the user each time, and GNOME has no layer-shell. X11 (and
-  games that run under XWayland) allows all three. Decide what 1.0 supports and what Lexia does where it
-  cannot work. *Done when:* an ADR records it, with a test on the owner's Ubuntu PC.
-- [ ] **J1 Platform seam.** Put the Win32 parts behind small interfaces (keys, capture, overlay window, tray,
-  audio sink, web view, autostart, single instance) with the Windows code unchanged behind them, so a
-  Linux build adds files and changes no core code. No behaviour change on Windows (fixture score and tests
-  the same).
-- [ ] **J2 Linux build and CI.** CMake + vcpkg on Ubuntu (GCC or Clang, no MSVC-only flags), `lexia_core`,
-  `lexia_tests` and `lexia_cli` first; a CI job on `ubuntu-latest` next to the Windows one. *Done when:*
-  `ctest` and `score_layout` pass on Linux (the Fixtures give the same Blocks).
-- [ ] **J3 Keys and capture.** Global keys and the Shot on Linux, as J0 decides (X11: `XGrabKey`, `XGetImage`
-  / XShm; Wayland: the portals, or a clear message that it is not supported).
-- [ ] **J4 Overlay and Control bar.** A window over the frozen Shot that does not take focus from a full-screen
-  game, and the Control bar in it. *Your check:* a game on Steam for Linux / Proton does not minimise.
-- [ ] **J5 Audio, tray and Settings window.** The audio sink (PipeWire or PulseAudio), the tray icon
-  (StatusNotifierItem / AppIndicator; GNOME needs the AppIndicator extension, which Ubuntu ships), and
-  the Settings window. Since K (ADR-0009) there are no `ui/` pages to reuse: the window reuses the
-  Win32-free widget tree of `src/native_ui/` with a Cairo/Pango canvas and AT-SPI, or is a new window.
-- [ ] **J6 Start-up and settings.** Settings and the log in `~/.config/lexia` and `~/.local/state/lexia`
-  (XDG), Run at startup as a `~/.config/autostart` entry, one instance only. Run as admin has no Linux
-  meaning and is not shown there.
-- [ ] **J7 Package.** A `.deb` for Ubuntu (and maybe a Flatpak or AppImage, decided in J0), with the models,
-  the shipped Voices and the third-party notices.
-- [ ] **J8 Your check.** The whole of Lexia on your Ubuntu PC: a browser, a video with subtitles, and a game.
-
-### K — Native Settings window (Lexia 0.6; owns `settings_window.*`, new `src/native_ui/`; replaces `ui/`)
-
-The owner decided on Nov 7 that the Settings window becomes a native Win32 window in the D8 paper design,
-drawn with Direct2D and DirectWrite, with full UI Automation; WebView2 and `ui/` are removed (ADR-0009,
-supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings`, then one PR into `main`.
-
-- [x] **K0 Reference and ADR.** The HTML pages' screenshots (every page, state and sheet, light and dark) in
-  `wireframe/html-reference/`, the visual spec after `ui/` is gone. ADR-0009.
-- [x] **K1 Toolkit and assets.** Icons, pictures and fonts (Atkinson Hyperlegible Next TTF) as resources in the
-  exe; one palette for the window and the Control bar (the contrast check becomes a doctest); the Win32-free
-  widget tree with a `Canvas` interface (tested with a fake canvas); the Direct2D canvas; a shared tooltip.
-  *Done so far (`feat/K.1b`):* the widget tree and every control (`src/native_ui/`: `Widget`, `Screen`, sheets,
-  `IconButton`, `TextLink`, `Button`, `Select`, `Slider`, `SwitchRow`, `KeyChip`, `Notice`, `ProgressBar`,
-  `ScrollArea`, `Label`, `Paragraph`, `Tween`), with 96 doctest cases on a fake canvas. `feat/K.1a`: assets as
-  resources, the fonts, one palette, the shared tooltip. `feat/K.1c`: the Direct2D canvas (`D2dCanvas`, window and
-  off-screen) and the `lexia_settingsshot` tool with the `gallery` page and ctest `settingsshot_smoke`; one
-  `nui::FontWeight`. Nothing in K1 is open once K.1c is merged.
-- [x] **K2 Window shell and simple pages.** The native window (800 x 600 DIPs, DPI, theme), the frame, Home,
-  Help, Report, About; `App` sends `UiState` and gets `PageMessage` with no JSON; the pages and `--sheet` of `lexia_settingsshot`.
-  *Done (`feat/K.2`):* `settings_window.*` is native (Direct2D, no WebView2 in it; the library stays in CMake until K6);
-  `SettingsUi` + `pages/` (`Frame`, `HomePage`, `HelpPage`, `ReportPage`, `AboutPage`; `VoicesPage` and `SettingsPage` are
-  empty places for K3 / K4); `App::HandlePageMessage(const PageMessage&)`, `pageReady_` and `window.noRuntime` gone;
-  `lexia_settingsshot --page home|voices|settings|report|help|about [--on] [--hover]` and `scripts\settings_shots.ps1`
-  (the `--sheet` switch comes with the sheets in K3); `native_ui_settings_ui_test.cpp` (14 cases). Compared with
-  `wireframe/html-reference/` (light and dark): positions within 1 DIP; the dots of a dotted rule start one pixel later.
-- [x] **K3 Voices page and its dialogs.** Voice row, sliders, presets; Delete voice, Voice download, Result.
-  `VoiceTab` gets typed events.
-  *Done (`feat/K.3`):* `voices_page.*` (the Voice `Select`, Download / Add from file / Delete, the "no voice" note, Speed
-  (log2) / Pitch / Volume sliders with value text and reset buttons, the otter, Save / Load preset), `voice_sheets.*`
-  (Delete voice, `DownloadSheet` with the views loading / failed / empty / list, one download at a time, scroll offset and
-  focus kept, progress without a rebuild; `ResultSheet`), `voice_library_state.*` (the sheets' data, owned by `SettingsUi`,
-  so a download is known while another page shows), `voice_text.*`; `voice_events.*`: `VoiceTab::Host::toPage(JSON)` is
-  replaced by `Host::events` -> `VoiceEventSink` (typed), `ProblemTextId` is the port of the old `problemText`, the
-  offered-Language filter and the refusal facts are typed (the JSON builders in `ui_host.cpp` stay until K6).
-  Toolkit: `Sheet` border inset, wrapping title, title gap, per-line gaps, max height + flexible body, `Notice::Kind::Plain`,
-  notice line 1.35; `user-profile-03.svg` without an SVG mask. `lexia_settingsshot --voices` / `--sheet` and 25 pictures in
-  `scripts\settings_shots.ps1` with the reference file names; `native_ui_voices_test.cpp` (25 cases),
-  `voice_events_test.cpp` (4 cases). Compared with `wireframe/html-reference/` (light and dark): positions within 1-2 DIPs;
-  a scrolling download list leaves 10 DIPs for its scrollbar (the HTML shots had none); a few words wrap one word
-  differently (DirectWrite and the browser measure a glyph a little differently).
-- [x] **K4 Settings page.** Keys, key card, switches; key capture from the window's own key messages.
-  *Done (`feat/K.4`):* `pages/settings_page.*` (rows, key card, play button, hint, five switches), `key_chord.*`
-  (`KeyChordName`, pure), the capture in `settings_window.cpp` (F10, Alt combinations and PrintScreen reach a waiting
-  chip; no hook, nothing logged; Alt+F4 still closes), `SettingsUi::ShowPage(Page, ShowOptions)`,
-  `lexia_settingsshot --select / --capture / --switches` and the five `settings-*` shots of `settings_shots.ps1`;
-  `native_ui_settings_page_test.cpp` and `key_chord_test.cpp` (32 cases). Compared with `wireframe/html-reference/`
-  (light and dark): positions within 1 DIP; the card text and the switch labels sit 1 DIP lower than in the browser.
-  The owner's by-hand check of the capture (F-keys, Alt and Ctrl combinations, F10, PrintScreen; Lexia's keys work
-  again after a capture) is part of K7.
-- [x] **K5 UI Automation.** A provider per control, its patterns and events; ctest `uia_tree`.
-  *Done (`feat/K.5`):* `native_ui/access_tree.*` (pure: the accessible projection of the widget tree, the modal sheet
-  that hides the page, `CheckAccess` / `PerformAccess`, `AccessTracker` + `AccessObserver` for focus, property,
-  structure and live-region changes), the action hooks on the widgets (`AccInvoke` / `AccSetValue` / `AccExpand` /
-  `AccSelect`), automation ids on the main controls, `native_ui/uia_provider.*` (`UiaHost` + one COM `Element`: root
-  fragment, one fragment per offered widget, Invoke / Toggle / RangeValue / Value / ExpandCollapse / Selection /
-  SelectionItem / ScrollItem / Window, the events, `UseComThreading`, a shared `alive` context cleared on
-  `WM_DESTROY`, actions queued to the message loop), `SettingsWindow` forwards `WM_GETOBJECT` and the rest;
-  `native_ui_access_test.cpp` (18 cases) and the UIA client exe `lexia_uia_test` (ctest `uia_tree`: skips with exit 0
-  when there is no interactive desktop). A switch is a Button + Toggle with the control type text "switch" (strings
-  `uia.switch`); a slider offers its number (RangeValue), not its value text. **K7 must check with Narrator:** see below.
-- [x] **K6 Remove WebView2 and `ui/`.** CMake, vcpkg, installer (no runtime task), notices, scripts, docs.
-  *Done (`feat/K.6`):* the assets moved to `src/res/{icons,img,fonts}` (still embedded as resources; nothing is read from
-  disk); `ui/` (HTML, CSS, JS, `dev/`, the bridge README), `cmake/copy_ui.cmake`, `cmake/ui_files.cmake`, the package's
-  `ui\` copy, ctest `ui_bridge`, `scripts\ui_preview.ps1` and `scripts\ui_contrast.ps1` are deleted (`palette_test` is the
-  contrast check); the `webview2` vcpkg dependency, `WebView2Loader.dll`, the `webview2` and `wil` notices entries and the
-  WebView2 and WIL rows of `docs/third-party.md` are gone; the installer has no WebView2 task, bootstrapper, registry
-  check or download link (and `scripts\fetch_deps.ps1 -Installer` with `installer\redist` are gone; it still removes an
-  old `{app}\ui` and `*.dll` on an update); dead code: `StringsMessage`, `StateMessage`, `ParsePageMessage`, the JSON
-  builders of `ui_host.*` and `lexia_cli --strings-json` with their tests (`ui_host.*` keeps `UiState`, `PageMessage`,
-  `LinkUrl`, `IsDarkTheme`, `FillVoiceState`; the name is older than its content); `stale_data.*`: at start the old
-  `%LOCALAPPDATA%\Lexia\WebView2` folder is removed once, a junction or link inside is never followed (`stale_data_test.cpp`,
-  4 cases). ADR-0006 stays as a superseded record.
-- [ ] **K7 Your check.** Every page and dialog against the HTML shots, keys and mouse, Narrator (the K5 list: turn
-  Narrator on with Win+Ctrl+Enter; the Settings window opens at the window title; Tab through the home page and hear
-  each name and role; the power button says "Lexia On / Off" with its state, and Space or Enter changes it; the
-  six links read as links and the current page as selected; the Master volume and the Voice sliders say their name and
-  number, and the arrow keys change them; on the Voices page the Voice choice says its value and opens with Alt+Down
-  or Enter, the arrow keys read each Voice and Enter chooses; Delete voice opens a dialog that is read by its title,
-  and the page under it cannot be reached (Narrator scan mode stays inside it) until Esc; on the Settings page each
-  key says its action and key, a press starts the capture and the hint "Press the new key..." is read at once, the five
-  switches read as "switch" with on or off, and a disabled Start minimised says it is unavailable; Narrator's
-  caps lock + F5 / Insert + Space actions work on every button; the download sheet's rows are read and the
-  list scrolls to the focused one; if a switch is read badly try CheckBox in `ControlTypeOf`), dark mode,
-  150 % / 200 % and a move between monitors. After K6 also: install `Lexia-0.6.0-setup.exe` on a PC without the
-  WebView2 Runtime (no runtime task is shown, the window opens), an update over Lexia 0.5 (the old `ui\` folder and
-  `WebView2Loader.dll` are gone from the install folder, the `WebView2` folder in `%LOCALAPPDATA%\Lexia` is removed at
-  the first start and the log says so; settings.json, Voices and Presets stay), and the uninstaller (the program, the
-  Run value; it still asks about `%LOCALAPPDATA%\Lexia`).
-- [x] **K8 The owner's changes after the first look (Nov 7).** On `feat/K.7-fixes`: (1) the key card's read button
-  is the Master volume's speaker icon, left of the title, no ring, and it wiggles a little every 5 s (none with reduced
-  motion; a one-shot wake timer between wiggles, frames only while it moves; `Canvas::PushRotation`); (2) loading a
-  Preset follows the file's Voice: a Voice that is not installed changes nothing and says so ("The voice … is not
-  currently installed"), another installed Voice gets the controls without becoming active, an old file without a
-  Voice goes to the active one (`ChoosePresetTarget`, `PresetVoiceForDisplay` for the untrusted name); (3) Setup and
-  the uninstaller close a running Lexia on request (the `Lexia.Quit` message, let through UIPI so an elevated Lexia
-  hears it too; after 10 s an offer to end it by force, with one UAC prompt for an elevated one; silent runs never ask);
-  (4) a "Run as administrator" task in Setup, checked when the setting is on, written with
-  `lexia.exe --set-run-as-admin on|off` as the installing person. *Your check:* the K8 items in the PR's test list.
-- [x] **K9 The owner's new Settings page (Nov 7).** Built on `feat/K9-settings-layout` (made from `feat/G2`), merged into `main` (PR #5). The owner's
-  mockup, measured pixel by pixel at 800 x 600 DIPs: (1) **no headings** ("keybinds" and "misc" and their strings are
-  gone); (2) the key rows start at y = 137 (rows at 137, 178, 219); (3) the switches start at y = 335, 28 apart, in the
-  order **enable read-along**, run at startup, start minimised, run as admin, dark mode, left-handed; (4) the card is
-  355 x 393 at (273, 115) and its contents keep their offsets from the card's top (the engraving moved down to keep
-  its distance from the card's bottom edge; the capture hint under the card moved to y = 514). The top and bottom
-  links, the rules and the volume are unchanged (owner decision). (5) **One read-along switch**: the old G2 setting is
-  renamed `readAlong` everywhere (settings.json, `Settings`, `UiState`, `PageMessageType::SetReadAlong`, string ids,
-  automation id `settings.readAlong`; never released, so no migration). **Off (default) = no read-along at all**
-  (`OverlayStyle::readAlong`: the Overlay does not poll the heard word, starts no read-along timer, and no layer
-  starts after leaving), as in 0.5. **On = the G1 read-along bar on the Overlay and the G2 click-through layer after
-  leaving.** (6) **Switch cards**: a switch row is selected by hover, focus or press like a Key row (the selected
-  row is bold; the selection stays) and the card shows the switch's title and description (`window.switches.<name>Title`
-  / `Desc`; `\n` starts a paragraph). The play button reads the card: `readKeyCard` now carries a card id, a Key's
-  action or a switch name (`SwitchCardIds()`, `CardTitleId`, `CardDescId` in `ui_host.*`; `App::ReadKeyCard` finds the
-  words with them). The switch rows keep their Toggle pattern; the card is the same group and its name follows the
-  selection. `lexia_settingsshot --select` takes a switch name too; `settings_shots.ps1` writes
-  `settings-switch-<name>` shots. The six descriptions were drafts; the owner wrote the final texts on Nov 7
-  (`table_en.cpp`). *Your check:* the page against your mockup (light and dark);
-  hover and Tab over each switch and read the card; the read button on a switch's card; Read-along off: read in a
-  browser, no bar on the Overlay and none after leaving; On: the bar on the Overlay and after leaving; turn it off
-  while the layer shows: the layer goes; Narrator: a switch is still read as a switch.
-- [x] **K10 The window's own minimise and close buttons (built Nov 7 on `feat/K10-window-buttons`, from the owner's mockup, merged into `main` in PR #6; owner check open).** The owner
-  puts minimise and close into the pages, so the Settings window has no Windows title bar. The mockup (800 x 600):
-  the `dash` icon box at (726, 10), the `x-02` one at (760, 10), 24 x 24 each; idle a quiet warm grey, hover and
-  pressed #6E504A; every point that is not on a widget drags the window. Then (agent):
-  - **Frame without a caption, Windows behaviour kept.** Keep `WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX` (taskbar
-    button, Alt+Space system menu, Alt+F4, minimise animation, Win+Down) and answer `WM_NCCALCSIZE` (wParam TRUE)
-    with 0, so the client area is the whole window; `DwmExtendFrameIntoClientArea` with a 1 px top margin keeps the
-    DWM shadow and the rounded corners of Windows 11. The window becomes 800 x 600 DIPs in all (no caption above
-    it). Not resizable and not maximisable, as now (no snap-layout flyout to support).
-  - **Drag.** `WM_NCHITTEST`: the drag area of the mockup returns `HTCAPTION` (moves the window, double-click does
-    nothing as it cannot maximise, right-click opens the system menu); a widget there (a nav link, the buttons)
-    returns `HTCLIENT`, from `Screen::WidgetAt`.
-  - **Buttons.** Two `IconButton`s in the `Frame` (every page), Stratis UI icons recoloured from the palette, tooltips
-    and UIA names from `strings/` ("minimise", "close"), in the Tab order after the top links. They send no
-    `PageMessage` to the App: the window acts itself (`WM_SYSCOMMAND` `SC_MINIMIZE` / `SC_CLOSE`), so closing goes
-    the same way as before (the window is destroyed; Lexia stays in the tray).
-  - **Removed:** the DWM dark title bar code (no title bar to colour). The window keeps its title text
-    (`SetWindowTextW`): the taskbar, Alt+Tab and Narrator read it.
-  - **Tests:** `lexia_settingsshot` draws the buttons; `native_ui_settings_ui_test` (the buttons in the Frame, Tab
-    order); `uia_tree` (two Buttons with names; Invoke on minimise minimises the off-screen window); the hit test as
-    a pure function of the frame's layout (drag area vs widgets) in `lexia_core`.
-  - **Security:** no new input from files or the network; the hit test reads only the widget tree; `SC_CLOSE` takes
-    the normal close path, so the UIA host is detached as now (`WM_DESTROY`).
-  - **Status (built):** as planned. `WindowButton` (`controls.*`; idle = palette token `tile`, hover / pressed = `accent`),
-    `Frame::SetOnWindowCommand` / `SettingsUi::SetOnWindowCommand` (a window command, not a `PageMessage`; the window posts
-    `WM_SYSCOMMAND` to itself, so `SC_CLOSE` never destroys the tree inside the click), `nui::HitTestWindow`
-    (`native_ui/window_hit.*`, pure: Caption on paper, pictures and plain text, Client on controls, `ScrollArea`s, and
-    everything while a sheet or an open list is up), the window (`WM_NCCALCSIZE`, `WM_NCHITTEST`, `WM_NCMOUSEMOVE`,
-    `WM_NCACTIVATE`, `DwmExtendFrameIntoClientArea`; the DWM dark title bar code is gone), strings `window.minimise` /
-    `window.close` ("Minimise" / "Close"), `lexia_settingsshot --hover minimise|close`. Tests: `native_ui_window_hit_test`,
-    the new K10 cases in `native_ui_settings_ui_test` and `native_ui_access_test`, and `uia_tree` (no caption, two named
-    Buttons with Invoke, Invoke on minimise minimises the window). The shot's buttons measure x 730..745 y 21 (dash) and x 765..778 y 15..28 (X).
-  *Your check:* drag the window by the empty area, minimise and close with the mouse, Tab + Enter, Alt+Space and
-    Alt+F4; the shadow and the corners; 100 / 150 / 200 % and a move between monitors; Narrator reads both buttons.
-
-- [x] **K11 The card's read button is also a stop button (built Nov 7 on `feat/K11-read-button-stop`, from K9, merged into `main` in PR #8; owner check open).**
-  The owner's request: the speaker (`volume-05`) that reads a card aloud turns into `volume-07` while the card is read;
-  a press on it stops the reading and the speaker comes back; the next press reads the card again from the beginning;
-  when the reading ends by itself the speaker comes back too. Then (agent):
-  - **The host owns the truth.** `UiState::readingCard` (a Key action or a switch name, "" = none); the page shows the
-    stop icon only when it equals the selected card (another selected card shows the speaker, and a press on it starts
-    that card and replaces the reading, as before). The button name, tooltip and UIA Name follow
-    (`window.keys.stopReading` / `window.switches.stopReading`, "Stop reading what ... does"); no wiggle while it shows stop.
-  - **One message.** `readKeyCard` stays the only command; `App::ReadKeyCard` decides play or stop from its own
-    `CardReading` (`card_reading.*`, pure and tested): stop if the pressed card is the one being read and its Reading is
-    still queued, else start. Starting keeps the Reading id of `Speaker::SpeakReading` (`append = false`).
-  - **Stop only that Reading.** New `ReadingQueue::StopReading(id)` / `Speaker::StopReading(id)`: the Reading being
-    spoken is cut off (a pause ends with it, like Stop) and the next Reading starts at its first Block; a waiting one is
-    dropped; an unknown id changes nothing. A Pick queued behind the card therefore goes on (a full `Stop()` would
-    have cut it too).
-  - **The end is noticed** on the busy / idle message (`WM_APP+11`) and by a 100 ms window timer that runs only while a
-    card is read (a Pick queued behind it keeps the queue busy, so the message alone would not tell). Cleared on
-    Stop from anywhere (Control bar, Speech key, tray), on a new card reading, and when the Settings window closes.
-  - **Tests:** `card_reading_test` (6), `reading_queue_test` (4 `StopReading` cases), `native_ui_settings_page_test` (5:
-    icon, name, press, another card, switch card, no wiggle), `native_ui_access_test` (name change and the tracker's
-    Name event). `lexia_settingsshot --reading`, `settings_shots.ps1` writes `settings-reading-light/dark.png`.
-  - **Security:** no new input from files or the network; the card id the page sends is only looked up in the card
-    table (`CardDescId`, an unknown one is not spoken); the timer and the Reading id live on the UI thread.
-  - **Status (built):** as planned. Build Release 0 warnings, `ctest` 883 of 883 (`uia_tree` ran), `score_layout.ps1`
-    OK, shot `settings-reading` looked at. `volume-07.svg` was supplied by the owner; it is a Stratis UI icon (CC BY 4.0, a speaker with a slash).
-  *Your check:* click the speaker on a card: the speech starts and the icon changes; click it again: the speech stops
-    and the speaker returns; click once more: it starts from the first sentence; let a card finish: the speaker returns;
-    start a card, then hover another row: that card shows the speaker, click it: the old reading is replaced and the
-    stop icon is on the new card; start a card, press F8, pick a text, stop the card with the button: the picked text
-    goes on; Narrator reads "Stop reading ..." while it plays; no shaking while it shows stop; 150 % and dark.
-
-- [x] **K12 The owner's logo, and one name for the feature (built Nov 7 on `feat/K12-logo-and-names`, from `main` at PR #8; owner check open).**
-  The owner's two SVG files (a 256 x 256 rounded square #1E1E1E with the engraving in #FBF6F0; the Off version at 20 %
-  opacity with a large muted-speaker stroke) replace the old logo `lexia_logo.png` and the grey-and-slash Off look.
-  - **Logo.** `src/res/lexia_logo.svg` (On) and `lexia_logo_off.svg` (Off); `lexia_logo.png` is deleted.
-    New dev tool `lexia_svgshot` (`--px N in.svg out.png`, Direct2D `DrawSvgDocument`, transparent, not packaged):
-    System.Drawing cannot read SVG. Direct2D draws the `clipPath` and the group `opacity` of both files the same as
-    Microsoft Edge (compared at 256 px). `scripts/make_tray_icons.ps1` (rewritten: `-Source`, `-OffSource`, `-Svgshot`)
-    writes `src/res/lexia.ico` (exe icon, On tray icon, Setup icon) and `lexia_off.ico` (Off tray icon), each with 16, 20,
-    24, 32, 48, 64 and 256 px PNG frames. Licence: the engraving is "Faust—Scene III Headpiece" of Old Book Illustrations
-    (public domain; the owner's rounded square, crop and Off version are the project's own design); the Off logo also
-    contains the Stratis UI icon `volume-07` (CC BY 4.0): `licenses/components/ui-engravings.txt`, `ui-icons.txt`,
-    `docs/third-party.md`, `src/res/icons/SOURCE.txt`.
-  - **One name: read-along.** The feature of G1 and G2 is called read-along in the glossary (Read-along; its parts the
-    Heard word, the Read-along bar, the Read-along layer; "word mark" is gone), the plan, CLAUDE.md, comments, log lines
-    (`[readalong]`), the string id `ReadAlongLayerName` ("Lexia read-along", the layer's never shown window name) and
-    the identifiers `StartReadAlongLayer`, `EndReadAlongLayer`, `OnReadAlongLayerEnded`, `readAlongLayer_`,
-    `kMsgReadAlongEnded`, `kTimerReadAlong`, `PollReadAlong`. `HeardWord` / `HeardWordNow` keep their names (Heard word
-    is a defined term).
-  - **Glossary audit** (`docs/GLOSSARY.md`, against the code and `table_en.cpp`): Session ends (Help, not Close); Control
-    bar buttons (Pause/Resume, Skip, Stop, Help, Size; no Language or Close); Settings window (native, no title bar,
-    pages, Master volume in the frame); Key card (new term); Preset file (Voices page; loads into the Voice the file
-    names); Interface language (no Overlay hints); Language key (offered Languages); Run as admin (Setup task); the
-    quit note (the tray exists); UI words are British English (since K12).
-- [x] **K13 The final palette and SVG engravings (built Nov 8 on `feat/K13-palette-svg`, from `feat/K12-logo-and-names`; owner check open).**
-  The owner's final mockups for 0.6.0 (light and dark of every page and of the Control bar) and the engravings
-  vectorised as SVG.
-  - **Engravings as SVG.** `src/res/img/*.svg` (bee, dog, flute, otter, wine, wolf: one path each, fill #1E1E1E)
-    replace the JPEGs; CMake embeds `src/res/img/*.svg` as `PICTURE/<stem>`. `D2dCanvas::Picture` recolours the file to
-    the tint (`RecolourSvg`), reads its size from the root tag (`SvgRootSize`, new in `svg_recolour.*`, pure, tested) and
-    draws it once per (name, colour, pixel size) into a bitmap of the device with a device context of its own; a frame
-    only copies that bitmap. The WIC JPEG decode and the luminance mask are gone (WIC still writes the shots).
-  - **Palette (`palette.cpp`, both sets from the mockups).** Light: power On hover #897069, Control bar tile #CBBDAB,
-    the engravings opaque in the line colour #D9CFC4 (the bee #6E504A while On, the wine in the card as the paper
-    colour). Dark: paper #262626, card #333333, ink #B8B8B8, line #4B4B4B, accent #708C87, text and glyphs on the accent
-    #262626, power hovers #2B2C2C / #617874, tile #4B4B4B, engravings #4B4B4B (the wine #262626); `danger` keeps the
-    earlier dark value (no error text in the mockups). New tokens: `windowIcon` (minimise and close, idle: #D9CFC4 /
-    #E3E3E3), `buttonText` (the enable button and a sheet's main button: #FBF6F0 / #E3E3E3), `quietText` (the disable
-    button, a quiet button, an unset key chip: #6E504A / #B8B8B8), `thumb` (slider thumbs: #6E504A / #B8B8B8). The
-    engraving opacities are 1. A disabled switch row is drawn in the line colour (not at half opacity). Control bar:
-    a dead tile and its word are the card grey in dark, Help and the size icon the line grey in dark.
-  - **Control bar states (owner, Nov 8).** The `_analysing` mockups are the bar while the Analysis runs, when the
-    Overlay has just opened; the plain ones are the bar once it is done. So Pause, Skip and Stop are disabled only
-    while the Analysis runs (`LayoutBar`); before, they were also disabled while nothing spoke. A press while nothing
-    speaks does nothing (the Reading queue ignores it).
-  - **Logo.** The rounded square of both logo files is #262626 (was #1E1E1E); `lexia.ico` and `lexia_off.ico` are made
-    again with `make_tray_icons.ps1`.
-  - **Mockups.** `wireframe/<page>.png` (light) and `<page>_dark.png` replace the old ones, the Control bar's
-    `control_bar_<size>_analysing[_dark].png` too; the superseded `palette_and_buttons.png`, `settings-1.png` and
-    `settings-2.png` are deleted. `wireframe/html-reference/` stays as the layout spec (its colours are the old ones).
-  - **Contrast (`palette_test.cpp`, reported to the owner, not changed).** Dark pairs below the minimum: text on the
-    accent 4.17 (key chip, 4.5), the enable button's text 2.83, the disable button's text 4.40, an icon button's hover
-    2.41, Help / size on the bar 1.73, accent on a bar tile 2.41, the bar tile edge 1.73. Light: the idle window icons
-    1.35 (as the other line pairs).
-  - Verified: ctest (886 tests), the page shots light and dark mapped colour by colour onto the mockups (`settings_shots.ps1`),
-    the Control bar pictures (`lexia_barshot`) against `control_bar_*`.
-  - *Your check:* every page light and dark, the sheets (no mockup: they take the same tokens), the Control bar in a
-    Session, the tray icons On and Off, and the low-contrast dark pairs above.
-  - **Verification:** Release build with 0 warnings, `ctest` 883 of 883 (`uia_tree` and `read_along_layer` ran), `score_layout.ps1` OK (no Fixture worse). `git grep -i "word mark"` finds only the glossary's "Avoid" lists and this note. The 16, 32 and 256 px frames were looked at.
-  *Your check:* the exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and on a
-    light taskbar: the dark tile #1E1E1E can be hard to see on a dark taskbar), the Setup icon and the installer's
-    window, the Start menu entry; the Settings page card and switch text say read-along; read-along On and Off behave as in
-    G1 and G2; the glossary reads right to you.
-
-## Order and milestones
-
-Phase 0 comes first. After it, A, B, C, E and I can run as parallel agents because they own different
-files. D0 (the `ui/` pages) can start at any time; the C++ side of D2–D7 and the H4 pages wait for your approval of it.
-
-```
-Phase 0 ──► A (layout) ─────────────────────────────────────────────┐
-        ├─► B1 Piper ──► B2 queue ──► B3 Announcements, B4, B5      │
-        ├─► C1 App ──► C2–C5                                         ├─► Lexia 0.5
-        ├─► E1–E4 Bulgarian OCR; E5 after B1                         │
-        ├─► I1 strings                                               │
-D0 ui/ pages ──(you approve)──► D2–D7, H4 ──────────────────────────────┘
-                                         0.6: G read-along
-                                         0.8: E1, E2, E6, Language UI
-                                         1.0: J Linux (Ubuntu), H5 signing
-```
-
-Milestones, each ending with your hands-on check:
-
-1. **M1 Agents can verify alone** (done) — Phase 0 done; build is warning-free, tests and fixture score run in one command.
-2. **M2 Grouping you trust** — A done; fixture score up, Undertale and browser re-tested.
-3. **M3 Right voice per language** — B1, B6, E done; Piper speaking English and Bulgarian, Bulgarian OCR scored and locked to its Alphabet. *Since Oct 28 (ADR-0007): English only; the Bulgarian part waits with E1, E2 and a Bulgarian Voice.*
-4. **M4 Lexia 0.5** (released Nov 5, 2026 as 0.5.0; carried over: the D7 video, the D8 checks, A5) — B2–B5, C, D, H, I done; installer, tray, Settings window, Control bar, Reading queue, Announcements, Voice library.
-5. **M5 Lexia 0.6: Read-along** (released Nov 8, 2026 as 0.6.0, tag `v0.6.0`) — G1 and G2 done and merged (PRs #2, #3; since K9 one switch, "enable read-along", controls both); K, the native Settings window, merged (PR #1), with K9, K10 and K11 (PRs #5 to #8; the switch-card texts, PR #7); K12 (the logo and the names, PR #9) and K13 (the final palette and SVG engravings, PR #10, Nov 8); your checks are open: K7 and the by-hand checks of G1, G2, K9, K10, K11, K12 and K13.
-5a. **Lexia 0.7** — future changes after 0.6 (owner, Nov 8); `vcpkg.json` says 0.7.0.
-6. **M6 Lexia 0.8: Languages** — E1, E2, the owner's Bulgarian Voice (E6), the Language selector, the Language key, the Control bar Language button, and the Interface language choice (Settings and installer).
-7. **M7 Lexia 1.0: Linux** — J done; Lexia runs on Ubuntu as on Windows, within what J0 decides for Wayland. Also H5: the Windows files signed through SignPath Foundation, if SignPath accepts Lexia (moved from 0.6 on Nov 7).
-
-## Decisions (Oct 25, 2026)
-
-From a design grilling. Terms are in `GLOSSARY.md`, and the reasoning is in `docs/adr/`.
-
-- **Lexia is free and open source, GPL-3.0-or-later** (ADR-0003). Option 1 of the old F2 list.
-- **Piper replaces SAPI** for all speech; the SAPI-plus-OneCore route is rejected (ADR-0004).
-- **The Overlay never takes focus; input comes from global hotkeys only** (ADR-0001). Low-level input hooks were rejected because Lexia will be used over online games with anti-cheat. Unregistered keys and raw-input clicks still reach the game; that's accepted for now.
-- **PaddleOCR stays** (ADR-0002): Tesseract and Windows OCR did poorly on stylised, rendered text.
-- **Network only when the user asks, and the screen never leaves the PC** (ADR-0005).
-- **Settings window in WebView2** (ADR-0006).
-- **The Interface language is separate from the Language**: English and Bulgarian, chosen at install.
+- **Released:** Lexia 0.5.0 (Nov 5, tag `v0.5.0`) and **Lexia 0.6.0** (Nov 8, tag `v0.6.0`:
+  `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, kept in `release\0.6.0\`).
+- **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
+  No 0.7 task is planned yet.
+- **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
+- **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
+- No GitHub issue is open.
+- **History reset (Nov 5):** `Xencaye/Lexia` restarted from one commit. PR and issue numbers from before the reset
+  (the old #1–#42) and the tag `v0.5.0` are in the private repo `Xencaye/Lexia-archive`. PR numbers #1–#12 in this
+  plan are in the new repo.
+
+## How we work
+
+- One task = one branch (`feat/<task-id>`) = one PR. Stop at the task boundary and summarise: what changed, how it
+  was verified, what the owner must check by hand.
+- Every task has checks an agent can run itself: a Release build with zero warnings, `ctest`, and for layout work
+  `score_layout.ps1` (no Fixture worse than the tolerance).
+- The owner is the eyes and ears: anything visual, audible, or inside a game is on the owner's list.
+- A change that implements or changes a task updates this plan and the "Plan" section of `CLAUDE.md` in the same PR.
+- New and changed code is commented (the why, the non-obvious). C++ is navigated with clangd. Code plans use the
+  Security Guidance plugin and have a Security section.
+- Before each merge: `.\scripts\check_docs.ps1` passes (CI: `.github/workflows/docs.yml`), and the PR template's
+  docs checklist is done.
+
+## The owner's open checks
+
+These are the by-hand checks of merged work. Each item is short; tick it here when it is done.
+
+- [ ] **K7 Settings window.** Every page and sheet against `wireframe/html-reference/` (layout) and the mockups
+  `wireframe/<page>.png` / `<page>_dark.png` (colours); keys and mouse; dark mode; 150 % / 200 % and a move between
+  monitors. Key capture: F-keys, Alt and Ctrl combinations, F10, PrintScreen; Lexia's keys work again after a capture.
+  **Narrator** (Win+Ctrl+Enter): the window opens at its title; Tab through the home page and hear each name and role;
+  the power button says "Lexia On / Off" with its state, Space or Enter changes it; the six links read as links, the
+  current page as selected; the Master volume and the Voice sliders say name and number, the arrow keys change them;
+  the Voice choice says its value and opens with Alt+Down or Enter; the Delete voice dialog is read by its title and
+  the page under it cannot be reached until Esc; on the Settings page each key says its action and key, a press starts
+  the capture and the hint is read at once; the switches read as "switch" with on or off; a disabled Start minimised
+  says it is unavailable; Narrator's actions work on every button; the download sheet's rows are read and the list
+  scrolls to the focused one (if a switch is read badly, try CheckBox in `ControlTypeOf`). **Install:**
+  the setup file on a PC without the WebView2 Runtime (the window opens); an update over 0.5 (the old `ui\` folder and
+  `WebView2Loader.dll` are gone, `%LOCALAPPDATA%\Lexia\WebView2` is removed at the first start and logged;
+  settings.json, Voices and Presets stay); the uninstaller (the program, the Run value; it asks about
+  `%LOCALAPPDATA%\Lexia`). Setup closes a running Lexia when asked (also an elevated one); the Run as administrator task.
+- [ ] **G1 Read-along bar.** With read-along on: the bar sits under the word you hear; at a hyphen at a Line end; on
+  numbers; after Pause, Skip and Stop; with two Picks queued.
+- [ ] **G2 Read-along layer.** With read-along on, in a browser and in Undertale, leave the Overlay while it speaks:
+  the bar goes on under the heard word; mouse and keys still reach the game or page; the bar goes when the Reading
+  ends, on Stop (Control bar, Speech key triple tap), Off and Quit; it is not in the next Shot; Pause keeps the bar on
+  its word. With read-along off nothing stays, and no bar shows on the Overlay.
+- [ ] **K9 Settings page.** The page against your mockup (light and dark); hover and Tab over each switch and read the
+  card; the read button on a switch's card; turn read-along off while the layer shows: the layer goes; Narrator reads
+  a switch as a switch.
+- [ ] **K10 Window buttons.** Drag the window by the empty area; minimise and close with the mouse, Tab + Enter,
+  Alt+Space and Alt+F4; the shadow and the corners; 100 / 150 / 200 % and a move between monitors; Narrator reads both
+  buttons.
+- [ ] **K11 Read / stop button.** Click the speaker on a card: speech starts and the icon changes; click again: it
+  stops; once more: it starts from the first sentence; a card that finishes shows the speaker again; another card shows
+  the speaker and a click replaces the reading; a Pick queued behind a card goes on when the card is stopped; Narrator
+  reads "Stop reading ..."; no shaking while it shows stop; 150 % and dark.
+- [ ] **K12 Logo.** The exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and a
+  light taskbar), the Setup icon and window, the Start menu entry; the glossary reads right to you.
+- [ ] **K13 Palette.** Every page light and dark, the sheets (no mockup: they use the same tokens), the Control bar in
+  a Session, the tray icons. The dark pairs below the contrast minimum (`palette_test.cpp`, reported, not changed):
+  text on the accent 4.17 (key chip, needs 4.5), the enable button's text 2.83, the disable button's text 4.40, an icon
+  button's hover 2.41, Help / size on the bar 1.73, accent on a bar tile 2.41, the bar tile edge 1.73; light: the idle
+  window icons 1.35. Decide if any must change.
+- [ ] **D9 Start options.** A fresh start (no settings.json) is Off and opens the window; turn On, Quit, start again:
+  still On; run at startup with start minimised on and off, then sign out and in.
+- [ ] **D10 Key card aloud.** Select each key, press play, with Lexia Off and On.
+- [ ] **D4 / C5 in games.** In Undertale, the Control bar does not minimise the game (note whether bar clicks also
+  reach the game); F6 and F7 reach the game when Lexia is silent.
+- [ ] **A5 Grouping.** Undertale, a browser and a video with subtitles.
+- [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
+
+## Open tasks
+
+### D7 Help video (owner)
+
+A silent tutorial with captions in the Interface language, shipped in the package. The owner makes the video; the
+Help page shows its place until then.
+
+### Open code-review findings (low priority; fix when the area is touched)
+
+| # | Where | Finding | Fix |
+| --- | --- | --- | --- |
+| R24 | `capture.cpp` | `CreateCompatibleDC` and `BitBlt` results are not checked: a failed capture (secure desktop, locked session) gives a black Shot reported as success, so "Screen capture failed" never comes. | Check both, return false |
+| R25 | `capture.cpp` | The DIB bits are read right after `BitBlt` without the `GdiFlush()` that the CreateDIBSection docs ask for. | `GdiFlush()` after `BitBlt` |
+| R33 | `main.cpp` | `SetProcessDpiAwarenessContext` is imported statically, so the `SetProcessDPIAware` fallback never runs (the exe does not load before Windows 10 1703). | Remove the fallback; the manifest declares PerMonitorV2 |
+
+R1–R23, R26–R32 and R34–R35 are fixed (Phase 0, A, C, D, E). Unverified, for the owner: GDI `BitBlt` returning
+black for exclusive-fullscreen or HDR games; the detector using every core while a game runs (stutter?).
+
+### E — Bulgarian (Lexia 0.8; on hold, ADR-0007)
+
+Lexia offers English only. E3–E5 are done and stay in the code; Bulgarian is in the Language table but not offered.
+
+- [ ] **E1 Cyrillic fixtures.** 10+ Bulgarian screenshots with expected text.
+- [ ] **E2 OCR quality.** Score `rec_cyrillic.onnx`; note confusions.
+- [ ] **E6 The owner's Bulgarian Voice (owner).** The owner records their own voice and trains a Bulgarian Medium
+  Piper Voice (decided Nov 5; it replaces Dimitar, whose model has no clear licence). Train from the clean Piper base
+  (`rhasspy/piper-checkpoints/_base_model`, CC BY 4.0), not from a lessac-derived checkpoint. *Done when:* the Voice is
+  in `voices/voices.json` with `ship: true`, has `licenses/components/voice-<name>.txt` (`docs/third-party.md`), and
+  `lexia_cli --say "..." --lang bg --wav out.wav` speaks with it.
+- [ ] **Language UI.** The Language selector, the Language key in the Settings window, a Control bar Language button,
+  the Interface language choice (Settings and installer).
+
+### H5 — Free signing through SignPath Foundation (Lexia 1.0)
+
+SignPath Foundation signs open-source projects for free (the publisher shown is "SignPath Foundation"). Signing runs
+only from a GitHub Actions release workflow, and each release needs the owner's approval in SignPath. SignPath asks
+that the project can be found with a simple Google search, so the owner works on that first. If the approval has not
+come by the 1.0 release, 1.0 ships unsigned; nothing here blocks a release.
+
+- [ ] **H5.0 Be found (owner).** A project page, the GitHub repo and releases linked from places people read.
+- [ ] **H5.1 Apply (owner).** Multi-factor authentication on GitHub (later SignPath) for every member; apply at
+  signpath.org with the repo URL. Done when SignPath gives an organisation id, a project slug and a release policy.
+- [ ] **H5.2 Eligibility (agent, then owner).** Every shipped part against `licenses/components/` (all OSI or
+  public domain / CC BY data); ask SignPath whether public-domain and CC BY data files (the Voice, icons, pictures) are
+  acceptable. Also: the uninstaller, no hidden system changes, privacy (ADR-0005).
+- [ ] **H5.3 Code signing policy (agent).** A "Code signing policy" section in `README.md` (the attribution line, the
+  roles, the privacy statement), linked from the release notes.
+- [ ] **H5.4 Release workflow (agent).** `.github/workflows/release.yml` on a `v*` tag on `main` (and
+  `workflow_dispatch` for a test run): `windows-latest`, **no caches** (SignPath's origin check), `fetch_deps.ps1`,
+  configure with `-DLEXIA_INSTALLER=ON -DLEXIA_WARNINGS_AS_ERRORS=ON`, build, `ctest`, `score_layout.ps1`; actions pinned
+  to a SHA; `permissions: contents: read, actions: read`; the token only in the secret `SIGNPATH_API_TOKEN`.
+- [ ] **H5.5 Two signing requests (agent).** Sign `lexia.exe` first and put it back into `build\package\Lexia\`; then
+  build the installer and the zip from that folder and sign the setup file; attach both to a draft GitHub release.
+  The artifact configuration (`.signpath/artifact-configuration.xml`) takes the version from `vcpkg.json`.
+- [ ] **H5.6 What is signed.** Only `lexia.exe` and the setup file; `piper.dll` (upstream code) is not signed under
+  SignPath. `-DLEXIA_SIGN` (H3) stays for a certificate of the owner's own.
+- [ ] **H5.7 Docs (agent).** `docs/signing.md` (the workflow, the approval, the secret, `signtool verify /pa /v`),
+  CLAUDE.md (release steps). *Done when:* a `v1.0.0` tag gives a draft release whose setup file is signed by SignPath
+  Foundation and installs and uninstalls on a clean PC.
+
+### J — Linux on Ubuntu (Lexia 1.0)
+
+Decided Nov 5: Lexia 1.0 also runs on Ubuntu (the current LTS, x64). Windows stays first. The core is portable (OCR,
+layout, Piper, the Reading queue, settings, strings, the widget tree of `src/native_ui/`); the shell is Win32 (keys,
+capture, Overlay, Control bar, tray, audio sink, the Direct2D Settings window, start-up, single instance, elevation).
+The rules stay: the Overlay never takes focus (ADR-0001), network only on request (ADR-0005), GPL-3-compatible only.
+
+- [ ] **J0 Decision: X11, Wayland, or both (ADR).** Wayland gives no global keys, screen reading or no-focus window
+  without the desktop's help; X11 (and XWayland games) allows all three. *Done when:* an ADR records it, tested on the
+  owner's Ubuntu PC.
+- [ ] **J1 Platform seam.** The Win32 parts behind small interfaces, the Windows code unchanged; no behaviour change
+  (tests and fixture score the same).
+- [ ] **J2 Linux build and CI.** CMake + vcpkg with GCC or Clang; `lexia_core`, `lexia_tests`, `lexia_cli` first; a
+  CI job on `ubuntu-latest`. *Done when:* `ctest` and `score_layout` pass on Linux.
+- [ ] **J3 Keys and capture,** as J0 decides (X11: `XGrabKey`, `XGetImage` / XShm; Wayland: portals, or a clear message).
+- [ ] **J4 Overlay and Control bar** that do not take focus from a full-screen game (owner's check: Steam / Proton).
+- [ ] **J5 Audio, tray and Settings window.** PipeWire or PulseAudio; StatusNotifierItem / AppIndicator; the widget
+  tree with a Cairo/Pango canvas and AT-SPI, or a new window.
+- [ ] **J6 Start-up and settings.** XDG folders, a `~/.config/autostart` entry, one instance; no Run as admin.
+- [ ] **J7 Package.** A `.deb` (maybe Flatpak or AppImage, decided in J0) with the models, Voices and notices.
+- [ ] **J8 Your check.** A browser, a video with subtitles and a game on your Ubuntu PC.
+
+## Done (one line each)
+
+- **Phase 0** (P0.1–P0.8): repo audit (R17+), git and `fetch_deps.ps1`, build hygiene (`/utf-8 /W4`), `lexia_core`
+  split, doctest `lexia_tests`, `lexia_cli` and the Fixture score, the logger, CI.
+- **A — Layout:** A1 baseline (`docs/notes/layout-baseline.md`), A2 failure classes (`docs/notes/layout-failures.md`),
+  A3 fixes for L1, L3, L4 (Dist 0.1998 → 0.1412, BlkErr 4.22 → 2.39; L2 deferred), A4 `layout` knobs in settings.json.
+- **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
+  Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`).
+- **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
+  quit key).
+- **D — Tray, Settings window, Control bar:** D0 / D1 (HTML pages in WebView2, replaced by K), D2 tray, D3–D6 window and
+  pages, D4 Control bar, D8 the paper design (ADR-0008 Run as admin), D9 start options, D10 the key card read aloud.
+- **E3–E5:** the Alphabet lock, the Lookalike fix, a Voice per script Stretch.
+- **F:** closed (became B1, ADR-0003, ADR-0004).
+- **G — Read-along (0.6):** G1 the Read-along bar on the Overlay (PR #2), G2 the Read-along layer (PR #3); since K9
+  one switch, "enable read-along" (`readAlong`, Off by default), controls both.
+- **H:** H1 version from `vcpkg.json`, H2 licences and notices, H3 optional signing (`docs/signing.md`), H4 Inno Setup
+  installer.
+- **I1:** the string table (`strings/`).
+- **K — Native Settings window (0.6, ADR-0009):** K0 reference shots, K1 toolkit, K2 window and simple pages, K3 Voices
+  page, K4 Settings page and key capture, K5 UI Automation, K6 WebView2 and `ui/` removed, K8 the owner's first changes
+  (PR #1); K9 new Settings page and switch cards (PR #5, texts PR #7), K10 own minimise and close buttons (PR #6), K11
+  read / stop button (PR #8), K12 logo and the name "read-along" (PR #9), K13 final palette and SVG engravings (PR #10).
+
+## Milestones
+
+1. **M1 Agents can verify alone** — done.
+2. **M2 Grouping you trust** — A done; A5 (your check) open.
+3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
+4. **M4 Lexia 0.5** — released Nov 5, 2026.
+5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); no tasks yet.
+7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
+8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
+
+## Decisions
+
+- **Free and open source, GPL-3.0-or-later** (ADR-0003). Free, no paid version.
+- **Piper replaces SAPI** for all speech (ADR-0004); Medium-quality Voices only.
+- **The Overlay never takes focus; input from global hotkeys only** (ADR-0001). No low-level input hooks (anti-cheat).
+- **PaddleOCR stays** (ADR-0002).
+- **Network only when the user asks; the screen never leaves the PC** (ADR-0005).
+- **English only for now** (ADR-0007, Oct 28): no Language UI until 0.8; Bulgarian stays in the code.
+- **Run as admin** is a setting with a UAC relaunch (ADR-0008).
+- **Native Settings window** in Direct2D with UI Automation (ADR-0009, Nov 7; supersedes ADR-0006, WebView2).
 - **Inno Setup installer.**
-- **Figma mockup before any UI code.** (Replaced on Oct 28: see below.)
-
-## Decisions (Oct 28, 2026)
-
-- **English only for now** (ADR-0007): Lexia reads English and speaks its own words in English.
-  Bulgarian stays in the code but is not offered; more languages remain a goal. E1 and E2 are
-  on hold.
-- **No Language UI in 0.5; language support in 0.8.** Lexia 0.5 shows no Language selector, list,
-  key or Control bar button. The C++ Language switch stays. Language support is planned for 0.8 (M6).
-- **D0 redesign.** The `ui/` pages are made again from scratch: the tabs and the Control bar follow the
-  wireframe (the bar at the top centre), the look follows the owner's reference image in neutral greys,
-  with Fluent Emoji 3D icons and the Spectral palette. (Replaced by the D8 paper design on Nov 3: line icons and engravings, no emoji.)
-- **Figma is scrapped; D0 is the real `ui/` pages.** The Settings window is HTML/CSS (ADR-0006), so
-  the mockup is the real page. You check it in a browser and send screenshots with edit requests. The
-  C++ side of D2–D7 starts after you approve it.
-
-Background, kept for reference: the Bulgarian Piper voice comes from the CC0 "Dimitar" dataset. The
-original MIT `rhasspy/piper` was archived on 6 Oct 2025, and development continues as
-`OHF-Voice/piper1-gpl` (GPL-3.0-or-later), because espeak-ng is GPL-3.0. The MIT fork `piper-plus`
-drops espeak-ng but doesn't cover Bulgarian.
-
-## Decisions (Nov 5, 2026)
-
-- **Linux on Ubuntu in Lexia 1.0** (stream J, milestone M7). Windows stays first; the Wayland question is J0.
-- **The owner trains the Bulgarian Voice** from their own voice (E6, Lexia 0.8); the Dimitar retrain is removed.
+- **Linux on Ubuntu in 1.0** (Nov 5); **the owner trains the Bulgarian Voice** (E6, Nov 5).
+- **SignPath signing moved to 1.0** (Nov 7); 0.7 and 0.8 ship unsigned.
 
 ## Open questions
 
-- [ ] Did row-based reading order fix the scrambled text? (Becomes fixture data either way.)
-- [x] Is Lexia going to be open source? **Yes, GPL-3.0-or-later.**
-- [x] Is the code already in git, and do you want CI on GitHub Actions? **Yes: private repo `Xencaye/Lexia`; CI is P0.8 ([#11](https://github.com/Xencaye/Lexia/issues/11)).**
-- [x] Settings window: Win32 C++ or a separate C# app? **WebView2 in-process (ADR-0006).**
-- [x] Free forever, donations, or paid later? **Free.**
-- [ ] Target hardware for friends' PCs: any very old CPUs? Affects ONNX Runtime build choice, OCR speed budget and Piper voice quality (medium vs low).
-- [x] Version: 0.5.0 (this plan) vs `0.6.0` in `vcpkg.json`? **0.5.0** (owner, Oct 26).
+- [ ] Target hardware for friends' PCs: any very old CPUs? Affects the ONNX Runtime build, the OCR speed budget and
+  the Voice quality.
 
 ## Sources
 
-- [Dimitar 1.0 Bulgarian TTS dataset — Mozilla Data Collective](https://prod.datacollective.mozillafoundation.org/datasets/cmhpahaib00d8mk07ely2m8wh)
-- [piper-voices-bg-bg — AUR](https://aur.archlinux.org/packages/piper-voices-bg-bg)
 - [piper-voices voices.json — Hugging Face](https://huggingface.co/rhasspy/piper-voices/raw/main/voices.json)
 - [bg_BG dimitar MODEL_CARD — Hugging Face](https://huggingface.co/rhasspy/piper-voices/raw/main/bg/bg_BG/dimitar/medium/MODEL_CARD)
-- [Piper TTS review (licence and repository history) — PromptQuorum](https://www.promptquorum.com/power-local-llm/piper-tts-review)
-- [piper-plus (MIT fork, espeak-ng-free) — GitHub](https://github.com/ayutaz/piper-plus/)
+- [Dimitar 1.0 Bulgarian TTS dataset — Mozilla Data Collective](https://prod.datacollective.mozillafoundation.org/datasets/cmhpahaib00d8mk07ely2m8wh)

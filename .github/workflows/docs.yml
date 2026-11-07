@@ -1,0 +1,46 @@
+name: Docs
+
+# Checks that CLAUDE.md and the plan are up to date (scripts/check_docs.ps1). A separate workflow from
+# ci.yml, so a label change re-runs only this quick job, not the build.
+# The label "docs-not-needed" on a PR skips the diff checks (a change that needs no plan update);
+# the content checks always run.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # Full history, so the script can find the merge base with main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check CLAUDE.md and the plan
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          SKIP_DIFF: ${{ contains(github.event.pull_request.labels.*.name, 'docs-not-needed') }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if ($env:IS_PR -eq 'true' -and $env:SKIP_DIFF -ne 'true') {
+            ./scripts/check_docs.ps1 -Base "origin/$env:BASE_REF"
+          } else {
+            ./scripts/check_docs.ps1 -NoDiff
+          }
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }

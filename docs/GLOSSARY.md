@@ -46,7 +46,7 @@ _Avoid_: scan, pre-pass
 **Settings window**:
 The ordinary window, opened from the tray icon (or by starting Lexia again, or by the Control bar's Help), where
 the user changes Lexia's settings and manages Voices. Unlike the Overlay it takes focus. It is native (Direct2D,
-ADR-0009), a fixed 800 x 600 DIPs, with no Windows title bar (it has its own minimise and close buttons, K10);
+ADR-0009), a fixed 800 x 600 DIPs, with no Windows title bar (it has its own minimise and close buttons);
 closing it does not end Lexia. Its pages are home, voices, settings, report, help and about (the bold words of the
 frame); the Master volume is in the frame, on every page.
 _Avoid_: options, preferences, config
@@ -54,7 +54,7 @@ _Avoid_: options, preferences, config
 **Key card**:
 The card on the Settings page that says what the selected Key or switch does (a Key, or one of the switches
 read-along, run at startup, start minimised, run as admin, dark mode, left-handed). Its read button (a speaker)
-reads the card aloud, and while that card is being read it is a stop button (K11).
+reads the card aloud, and while that card is being read it is a stop button.
 _Avoid_: help panel, description box
 
 ## Text
@@ -114,9 +114,8 @@ _Avoid_: playlist, backlog, buffer
 **Read-along**:
 The feature that lets the user follow a Reading on the screen: a bar under the word being heard. It exists
 only with the setting "enable read-along" (`readAlong` in settings.json, Off by default: then nothing is drawn
-at all, as in 0.5). It has three parts: the Heard word (what is being heard), the Read-along bar (what is drawn)
-and the Read-along layer (what keeps drawing it after the Overlay is left). Built in G1 (the bar on the Overlay)
-and G2 (the layer).
+at all). It has three parts: the Heard word (what is being heard), the Read-along bar (what is drawn)
+and the Read-along layer (what keeps drawing it after the Overlay is left).
 _Avoid_: word mark, word highlight, karaoke, follow-along
 
 **Heard word**:
@@ -245,10 +244,10 @@ _Avoid_: mirrored, swapped mouse
 A setting that makes Lexia start elevated (with administrator rights), so that it works over games that run as
 administrator (Windows blocks a normal program from them). Off by default. Turning it on, or starting Lexia with
 it on, shows the Windows UAC prompt; if the user says no, Lexia goes on without it. Setup has the same choice
-as a task (K8). See ADR-0008.
+as a task. See ADR-0008.
 _Avoid_: elevated mode, admin mode
 
-Lexia has no quit key; quitting is done from the tray menu (D2). Closing the Settings window does not quit.
+Lexia has no quit key; quitting is done from the tray menu. Closing the Settings window does not quit.
 (With `lexia.exe --console`, Ctrl+C also ends it, but not cleanly: speech is cut off.)
 
 Lexia uses British English everywhere: the UI words (`strings/table_en.cpp`: "minimise", "analyses", "colours"), the
