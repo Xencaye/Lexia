@@ -32,13 +32,19 @@ ResultTexts DescribeResult(const std::string& lang, const ResultOutcome& o) {
     case ResultKind::PresetLoaded:
         t.ok = true;
         t.title = strings::Text(lang, id::kWindowPresetLoadedTitle);
-        t.text = strings::Format(lang, id::kWindowPresetLoaded, {{"name", o.name}});
+        // A Voice that is not the active one gets its controls saved, but the sound does not change yet.
+        t.text = strings::Format(lang, o.voiceIsActive ? id::kWindowPresetLoaded : id::kWindowPresetLoadedOther,
+                                 {{"voice", o.voice}});
         break;
     case ResultKind::PresetFailed:
         t.title = strings::Text(lang, id::kWindowPresetFailedTitle);
-        t.text = strings::Text(lang, o.preset == PresetProblem::CannotWrite ? id::kWindowPresetCannotWrite
-                                     : o.preset == PresetProblem::NoVoice   ? id::kWindowPresetNoVoice
-                                                                            : id::kWindowPresetBadFile);
+        if (o.preset == PresetProblem::VoiceNotInstalled) {
+            t.text = strings::Format(lang, id::kWindowPresetVoiceNotInstalled, {{"voice", o.voice}});
+        } else {
+            t.text = strings::Text(lang, o.preset == PresetProblem::CannotWrite ? id::kWindowPresetCannotWrite
+                                         : o.preset == PresetProblem::NoVoice   ? id::kWindowPresetNoVoice
+                                                                                : id::kWindowPresetBadFile);
+        }
         break;
     }
     return t;
@@ -179,17 +185,19 @@ void VoiceLibraryState::PresetSaved(const std::string& fileName) {
     PostResult(std::move(o));
 }
 
-void VoiceLibraryState::PresetLoaded(const std::string& fileName) {
+void VoiceLibraryState::PresetLoaded(const std::string& voice, bool voiceIsActive) {
     ResultOutcome o;
     o.kind = ResultKind::PresetLoaded;
-    o.name = fileName;
+    o.voice = voice;
+    o.voiceIsActive = voiceIsActive;
     PostResult(std::move(o));
 }
 
-void VoiceLibraryState::PresetFailed(PresetProblem problem) {
+void VoiceLibraryState::PresetFailed(PresetProblem problem, const std::string& voice) {
     ResultOutcome o;
     o.kind = ResultKind::PresetFailed;
     o.preset = problem;
+    o.voice = voice;
     PostResult(std::move(o));
 }
 

@@ -257,7 +257,7 @@ void VoiceTab::DeleteVoice(const std::string& voice) {
 void VoiceTab::SavePresetFile() {
     const std::string voice = ActiveVoice();
     if (voice.empty()) {
-        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::NoVoice); });
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::NoVoice, std::string()); });
         return;
     }
     const std::filesystem::path folder = PresetsDir(LexiaDataDir());
@@ -282,18 +282,19 @@ void VoiceTab::SavePresetFile() {
     out.close();
     if (!out) {
         LogWarn("[voice] The Preset file could not be written: ", path);
-        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::CannotWrite); });
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::CannotWrite, std::string()); });
         return;
     }
     LogInfo("[voice] Saved the controls of ", voice, " to a Preset file.");
     Tell([&](VoiceEventSink& e) { e.PresetSaved(path.stem().u8string()); });
 }
 
-// Loads a Preset file the person chooses: its controls become the active Voice's current ones.
+// Loads a Preset file the person chooses: its controls go to the Voice the file names (the active Voice when it
+// names none), unless that Voice is not installed.
 void VoiceTab::LoadPresetFile() {
     const std::string voice = ActiveVoice();
     if (voice.empty()) {
-        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::NoVoice); });
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::NoVoice, std::string()); });
         return;
     }
     const std::string& lang = settings_.interfaceLanguage;
@@ -309,19 +310,31 @@ void VoiceTab::LoadPresetFile() {
     std::string text;
     if (!ReadFileToString(path, &text, kMaxPresetFileBytes)) {
         LogWarn("[voice] The Preset file could not be read: ", path);
-        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::BadFile); });
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::BadFile, std::string()); });
         return;
     }
     const PresetFileOutcome loaded = ParsePresetFile(text);
     if (!loaded.ok()) {
         LogWarn("[voice] The file is not a Preset file (", PresetFileProblemId(loaded.problem), "): ", path);
-        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::BadFile); });
+        Tell([](VoiceEventSink& e) { e.PresetFailed(PresetProblem::BadFile, std::string()); });
         return;
     }
-    LogInfo("[voice] Loaded a Preset file for ", voice, ".");
-    SetControls(voice, loaded.controls);
+    // The file names the Voice it was saved for: its controls go to that Voice if it is here (the active Voice
+    // stays as it is), and a Voice that is not installed changes nothing. The name is the file's own text, so
+    // it is only shown and logged, shortened, and never used as a path (ChoosePresetTarget only compares it
+    // with the installed names).
+    const PresetTarget target = ChoosePresetTarget(loaded.voice, voice, InstalledNames());
+    if (target.kind == PresetTargetKind::NotInstalled) {
+        const std::string shown = PresetVoiceForDisplay(target.voice);
+        LogWarn("[voice] The Preset file is for the Voice \"", shown, "\", which is not installed: nothing was changed.");
+        Tell([&](VoiceEventSink& e) { e.PresetFailed(PresetProblem::VoiceNotInstalled, shown); });
+        return;
+    }
+    const bool active = target.kind == PresetTargetKind::ActiveVoice;
+    LogInfo("[voice] Loaded a Preset file for ", target.voice, active ? "." : " (not the active Voice).");
+    SetControls(target.voice, loaded.controls);
     host_.pushState();
-    Tell([&](VoiceEventSink& e) { e.PresetLoaded(path.stem().u8string()); });
+    Tell([&](VoiceEventSink& e) { e.PresetLoaded(target.voice, active); });
 }
 
 // --------------------------------------------------------- the Voice library ---

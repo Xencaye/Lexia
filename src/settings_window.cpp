@@ -78,8 +78,8 @@ public:
     void VoiceRefused(const ProblemFacts& facts) override { inner_.VoiceRefused(facts); repaint_(); }
     void VoiceDeleteFailed(const std::string& voice, VoiceProblem problem) override { inner_.VoiceDeleteFailed(voice, problem); repaint_(); }
     void PresetSaved(const std::string& fileName) override { inner_.PresetSaved(fileName); repaint_(); }
-    void PresetLoaded(const std::string& fileName) override { inner_.PresetLoaded(fileName); repaint_(); }
-    void PresetFailed(PresetProblem problem) override { inner_.PresetFailed(problem); repaint_(); }
+    void PresetLoaded(const std::string& voice, bool voiceIsActive) override { inner_.PresetLoaded(voice, voiceIsActive); repaint_(); }
+    void PresetFailed(PresetProblem problem, const std::string& voice) override { inner_.PresetFailed(problem, voice); repaint_(); }
 
 private:
     VoiceEventSink& inner_;

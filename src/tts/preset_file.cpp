@@ -4,6 +4,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "codepoint.h"
+
 // The Preset file (D8): a Voice's controls saved by the user as a small JSON file, to load again later
 // or share. The format:
 //   { "lexiaPreset": 1, "voice": "<Voice name>", "speed": 1.0, "pitch": 0.0, "volume": 1.0 }
@@ -64,4 +66,45 @@ PresetFileOutcome ParsePresetFile(std::string_view text) {
 // %LOCALAPPDATA%\Lexia\presets: where the file dialogs open. Empty when the data folder is not known.
 std::filesystem::path PresetsDir(const std::filesystem::path& dataDir) {
     return dataDir.empty() ? dataDir : dataDir / L"presets";
+}
+
+PresetTarget ChoosePresetTarget(std::string_view fileVoice, std::string_view activeVoice,
+                                const std::set<std::string>& installedNames) {
+    PresetTarget t;
+    if (fileVoice.empty() || fileVoice == activeVoice) {
+        t.kind = PresetTargetKind::ActiveVoice;
+        t.voice = std::string(activeVoice);
+    } else if (installedNames.count(std::string(fileVoice)) > 0) {
+        t.kind = PresetTargetKind::OtherVoice;
+        t.voice = std::string(fileVoice);
+    } else {
+        t.kind = PresetTargetKind::NotInstalled;
+        t.voice = std::string(fileVoice);
+    }
+    return t;
+}
+
+std::string PresetVoiceForDisplay(std::string_view voice) {
+    const std::string text(voice);
+    std::string out;
+    size_t shown = 0;
+    for (size_t i = 0; i < text.size();) {
+        const size_t begin = i;
+        const char32_t cp = NextCodePoint(text, i);
+        // Direction marks and isolates / overrides (a name could be shown back to front) are dropped.
+        if (cp == 0x200E || cp == 0x200F || cp == 0x061C || (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2066 && cp <= 0x2069)) {
+            continue;
+        }
+        if (shown == kPresetVoiceShownMax) {
+            out += "\xE2\x80\xA6";  // U+2026 HORIZONTAL ELLIPSIS: there is more
+            return out;
+        }
+        ++shown;
+        if (cp < 0x20 || (cp >= 0x7F && cp <= 0x9F)) {
+            out += ' ';  // a control character: a newline must not break a log line or a sheet
+        } else {
+            out.append(text, begin, i - begin);
+        }
+    }
+    return out;
 }

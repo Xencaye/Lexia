@@ -555,11 +555,11 @@ TEST_CASE("Result sheet: delete and Preset results; a second result replaces the
     r.ui.Key(Key::Escape);
     CHECK(r.ui.screen.SheetCount() == 0);
 
-    r.Events().PresetLoaded("Slow reading.json");
+    r.Events().PresetLoaded("en_US-amy-medium", true);
     r.ui.Frame();
     CHECK(r.Top()->Access().name == "Preset loaded");
     r.ui.Key(Key::Escape);
-    r.Events().PresetFailed(PresetProblem::NoVoice);
+    r.Events().PresetFailed(PresetProblem::NoVoice, std::string());
     r.ui.Frame();
     CHECK(r.Top()->Access().name == "Preset not used");
 }
@@ -648,4 +648,47 @@ TEST_CASE("VoiceLibraryState: results wait until a sheet takes them") {
     const ResultTexts t = DescribeResult("en", *r);
     CHECK(t.ok);
     CHECK(t.text == "The speed, pitch and volume are saved in a.json.");
+}
+
+// ------------------------------------------------------ the Preset result for the right Voice ---
+
+TEST_CASE("DescribeResult: a Preset loaded for the active Voice names it; for another Voice it says to choose it") {
+    VoiceLibraryState lib;
+    lib.PresetLoaded("en_US-amy-medium", true);
+    ResultTexts t = DescribeResult("en", *lib.TakeResult());
+    CHECK(t.ok);
+    CHECK(t.title == "Preset loaded");
+    CHECK(t.text == "The speed, pitch and volume of en_US-amy-medium are in use now.");
+
+    lib.PresetLoaded("en_GB-alba-medium", false);
+    t = DescribeResult("en", *lib.TakeResult());
+    CHECK(t.ok);
+    CHECK(t.text == "The speed, pitch and volume of en_GB-alba-medium are saved. Choose en_GB-alba-medium to hear them.");
+}
+
+TEST_CASE("DescribeResult: a Preset for a Voice that is not installed is a Problem that names the Voice") {
+    VoiceLibraryState lib;
+    lib.PresetFailed(PresetProblem::VoiceNotInstalled, "insert voice");
+    REQUIRE(lib.HasResult());
+    const ResultTexts t = DescribeResult("en", *lib.TakeResult());
+    CHECK_FALSE(t.ok);
+    CHECK_FALSE(t.again);
+    CHECK(t.title == "Preset not used");
+    CHECK(t.text == "The voice \"insert voice\" is not currently installed, so the preset was not used. "
+                    "Add that voice first, or choose another file.");
+    // The other problems keep their words and ignore the name.
+    lib.PresetFailed(PresetProblem::BadFile, "x");
+    CHECK(DescribeResult("en", *lib.TakeResult()).text.find("not a Lexia preset file") != std::string::npos);
+}
+
+TEST_CASE("Result sheet: a Preset for a Voice that is not installed opens as a Problem sheet") {
+    Rig r;
+    r.Events().PresetFailed(PresetProblem::VoiceNotInstalled, "insert voice");
+    r.ui.Frame();
+    REQUIRE(r.ui.screen.SheetCount() == 1);
+    CHECK(r.Top()->Access().name == "Preset not used");
+    // The body wraps into lines: join them with a space and look for the name in the text.
+    std::string all;
+    for (const Call* c : r.ui.canvas.Of(Call::Text)) all += c->text + " ";
+    CHECK(all.find("insert voice") != std::string::npos);
 }
