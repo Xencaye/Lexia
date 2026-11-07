@@ -3,6 +3,7 @@
 // (PageMessage), what the pages draw from a state, and that every word on a page comes from strings/.
 #include "native_ui/pages/about_page.h"
 #include "native_ui/pages/home_page.h"
+#include "native_ui/pages/layout.h"
 #include "native_ui/pages/report_page.h"
 #include "native_ui/settings_ui.h"
 #include "native_ui_test_util.h"
@@ -109,17 +110,86 @@ TEST_CASE("ShowPage builds the page of the name, and the same page again changes
     }
 }
 
-TEST_CASE("the links sit in tab order before the page: top links, bottom links, volume, then the page") {
+TEST_CASE("the links sit in tab order before the page: top links, minimise, close, bottom links, volume, then the page") {
     Rig r;
     r.Push(r.State(false));
     const std::vector<Widget*> order = r.ui.screen.FocusOrder();
-    REQUIRE(order.size() >= 8);
+    REQUIRE(order.size() >= 10);
     CHECK(order[0] == r.settings.GetFrame().LinkFor(Page::Home));
     CHECK(order[1] == r.settings.GetFrame().LinkFor(Page::Voices));
     CHECK(order[2] == r.settings.GetFrame().LinkFor(Page::Settings));
-    CHECK(order[3] == r.settings.GetFrame().LinkFor(Page::Report));
-    CHECK(order[6] == r.settings.GetFrame().Volume());
-    CHECK(order[7] == static_cast<HomePage*>(r.settings.Current())->Power());
+    CHECK(order[3] == r.settings.GetFrame().MinimiseButton());  // K10: right after the top links
+    CHECK(order[4] == r.settings.GetFrame().CloseButton());
+    CHECK(order[5] == r.settings.GetFrame().LinkFor(Page::Report));
+    CHECK(order[8] == r.settings.GetFrame().Volume());
+    CHECK(order[9] == static_cast<HomePage*>(r.settings.Current())->Power());
+}
+
+TEST_CASE("K10: minimise and close are in the frame of every page, where the mockup puts them") {
+    Rig r;
+    for (Page page : {Page::Home, Page::Voices, Page::Settings, Page::Report, Page::Help, Page::About}) {
+        CAPTURE(PageName(page));
+        r.settings.ShowPage(page);
+        r.Push(r.State(false));
+        Frame& frame = r.settings.GetFrame();
+        REQUIRE(frame.MinimiseButton());
+        REQUIRE(frame.CloseButton());
+        // The icon box (24 x 24) is the hit area shrunk by 2; the boxes are at (726, 10) and (760, 10).
+        const RectF m = frame.MinimiseButton()->Abs(), c = frame.CloseButton()->Abs();
+        CHECK(m.x + 2 == doctest::Approx(layout::kMinimiseX));
+        CHECK(m.y + 2 == doctest::Approx(layout::kWindowButtonsY));
+        CHECK(c.x + 2 == doctest::Approx(layout::kCloseX));
+        CHECK(c.y + 2 == doctest::Approx(layout::kWindowButtonsY));
+        CHECK(m.w == doctest::Approx(28));
+        CHECK(m.Right() < c.x);  // the two hit areas do not overlap
+        CHECK(c.Right() <= layout::kWindowW);
+        CHECK(frame.MinimiseButton()->Access().name == strings::Text("en", strings::id::kWindowMinimise));
+        CHECK(frame.CloseButton()->Access().name == strings::Text("en", strings::id::kWindowClose));
+        CHECK(frame.MinimiseButton()->Tooltip() == strings::Text("en", strings::id::kWindowMinimise));
+        CHECK(frame.CloseButton()->Tooltip() == strings::Text("en", strings::id::kWindowClose));
+    }
+}
+
+TEST_CASE("K10: a click on minimise or close asks the window, and sends nothing to the host") {
+    Rig r;
+    r.Push(r.State(false));
+    std::vector<WindowCommand> asked;
+    r.settings.SetOnWindowCommand([&](WindowCommand c) { asked.push_back(c); });
+    r.ClickOn(*r.settings.GetFrame().MinimiseButton());
+    REQUIRE(asked.size() == 1);
+    CHECK(asked[0] == WindowCommand::Minimise);
+    r.ClickOn(*r.settings.GetFrame().CloseButton());
+    REQUIRE(asked.size() == 2);
+    CHECK(asked[1] == WindowCommand::Close);
+    // The keyboard does the same: Tab to the button, Enter.
+    r.settings.GetFrame().CloseButton()->Focus();
+    r.ui.Key(Key::Enter);
+    CHECK(asked.size() == 3);
+    CHECK(r.sent.empty());  // a PageMessage is for the App; these are the window's own
+    // Without a handler (the picture tool, a test) a click does nothing and does not fail.
+    r.settings.SetOnWindowCommand(nullptr);
+    r.ClickOn(*r.settings.GetFrame().CloseButton());
+    CHECK(r.sent.empty());
+}
+
+TEST_CASE("K10: the window buttons are quiet when idle and take the accent colour on hover") {
+    Rig r;
+    r.Push(r.State(false));
+    auto iconColour = [&](const char* icon) {
+        r.ui.canvas.Clear();
+        r.ui.Frame();
+        for (const Call* c : r.ui.canvas.Of(Call::Icon)) {
+            if (c->text == icon) return c->colour.rgb;
+        }
+        return 0xFFFFFFFFu;
+    };
+    CHECK(iconColour("dash") == r.ui.pal.tile.rgb);
+    CHECK(iconColour("x-02") == r.ui.pal.tile.rgb);
+    const PointF c = Centre(*r.settings.GetFrame().CloseButton());
+    r.ui.Move(c.x, c.y);
+    r.ui.Advance(0.5);
+    CHECK(iconColour("x-02") == r.ui.pal.accent.rgb);
+    CHECK(iconColour("dash") == r.ui.pal.tile.rgb);  // the other one stays quiet
 }
 
 TEST_CASE("Master volume: a press asks for the value under the pointer, on the grid of 5") {

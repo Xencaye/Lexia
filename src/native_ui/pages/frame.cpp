@@ -59,6 +59,28 @@ Frame::Frame(const PageEnv& env) : env_(env) {
     DottedRule* ruleTop = Add<DottedRule>();
     ruleTop->SetBounds(layout::kRuleTop);
 
+    // K10: minimise and close, right after the top links in the Tab order. The bounds are the hit areas: the
+    // icon boxes of layout.h grown by kWindowButtonHitPad on each side. A click asks the window (through
+    // onWindowCommand_); nothing goes to the App. The window posts a message to itself for it, so the tree is not
+    // touched by the command inside this click.
+    auto addWindowButton = [this](const char* icon, float iconX, const char* textId, const char* automationId,
+                                  WindowCommand command) {
+        WindowButton* button = Add<WindowButton>(icon);
+        button->SetBounds({iconX - layout::kWindowButtonHitPad, layout::kWindowButtonsY - layout::kWindowButtonHitPad,
+                           WindowButton::kHit, WindowButton::kHit});
+        const std::string label = T(textId);
+        button->SetName(label);
+        button->SetTooltip(label);
+        button->SetAutomationId(automationId);
+        button->SetOnActivate([this, command] {
+            if (onWindowCommand_) onWindowCommand_(command);
+        });
+        return button;
+    };
+    minimise_ = addWindowButton("dash", layout::kMinimiseX, strings::id::kWindowMinimise, "frame.minimise",
+                                WindowCommand::Minimise);
+    close_ = addWindowButton("x-02", layout::kCloseX, strings::id::kWindowClose, "frame.close", WindowCommand::Close);
+
     footNav_ = Add<Panel>();
     footNav_->SetName(T(strings::id::kWindowNavMore));
     footNav_->SetAutomationId("nav.more");

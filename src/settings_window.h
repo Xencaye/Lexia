@@ -5,8 +5,10 @@
 // tooltip and the cursor the tree asks for, and carries typed values between the tree and its owner:
 // `onCommand(PageMessage)` out, SetState / ShowPage / SetDark in. ui_host.* has the messages, App the actions.
 //
-// It is a normal window of a fixed size (800 x 600 DIPs client area, not resizable) that takes focus (it is
-// not the Overlay). Created when the user opens it and destroyed when they close it. It never touches the
+// It is a normal window of a fixed size (800 x 600 DIPs, not resizable) that takes focus (it is not the Overlay).
+// K10: it has no Windows title bar. The pages carry their own minimise and close buttons; bare paper drags the
+// window (WM_NCHITTEST -> HTCAPTION, decided by nui::HitTestWindow); the caption bits stay in the window style, so
+// the taskbar button, Alt+Space, Alt+F4 and Win+Down work as for any window. Created when the user opens it and destroyed when they close it. It never touches the
 // network and loads no file: the icons, engravings and the font are resources of the exe.
 //
 // Everything runs on the UI thread. The owner must not delete this object from inside one of its
@@ -28,7 +30,7 @@ public:
     struct Options {
         std::wstring title;               // the window's title (strings window.title)
         std::string interfaceLanguage = "en";  // the language of the texts of the pages
-        bool dark = false;                // the title bar and the paper before the first state
+        bool dark = false;                // the paper before the first state
         nui::Page startPage = nui::Page::Home;
         std::function<void(const PageMessage&)> onCommand;  // a user action of the pages
         std::function<void()> onSystemThemeChanged;  // Windows changed its light / dark setting
@@ -47,7 +49,7 @@ public:
     void BringToFront();                     // restores it if minimised, and takes focus
     void ShowPage(nui::Page page);           // switches the page
     void SetState(const UiState& state);     // redraws from the state (the theme in it included)
-    void SetDark(bool dark);                 // the title bar and the paper; SetState does it from state.dark
+    void SetDark(bool dark);                 // the paper; SetState does it from state.dark
     // The Voice library's answers (typed events) go to the Voices page's sheets through this; never null.
     VoiceEventSink* VoiceEvents();
     HWND Handle() const { return hwnd_; }

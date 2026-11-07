@@ -18,15 +18,18 @@
 #include "native_ui/screen.h"
 #include "native_ui/settings_ui.h"
 #include "native_ui/uia_provider.h"
+#include "native_ui/window_hit.h"
 #include "tooltip_window.h"
 
 namespace {
 
 const wchar_t kClassName[] = L"LexiaSettingsWindow";
-// The window is a fixed 800 x 600 (client area, device-independent pixels at 96 dpi): no resizing, no
-// maximising.
-const int kClientWidth = 800, kClientHeight = 600;
-const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW & ~static_cast<DWORD>(WS_THICKFRAME | WS_MAXIMIZEBOX);
+// The window is a fixed 800 x 600 (device-independent pixels at 96 dpi): no resizing, no maximising. K10: it has
+// no Windows title bar (WM_NCCALCSIZE gives the whole window to the client area), so this is also the size of the
+// client area. The style keeps the caption bits so Windows still treats it as a normal window (taskbar button,
+// Alt+Space system menu, minimise animation, Win+Down); no WS_THICKFRAME and no WS_MAXIMIZEBOX.
+const int kWindowWidth = 800, kWindowHeight = 600;
+const DWORD kWindowStyle = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 const UINT_PTR kTimerFrame = 1;  // about 60 Hz while a transition or the tooltip delay runs
 const UINT kFrameMs = 16;
 // A one-shot timer for the Screen's next wake-up (the read button's wiggle, every 5 s): between wiggles no
@@ -132,6 +135,14 @@ SettingsWindow::SettingsWindow(Options options) : options_(std::move(options)), 
         impl_->screen.Defer([this, m] {
             if (options_.onCommand) options_.onCommand(m);
         });
+    });
+    // K10: the minimise and close buttons are the window's own business, not the App's (no PageMessage). They
+    // become the same system commands as the buttons of a title bar. Posted, not sent: the click that asked for
+    // it is still inside the widget tree, and SC_CLOSE destroys the window (and the tree) - it must run after
+    // the event, from the message loop. A screen reader's Invoke arrives the same way.
+    impl_->ui->SetOnWindowCommand([this](nui::WindowCommand command) {
+        if (!hwnd_) return;
+        PostMessageW(hwnd_, WM_SYSCOMMAND, command == nui::WindowCommand::Minimise ? SC_MINIMIZE : SC_CLOSE, 0);
     });
 }
 
@@ -241,6 +252,38 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_ERASEBKGND:
         return 1;  // Direct2D clears the whole client area every frame
+    case WM_NCCALCSIZE:
+        // K10: no title bar and no frame. With wParam TRUE the proposed client rectangle is the whole window
+        // rectangle already; answering 0 keeps it (the standard way to draw one's own caption). The DWM shadow
+        // and the rounded corners stay (see Create). wParam FALSE (a plain rectangle) takes the default.
+        if (wp) return 0;
+        return DefWindowProcW(hwnd_, msg, wp, lp);
+    case WM_NCHITTEST: {
+        // K10: bare paper moves the window (press and drag, as on a title bar; a right click opens the system
+        // menu), a control gets the press. There is no resize border (no WS_THICKFRAME) to report. The question
+        // is the pure HitTestWindow(); a point outside the client area (cannot be: the client is the whole
+        // window) gets Windows' answer.
+        POINT pt = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        ScreenToClient(hwnd_, &pt);
+        RECT client;
+        GetClientRect(hwnd_, &client);
+        if (!PtInRect(&client, pt)) return DefWindowProcW(hwnd_, msg, wp, lp);
+        const nui::PointF dips = {im.ToDip(pt.x), im.ToDip(pt.y)};
+        return nui::HitTestWindow(im.screen, dips) == nui::WindowHit::Caption ? HTCAPTION : HTCLIENT;
+    }
+    case WM_NCMOUSEMOVE:
+        // The pointer is over the drag area, which Windows counts as non-client: no WM_MOUSEMOVE comes there, and
+        // the control it left (a hovered link, a tooltip) would stay lit. Tell the tree once that it is gone.
+        if (im.trackingMouse && !im.leftDown) {
+            im.trackingMouse = false;
+            mouse(nui::MouseKind::Leave, nui::MouseButton::None, 0, 0);
+        }
+        return DefWindowProcW(hwnd_, msg, wp, lp);
+    case WM_NCACTIVATE:
+        // lParam -1 tells DefWindowProc not to repaint the non-client area, so it cannot paint an old caption
+        // when the window is activated or deactivated (it has none, but the caption bits are in the style). The
+        // result (TRUE: go on with the change) is the default's.
+        return DefWindowProcW(hwnd_, msg, wp, -1);
     case WM_PAINT: {
         PAINTSTRUCT ps;
         BeginPaint(hwnd_, &ps);  // validates the window; the pixels come from Direct2D
@@ -409,8 +452,10 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         if (im.uia) im.uia->SetDpi(im.dpi);
         if (im.canvas) im.canvas->SetDpi(static_cast<float>(im.dpi));
         im.tip.SetDpi(static_cast<int>(im.dpi));
+        // The suggested rectangle is computed with the standard frame sizes, but this window has no non-client
+        // area: take its position and give it exactly 800 x 600 DIPs at the new DPI.
         const RECT* r = reinterpret_cast<const RECT*>(lp);
-        SetWindowPos(hwnd_, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top,
+        SetWindowPos(hwnd_, nullptr, r->left, r->top, Scale(kWindowWidth, im.dpi), Scale(kWindowHeight, im.dpi),
                      SWP_NOZORDER | SWP_NOACTIVATE);
         InvalidateRect(hwnd_, nullptr, FALSE);
         return 0;
@@ -467,10 +512,9 @@ bool SettingsWindow::Create(const RECT& monitor) {
     // The size is in device-independent pixels; the DPI is the one of the monitor it opens on.
     UINT dpiX = 96, dpiY = 96;
     GetDpiForMonitor(MonitorFromRect(&monitor, MONITOR_DEFAULTTONEAREST), MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
-    RECT outer = {0, 0, Scale(kClientWidth, dpiX), Scale(kClientHeight, dpiX)};
-    AdjustWindowRectExForDpi(&outer, kWindowStyle, FALSE, 0, dpiX);
-    int w = outer.right - outer.left;
-    int h = outer.bottom - outer.top;
+    // No non-client area (WM_NCCALCSIZE), so the window is as big as its client area: no AdjustWindowRect.
+    int w = Scale(kWindowWidth, dpiX);
+    int h = Scale(kWindowHeight, dpiX);
     const int monW = monitor.right - monitor.left;
     const int monH = monitor.bottom - monitor.top;
     w = std::min(w, monW);
@@ -486,6 +530,13 @@ bool SettingsWindow::Create(const RECT& monitor) {
         LogError("[window] Could not create the Settings window (error ", GetLastError(), ").");
         return false;
     }
+    // The DWM shadow and (Windows 11) the rounded corners belong to a window with a frame. With no frame at all
+    // DWM draws neither, so one pixel of the top edge is handed to DWM as "frame" (the usual trick for a window
+    // that draws its own caption); the swap chain paints over it, it only keeps the effects. Order of the fields:
+    // left, right, top, bottom. A failure (DWM off) only loses the shadow.
+    const MARGINS margins = {0, 0, 1, 0};
+    DwmExtendFrameIntoClientArea(hwnd_, &margins);
+    SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     // The UI Automation host needs the window and the tree; WM_GETOBJECT before this point gets the default.
     impl_->uia = std::make_unique<UiaHost>(hwnd_, impl_->screen, options_.interfaceLanguage);
     impl_->uia->SetDpi(impl_->dpi);
@@ -533,21 +584,17 @@ void SettingsWindow::ShowPage(nui::Page page) {
 
 void SettingsWindow::SetState(const UiState& state) {
     impl_->ui->SetState(state);
-    if (impl_->ui->Dark() != impl_->dark) SetDark(impl_->ui->Dark());  // the title bar follows the state's theme
+    if (impl_->ui->Dark() != impl_->dark) SetDark(impl_->ui->Dark());  // the paper follows the state's theme
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
     if (impl_->uia) impl_->uia->Update();  // values, toggles and names that the state moved
 }
 
-// The dark or light title bar (DWM attribute 20, DWMWA_USE_IMMERSIVE_DARK_MODE, not in older SDK
-// headers); the paper colour is the palette's, chosen when the tree paints.
+// The theme: the paper colour is the palette's, chosen when the tree paints. There is no title bar to colour
+// (K10), so a change is only a repaint.
 void SettingsWindow::SetDark(bool dark) {
     impl_->dark = dark;
     impl_->ui->SetDark(dark);
-    if (!hwnd_) return;
-    const BOOL value = dark ? TRUE : FALSE;
-    DwmSetWindowAttribute(hwnd_, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &value, sizeof(value));
-    SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-    InvalidateRect(hwnd_, nullptr, FALSE);
+    if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
 VoiceEventSink* SettingsWindow::VoiceEvents() {

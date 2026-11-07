@@ -120,6 +120,30 @@ AccessInfo IconButton::Access() const {
     return a;
 }
 
+// -------------------------------------------------------------------------------- WindowButton ---
+
+WindowButton::WindowButton(std::string icon) : icon_(std::move(icon)) {
+    SetRole(Role::Button);
+    SetSize(kHit, kHit);
+}
+
+void WindowButton::Paint(Canvas& canvas, const Palette& p) {
+    const RectF r = Abs();
+    // 0 idle, 1 hover, 2 pressed: hover and pressed look the same (the owner's mockup), so the amount is
+    // clamped to 1. The colour moves with the usual transition, so the change is not a flash.
+    const float a = std::min(1.0f, VisualAmount());
+    const Colour glyph = Mix(p.tile, p.accent, a);
+    const float off = (kHit - kIcon) / 2;
+    canvas.Icon({r.x + off, r.y + off, kIcon, kIcon}, icon_, glyph);
+    if (RingVisible()) DrawFocusRing(canvas, p, r, kIconButtonRadius);
+}
+
+AccessInfo WindowButton::Access() const {
+    AccessInfo a = BaseAccess();
+    a.role = Role::Button;
+    return a;
+}
+
 // -------------------------------------------------------------------------------- TextLink ---
 
 TextLink::TextLink(std::string text, std::string icon) : text_(std::move(text)), icon_(std::move(icon)) {

@@ -62,6 +62,24 @@ private:
     bool idleAccent_ = false;
 };
 
+// -------------------------------------------------------------------------------- WindowButton ---
+// K10: the window's own minimise and close buttons (the Settings window has no Windows title bar). An icon
+// of 24 in a 28 x 28 hit area, with no tile: only the colour of the icon changes. Idle: the `tile` token (a
+// quiet warm grey in both themes). Hover and pressed: `accent` (#6E504A in light). Keyboard focus: the normal
+// ring. It is not an IconButton because an IconButton's look is a tile fill and a 22 icon; this one has neither.
+class WindowButton : public Clickable {
+public:
+    explicit WindowButton(std::string icon = std::string());
+    void Paint(Canvas& canvas, const Palette& palette) override;
+    AccessInfo Access() const override;
+    // The side of the hit area and of the icon inside it (DIPs): layout.h places the icon box (kIcon), the hit
+    // area is 2 larger on each side (kHit).
+    static constexpr float kHit = 28, kIcon = 24;
+
+private:
+    std::string icon_;
+};
+
 // -------------------------------------------------------------------------------- TextLink ---
 // An icon in accent and a word in ink, 7 apart. Hover underlines the word. The current page's word is
 // bold, and the width of the bold word is reserved, so a menu of links never shifts. Small: 13 px,

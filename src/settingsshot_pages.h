@@ -23,7 +23,7 @@ struct ShotOptions {
     std::string sheet;   // Voices page: delete | deleteFailed | catalogue | offline | downloading | done | failed |
                          // failed-baddownload | added | refused | refused-notmedium | presetSaved | presetLoaded | presetFailed | presetLoadedOther | presetNotInstalled
     std::string hover;  // a widget to show hovered: power, enable, home|voices|settings|report|help|about (the
-                        // links), volume, mail, discord, github, itch, notices
+                        // links), minimise, close (K10), volume, mail, discord, github, itch, notices
     std::string select;   // Settings: the Key whose card shows (read | pause | speech)
     std::string capture;  // Settings: the Key whose chip waits for a key (the card shows that Key)
     bool switches = false;  // Settings: Run at startup, Run as admin and Left-handed on (the reference's look)

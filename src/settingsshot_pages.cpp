@@ -362,6 +362,8 @@ bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& opti
     Page linkPage = Page::Home;
     if (h == "power" && page == Page::Home) target = static_cast<HomePage*>(ui.Current())->Power();
     else if (h == "enable" && page == Page::Home) target = static_cast<HomePage*>(ui.Current())->Enable();
+    else if (h == "minimise") target = ui.GetFrame().MinimiseButton();  // K10: the window buttons, on every page
+    else if (h == "close") target = ui.GetFrame().CloseButton();
     else if (h == "volume") target = ui.GetFrame().Volume();
     else if (ParsePageName(h, linkPage)) target = ui.GetFrame().LinkFor(linkPage);
     else if (page == Page::Report && h == "mail") target = static_cast<ReportPage*>(ui.Current())->MailLink();
