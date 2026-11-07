@@ -119,6 +119,9 @@ public:
     bool Enabled() const { return enabled_; }
     void SetEnabled(bool e);
     bool Hovered() const { return hovered_; }
+    // A hook for the preview picture tool (lexia_settingsshot): shows the hovered look without a pointer,
+    // so one picture can hold several hovered widgets. The Screen's own hover tracking does not use it.
+    void PreviewHover(bool h) { SetHovered(h); }
     bool Focused() const { return focused_; }
     // Can the Tab key land here now? A native disabled button cannot be focused; an icon button or a
     // switch that explains itself with a tooltip (aria-disabled in the old page) keeps the focus.

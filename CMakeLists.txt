@@ -213,6 +213,7 @@ add_executable(lexia
     src/svg_icon.cpp
     src/assets.cpp
     src/native_ui/fonts.cpp
+    src/native_ui/d2d_canvas.cpp
     src/tooltip_window.cpp
     src/speech.cpp
     src/app.cpp
@@ -237,7 +238,7 @@ target_link_libraries(lexia PRIVATE
     lexia_core lexia_net
     opencv_core opencv_imgproc
     unofficial::webview2::webview2
-    user32 gdi32 gdiplus ole32 uuid winmm dwmapi shcore advapi32 shell32 d2d1 d3d11 dxgi dwrite shlwapi)
+    user32 gdi32 gdiplus ole32 uuid winmm dwmapi shcore advapi32 shell32 d2d1 d3d11 dxgi dwrite windowscodecs shlwapi)
 
 # Speech data next to the dev exe too (the package step copies it again, selectively)
 add_custom_command(TARGET lexia POST_BUILD
@@ -297,6 +298,25 @@ add_custom_command(TARGET lexia_barshot POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_barshot> "$<TARGET_FILE_DIR:lexia_barshot>"
     COMMAND_EXPAND_LISTS)
 
+
+# lexia_settingsshot: a developer tool, not packaged. It draws a page of the native Settings window
+# (the same widget tree and Direct2D canvas as the window) off-screen and writes a PNG, to compare the
+# look with wireframe/html-reference/ without a window. Own output folder, like lexia_barshot.
+#   build/settingsshot/<Config>/lexia_settingsshot.exe --page gallery [--theme light|dark] [--dpi 96] out.png
+# It carries the asset resources like lexia.exe. ctest settingsshot_smoke runs it (WARP is enough).
+add_executable(lexia_settingsshot src/settingsshot_main.cpp src/settingsshot_pages.cpp
+    src/native_ui/d2d_canvas.cpp src/svg_icon.cpp src/assets.cpp src/native_ui/fonts.cpp "${LEXIA_ASSETS_RC}")
+target_link_libraries(lexia_settingsshot PRIVATE lexia_core
+    user32 gdi32 ole32 uuid d2d1 d3d11 dxgi dwrite windowscodecs shlwapi)
+set_target_properties(lexia_settingsshot PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/settingsshot"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/settingsshot/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/settingsshot/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/settingsshot/RelWithDebInfo"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/settingsshot/MinSizeRel")
+add_custom_command(TARGET lexia_settingsshot POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_settingsshot> "$<TARGET_FILE_DIR:lexia_settingsshot>"
+    COMMAND_EXPAND_LISTS)
 # ------------------------------------------------------------------- tests ---
 # Unit tests (doctest) for the pure logic in lexia_core. Run with
 #   ctest --test-dir build -C Release --output-on-failure
@@ -359,6 +379,12 @@ add_test(NAME package_notices
         "-DPIPER_SRC=${LEXIA_PIPER_SRC}"
         "-DESPEAK_SRC=${LEXIA_ESPEAK_SRC}"
         -P "${CMAKE_SOURCE_DIR}/tests/notices_test.cmake")
+
+# The settings window's picture tool: the gallery page must draw, light and dark, and not be one colour
+# (tests/settingsshot_test.cmake). It builds with the default target, so the test needs no extra step.
+add_test(NAME settingsshot_smoke
+    COMMAND ${CMAKE_COMMAND} "-DSHOT_EXE=$<TARGET_FILE:lexia_settingsshot>" "-DWORK_DIR=${CMAKE_BINARY_DIR}/settingsshot_test"
+        -P "${CMAKE_SOURCE_DIR}/tests/settingsshot_test.cmake")
 
 # The Settings window page (ui/): its bridge tests, in headless Edge (tests/ui_bridge_test.cmake).
 # It fails, not skips, when Edge is missing; CI's windows-latest has Edge.
