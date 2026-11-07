@@ -6,7 +6,8 @@
 // argument is kept in `unknown`, so that the caller can log it; it does not stop Lexia.
 CommandLine ParseCommandLine(const std::vector<std::string>& args) {
     CommandLine c;
-    for (const std::string& arg : args) {
+    for (size_t i = 0; i < args.size(); ++i) {
+        const std::string& arg = args[i];
         const std::string a = ToLowerAscii(arg);  // "--Console" works too
         if (a == kConsoleSwitch) {
             c.console = true;
@@ -14,6 +15,19 @@ CommandLine ParseCommandLine(const std::vector<std::string>& args) {
             c.elevatedRelaunch = true;
         } else if (a == kMinimisedSwitch) {
             c.minimised = true;
+        } else if (a == kSetRunAsAdminSwitch) {
+            // The value is the next argument. It is taken only when it is not a switch itself, so
+            // "--set-run-as-admin --minimised" does not swallow --minimised; a missing or other value
+            // marks the switch invalid instead of guessing.
+            c.setRunAsAdmin.reset();
+            c.setRunAsAdminInvalid = true;
+            if (i + 1 < args.size() && args[i + 1].rfind("--", 0) != 0) {
+                const std::string v = ToLowerAscii(args[++i]);
+                if (v == "on" || v == "off") {
+                    c.setRunAsAdmin = (v == "on");
+                    c.setRunAsAdminInvalid = false;
+                }
+            }
         } else {
             c.unknown.push_back(arg);
         }

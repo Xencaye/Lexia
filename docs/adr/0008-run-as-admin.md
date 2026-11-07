@@ -41,6 +41,12 @@ want every person to run as administrator all the time, as that is a risk for li
   matter more, and nothing in them changes. Lexia does not write outside `%LOCALAPPDATA%\Lexia`.
 - Drag and drop and the file dialogs of a non-elevated Explorer may not reach an elevated Lexia
   (UIPI again). The Voice tab's file dialogs are Lexia's own (`IFileOpenDialog`), so they work.
+- An elevated Lexia also hears `Lexia.Quit` from the installer (K.7): the App window lets this registered
+  message through UIPI (`ChangeWindowMessageFilterEx`), as it does `Lexia.OpenSettings`, so Setup and the
+  uninstaller (not elevated) can close it cleanly. Security: any process of the same user can already end a
+  non-elevated Lexia, and the message carries no data and does one thing, `App::Quit()`; it opens no other door
+  into the elevated process. The switch `--set-run-as-admin on|off` only saves that one boolean in the settings
+  file of the user who runs it, and never elevates.
 - The Run key value is unchanged (no switch). Start minimised decides after the relaunch too.
 - Later option: a Task Scheduler task with "highest privileges", started at logon, which gives an
   elevated start without a UAC prompt. It needs the installer or an admin step once, so it waits

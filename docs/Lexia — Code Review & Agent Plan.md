@@ -31,9 +31,9 @@ Carried over from 0.5 into 0.6 (the owner's):
 - **H4**: the owner's check of the installer's pages; later, signing the installer and a CI job.
 - **A5** (owner): the check in games, a browser and a video with subtitles.
 
-In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`; K0 to K5 are done and
-merged there; K6 (WebView2 and `ui/` removed) is done on `feat/K.6`. **K7, your check, is the only open step**; then K
-merges to `main`.
+In progress (Nov 7): **K, the native Settings window** (ADR-0009), on `feat/K-native-settings`: K0 to K6 and K8 (the
+owner's changes after the first look) are done and merged there. **K7, your check, is the only open step**; then K merges
+to `main`.
 Later: G (Lexia 0.6), E1, E2, E6 (the owner's Bulgarian Voice) and the Language UI (Lexia 0.8), and J, Linux on
 Ubuntu (Lexia 1.0).
 
@@ -461,6 +461,16 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   `WebView2Loader.dll` are gone from the install folder, the `WebView2` folder in `%LOCALAPPDATA%\Lexia` is removed at
   the first start and the log says so; settings.json, Voices and Presets stay), and the uninstaller (the program, the
   Run value; it still asks about `%LOCALAPPDATA%\Lexia`).
+- [x] **K8 The owner's changes after the first look (Nov 7).** On `feat/K.7-fixes`: (1) the key card's read button
+  is the Master volume's speaker icon, left of the title, no ring, and it wiggles a little every 5 s (none with reduced
+  motion; a one-shot wake timer between wiggles, frames only while it moves; `Canvas::PushRotation`); (2) loading a
+  Preset follows the file's Voice: a Voice that is not installed changes nothing and says so ("The voice … is not
+  currently installed"), another installed Voice gets the controls without becoming active, an old file without a
+  Voice goes to the active one (`ChoosePresetTarget`, `PresetVoiceForDisplay` for the untrusted name); (3) Setup and
+  the uninstaller close a running Lexia on request (the `Lexia.Quit` message, let through UIPI so an elevated Lexia
+  hears it too; after 10 s an offer to end it by force, with one UAC prompt for an elevated one; silent runs never ask);
+  (4) a "Run as administrator" task in Setup, checked when the setting is on, written with
+  `lexia.exe --set-run-as-admin on|off` as the installing person. *Your check:* the K8 items in the PR's test list.
 
 ## Order and milestones
 
