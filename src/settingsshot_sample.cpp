@@ -1,5 +1,7 @@
 #include "settingsshot_sample.h"
 
+#include "version.h"  // LEXIA_VERSION, generated from vcpkg.json
+
 // The values are test data of a developer tool: they stay literals, outside strings/.
 namespace shot {
 
@@ -15,7 +17,7 @@ UiState SampleState(bool on, bool dark, const std::string& voices) {
     s.language = "eng";
     s.theme = dark ? "dark" : "light";
     s.dark = dark;
-    s.version = "0.5.0";
+    s.version = LEXIA_VERSION;  // the real version, so the About shot shows what the release says
     s.runAtStartup = false;
     s.startMinimised = true;
     s.runAsAdmin = false;
