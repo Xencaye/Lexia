@@ -1,0 +1,56 @@
+<#
+.SYNOPSIS
+  Writes pictures of the native Settings window's pages with lexia_settingsshot, light and dark.
+
+.DESCRIPTION
+  Each picture is the real widget tree and the real Direct2D canvas of the window, off-screen, at 96 dpi
+  (800 x 600), with the sample state of src\settingsshot_sample.cpp (the values of the old mock host). The
+  file names are those of wireframe\html-reference\ (home-off-light.png, home-on-hover-dark.png, help-light.png,
+  report-dark.png, about-light.png ...), so each picture can be put next to its reference. K.3 and K.4 add
+  the Voices and Settings pages and the sheets to the list below.
+
+.PARAMETER Exe
+  lexia_settingsshot.exe, built (default build\settingsshot\Release\lexia_settingsshot.exe).
+
+.PARAMETER Out
+  The folder for the pictures (default build\settingsshot\pages).
+
+.PARAMETER Dpi
+  The scale of the pictures (default 96; 144 and 192 check the sharpness at 150 % and 200 %).
+#>
+param(
+    [string]$Exe = 'build\settingsshot\Release\lexia_settingsshot.exe',
+    [string]$Out = 'build\settingsshot\pages',
+    [int]$Dpi = 96
+)
+
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $PSScriptRoot
+Set-Location $root
+if (-not (Test-Path -LiteralPath $Exe)) { throw "lexia_settingsshot is not built: $Exe" }
+New-Item -ItemType Directory -Force -Path $Out | Out-Null
+
+# name, then the tool's arguments (the theme is added per picture)
+$shots = @(
+    @('home-off',       @('--page', 'home')),
+    @('home-on',        @('--page', 'home', '--on')),
+    @('home-off-hover', @('--page', 'home', '--hover', 'power')),
+    @('home-on-hover',  @('--page', 'home', '--on', '--hover', 'power')),
+    @('help',           @('--page', 'help')),
+    @('report',         @('--page', 'report')),
+    @('about',          @('--page', 'about'))
+)
+
+$failed = 0
+foreach ($theme in 'light', 'dark') {
+    foreach ($shot in $shots) {
+        $file = Join-Path $Out ("{0}-{1}.png" -f $shot[0], $theme)
+        & $Exe @($shot[1]) --theme $theme --dpi $Dpi $file | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "$($shot[0]) ($theme) failed with exit code $LASTEXITCODE"
+            $failed++
+        }
+    }
+}
+Write-Host ("Wrote {0} pictures to {1}" -f (Get-ChildItem $Out -Filter *.png).Count, (Resolve-Path $Out))
+if ($failed -gt 0) { exit 1 }

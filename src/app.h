@@ -47,9 +47,9 @@ public:
     void SetOn(bool on);      // On / Off; remembered in settings.json
     void Quit();              // makes Run() return (the tray menu calls it)
     // Opens the Settings window, or brings the open one to the front. `page` (home|voices|settings|report|help|
-    // about; "" = Home) is the page it shows (?page=); for an open window it is loaded again on that page.
+    // about; "" = Home) is the page it shows (an unknown name is logged and shows Home); an open window switches to it.
     void OpenSettingsWindow(std::string_view page = {});
-    void PushState();           // sends the page the whole state; nothing if the window is not ready
+    void PushState();           // gives the Settings window the whole state (SetState); nothing if it is not open
 
     void OnSettingsFileChanged();  // the debounced reload; public for the window procedure
     void SyncSpeechKeys();         // the Pause and Speech keys follow whether Lexia is speaking
@@ -71,7 +71,7 @@ private:
     void PrintHelp() const;
     bool CreateMessageWindow();
     UiState BuildUiState() const;
-    void HandlePageMessage(const std::string& json);
+    void HandlePageMessage(const PageMessage& m);  // a user action of the Settings window (typed, ui_host.h)
     void ApplyWindowTheme();  // the Settings window's title bar follows the theme setting
     void UpdateTray();        // the tray icon's On / Off look and tooltip follow the state
     void ShowTrayMenu(POINT at);
@@ -112,10 +112,9 @@ private:
     HWND window_ = nullptr;
     std::unique_ptr<SettingsWatcher> watcher_;  // before window_ is destroyed, see ~App
 
-    // The Settings window (D3): made on demand, destroyed when closed. `pageReady_` is set when the
-    // page has sent `ready`; before that nothing is pushed (it gets everything on `ready`).
+    // The Settings window (D3, native since K.2): made on demand, destroyed when closed. It gets the whole
+    // state (PushState) right after it is made and after every change.
     std::unique_ptr<SettingsWindow> settingsWindow_;
-    bool pageReady_ = false;
 
     TrayIcon tray_;  // D2: added once the hidden window exists, removed in Run() when it ends
     // The Voice tab (D5). After settingsWindow_ and speaker_: it is destroyed first (its workers post to the window).

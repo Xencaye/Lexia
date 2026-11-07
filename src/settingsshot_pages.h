@@ -4,20 +4,30 @@
 // through the toolkit (Widget::PreviewHover, Screen::SetFocus, Screen::HandleMouse), so the same
 // widget code runs here as in the window.
 //
-// Today only `gallery` exists: one of each toolkit control in its main states, for comparing the look
-// with wireframe/html-reference/. The next task adds `home|voices|settings|report|help|about` (and
-// `--sheet <name>`) to BuildShotPage, built from a sample UiState; the tool and the smoke test do not
-// change for that.
+//   gallery                                            one of each toolkit control in its main states
+//   home | voices | settings | report | help | about   the real SettingsUi (frame + page) with a sample UiState
+//                                                      (settingsshot_sample.*), as the window shows it
+// K.3 / K.4 add `--sheet <name>` and the key-capture states to BuildShotPage; the tool and the smoke test do
+// not change for that.
+#include <string>
 #include <string_view>
 
 #include "native_ui/screen.h"
 
 namespace shot {
 
+// What the command line asks of a real page.
+struct ShotOptions {
+    bool on = false;    // Lexia On (Home: the accent circle, "disable", the bee in its On tint)
+    std::string hover;  // a widget to show hovered: power, enable, home|voices|settings|report|help|about (the
+                        // links), volume, mail, discord, github, itch, notices
+};
+
 // Builds the page `page` into `screen` (800 x 600 DIPs). `canvas` is only used to measure text while the
 // widgets are placed. `dark` is the theme the picture will be drawn in (a page may need it for state).
 // False if there is no such page.
-bool BuildShotPage(std::string_view page, nui::Screen& screen, nui::Canvas& canvas, bool dark);
+bool BuildShotPage(std::string_view page, nui::Screen& screen, nui::Canvas& canvas, bool dark,
+                   const ShotOptions& options = {});
 
 // ---- forcing states (for the page builders)
 

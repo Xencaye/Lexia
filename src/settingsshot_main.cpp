@@ -3,7 +3,8 @@
 // be compared with wireframe/html-reference/ without a window or a mouse. It carries the asset resources
 // (icons, engravings, the font) like lexia_barshot, so it needs no ui\ folder.
 //
-//   lexia_settingsshot --page gallery [--theme light|dark] [--dpi N] out.png
+//   lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] [--hover <widget>]
+//                      [--theme light|dark] [--dpi N] out.png
 //
 // The picture is 800 x 600 DIPs (the window's client area), so 1200 x 900 pixels at 144 dpi. On success
 // it prints one line: the file, its size and the number of distinct colours (the smoke test checks that
@@ -29,7 +30,9 @@ namespace {
 constexpr float kWindowW = 800, kWindowH = 600;  // the Settings window's client area in DIPs
 
 int Usage() {
-    std::fprintf(stderr, "usage: lexia_settingsshot --page gallery [--theme light|dark] [--dpi N] out.png\n");
+    std::fprintf(stderr,
+                 "usage: lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] "
+                 "[--hover <widget>] [--theme light|dark] [--dpi N] out.png\n");
     return 2;
 }
 
@@ -49,11 +52,14 @@ int wmain(int argc, wchar_t** argv) {
     std::wstring page = L"gallery", out;
     bool dark = false;
     int dpi = 96;
+    shot::ShotOptions options;
     for (int i = 1; i < argc; ++i) {
         const std::wstring a = argv[i];
         auto next = [&]() -> std::wstring { return i + 1 < argc ? std::wstring(argv[++i]) : std::wstring(); };
         if (a == L"--page") page = next();
         else if (a == L"--theme") dark = next() == L"dark";
+        else if (a == L"--on") options.on = true;
+        else if (a == L"--hover") options.hover = WideToUtf8(next());
         else if (a == L"--dpi") dpi = _wtoi(next().c_str());
         else if (a.rfind(L"--", 0) == 0) return Usage();
         else out = a;
@@ -75,7 +81,7 @@ int wmain(int argc, wchar_t** argv) {
 
         if (!canvas.CreateOffscreen(widthPx, heightPx, static_cast<float>(dpi))) {
             std::fprintf(stderr, "The Direct2D canvas could not be made.\n");
-        } else if (!shot::BuildShotPage(WideToUtf8(page), screen, canvas, dark)) {
+        } else if (!shot::BuildShotPage(WideToUtf8(page), screen, canvas, dark, options)) {
             std::fprintf(stderr, "There is no page named %s.\n", WideToUtf8(page).c_str());
             rc = 2;
         } else {

@@ -36,9 +36,6 @@ const Table& EnglishTable() {
          "Lexia could not start. The file lexia.log in the Lexia folder of your Local AppData folder says why."},
 
         {id::kWindowTitle, "Lexia"},
-        {id::kWindowNoRuntime,
-         "Lexia needs Microsoft Edge WebView2 to show its settings window, and it is not installed on this PC. "
-         "Install the Evergreen WebView2 Runtime from Microsoft, then open Lexia again."},
         {id::kWindowNavMain, "Pages"},
         {id::kWindowNavMore, "More"},
         {id::kWindowNavHome, "home"},
