@@ -1,6 +1,7 @@
 // The Settings page (K.4): the key list and its card, the key capture, the play button and the six
 // switches. Driven through the Screen with a FakeCanvas, like the other native UI tests: what the page draws
 // from a state, and which PageMessage a press or a key sends to the host.
+#include "native_ui/pages/layout.h"
 #include "native_ui/pages/settings_page.h"
 #include "native_ui/settings_ui.h"
 #include "native_ui_test_util.h"
@@ -174,11 +175,12 @@ TEST_CASE("Settings: the headings and the six switches are the page's words") {
     CHECK(r.Page_().DarkMode()->Access().name == r.Words(strings::id::kWindowSettingsDarkMode));
     CHECK(r.Page_().LeftHanded()->Access().name == r.Words(strings::id::kWindowSettingsLeftHanded));
     CHECK(r.Page_().KeepWordMark()->Access().name == r.Words(strings::id::kWindowSettingsKeepWordMark));
-    // 377, then 28 apart, 250 wide.
-    CHECK(r.Page_().RunAtStartup()->Abs().y == doctest::Approx(377));
-    CHECK(r.Page_().LeftHanded()->Abs().y == doctest::Approx(377 + 4 * 28));
-    CHECK(r.Page_().KeepWordMark()->Abs().y == doctest::Approx(377 + 5 * 28));
-    CHECK(r.Page_().KeepWordMark()->Abs().y + r.Page_().KeepWordMark()->Abs().h <= 600);  // inside the 800 x 600 window
+    // 349, then 28 apart, 250 wide.
+    CHECK(r.Page_().RunAtStartup()->Abs().y == doctest::Approx(349));
+    CHECK(r.Page_().LeftHanded()->Abs().y == doctest::Approx(349 + 4 * 28));
+    CHECK(r.Page_().KeepWordMark()->Abs().y == doctest::Approx(349 + 5 * 28));
+    // The last switch ends above the dotted rule of the bottom links (it crossed it before G2 moved the block up).
+    CHECK(r.Page_().KeepWordMark()->Abs().y + r.Page_().KeepWordMark()->Abs().h <= nui::layout::kRuleBottom.y);
     CHECK(r.Page_().RunAtStartup()->Abs().w == doctest::Approx(250));
 }
 
