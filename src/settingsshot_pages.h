@@ -19,6 +19,9 @@ namespace shot {
 // What the command line asks of a real page.
 struct ShotOptions {
     bool on = false;    // Lexia On (Home: the accent circle, "disable", the bee in its On tint)
+    std::string voices;  // Voices page: "" | none | changed | user (settingsshot_sample.h)
+    std::string sheet;   // Voices page: delete | deleteFailed | catalogue | offline | downloading | done | failed |
+                         // failed-baddownload | added | refused | refused-notmedium | presetSaved | presetLoaded | presetFailed
     std::string hover;  // a widget to show hovered: power, enable, home|voices|settings|report|help|about (the
                         // links), volume, mail, discord, github, itch, notices
 };

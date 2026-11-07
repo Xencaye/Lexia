@@ -6,8 +6,8 @@
   Each picture is the real widget tree and the real Direct2D canvas of the window, off-screen, at 96 dpi
   (800 x 600), with the sample state of src\settingsshot_sample.cpp (the values of the old mock host). The
   file names are those of wireframe\html-reference\ (home-off-light.png, home-on-hover-dark.png, help-light.png,
-  report-dark.png, about-light.png ...), so each picture can be put next to its reference. K.3 and K.4 add
-  the Voices and Settings pages and the sheets to the list below.
+  report-dark.png, about-light.png, voices-none-dark.png, sheet-catalogue-light.png ...), so each picture can be put
+  next to its reference. K.3 added the Voices page and its sheets; K.4 adds the Settings page to the list below.
 
 .PARAMETER Exe
   lexia_settingsshot.exe, built (default build\settingsshot\Release\lexia_settingsshot.exe).
@@ -38,7 +38,26 @@ $shots = @(
     @('home-on-hover',  @('--page', 'home', '--on', '--hover', 'power')),
     @('help',           @('--page', 'help')),
     @('report',         @('--page', 'report')),
-    @('about',          @('--page', 'about'))
+    @('about',          @('--page', 'about')),
+    # K.3: the Voices page (variants of the old mock host's ?voices= / ?active= / ?pitch=) and its sheets
+    @('voices',                  @('--page', 'voices')),
+    @('voices-none',             @('--page', 'voices', '--voices', 'none')),
+    @('voices-changed',          @('--page', 'voices', '--voices', 'changed', '--hover', 'pitch')),
+    @('voices-user-voice',       @('--page', 'voices', '--voices', 'user', '--hover', 'delete')),
+    @('sheet-delete',            @('--page', 'voices', '--sheet', 'delete')),
+    @('sheet-deleteFailed',      @('--page', 'voices', '--sheet', 'deleteFailed')),
+    @('sheet-catalogue',         @('--page', 'voices', '--sheet', 'catalogue')),
+    @('sheet-offline',           @('--page', 'voices', '--sheet', 'offline')),
+    @('sheet-downloading',       @('--page', 'voices', '--sheet', 'downloading')),
+    @('sheet-done',              @('--page', 'voices', '--sheet', 'done')),
+    @('sheet-failed',            @('--page', 'voices', '--sheet', 'failed')),
+    @('sheet-failed-baddownload', @('--page', 'voices', '--sheet', 'failed-baddownload')),
+    @('sheet-added',             @('--page', 'voices', '--sheet', 'added')),
+    @('sheet-refused',           @('--page', 'voices', '--sheet', 'refused')),
+    @('sheet-refused-notmedium', @('--page', 'voices', '--sheet', 'refused-notmedium')),
+    @('sheet-presetSaved',       @('--page', 'voices', '--sheet', 'presetSaved')),
+    @('sheet-presetLoaded',      @('--page', 'voices', '--sheet', 'presetLoaded')),
+    @('sheet-presetFailed',      @('--page', 'voices', '--sheet', 'presetFailed'))
 )
 
 $failed = 0
