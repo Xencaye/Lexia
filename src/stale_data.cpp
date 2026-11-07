@@ -13,8 +13,9 @@ bool IsReparsePoint(DWORD attributes) { return (attributes & FILE_ATTRIBUTE_REPA
 // Removes one entry that is not a real directory: a file, a symbolic link to a file, or a directory
 // junction / symbolic link. RemoveDirectoryW on a directory link deletes the link only, never its target.
 bool RemoveEntry(const fs::path& path, DWORD attributes) {
-    // A read-only attribute stops the delete; it is Lexia's own stale data, so clearing it is fine.
-    if (attributes & FILE_ATTRIBUTE_READONLY) {
+    // A read-only attribute stops the delete; it is Lexia's own stale data, so clearing it is fine. Not on a
+    // link: SetFileAttributesW may act on the link's target, which is outside the folder we may touch.
+    if ((attributes & FILE_ATTRIBUTE_READONLY) && !IsReparsePoint(attributes)) {
         SetFileAttributesW(path.c_str(), attributes & ~DWORD{FILE_ATTRIBUTE_READONLY});
     }
     if (attributes & FILE_ATTRIBUTE_DIRECTORY) return RemoveDirectoryW(path.c_str()) != 0;
