@@ -568,7 +568,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
   - **Security:** no new input from files or the network; the card id the page sends is only looked up in the card
     table (`CardDescId`, an unknown one is not spoken); the timer and the Reading id live on the UI thread.
   - **Status (built):** as planned. Build Release 0 warnings, `ctest` 883 of 883 (`uia_tree` ran), `score_layout.ps1`
-    OK, shot `settings-reading` looked at. `volume-07.svg` is the owner's file (it is drawn like a speaker with a slash).
+    OK, shot `settings-reading` looked at. `volume-07.svg` was supplied by the owner; it is a Stratis UI icon (CC BY 4.0, a speaker with a slash).
   *Your check:* click the speaker on a card: the speech starts and the icon changes; click it again: the speech stops
     and the speaker returns; click once more: it starts from the first sentence; let a card finish: the speaker returns;
     start a card, then hover another row: that card shows the speaker, click it: the old reading is replaced and the
