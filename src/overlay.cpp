@@ -123,11 +123,8 @@ static void PaintOverlay(HWND hwnd, Session& ss) {
     if (!ss.bars.empty()) {
         HBRUSH bar = CreateSolidBrush(ss.style.hoverColor);
         for (const Rect& b : ss.bars) {
-            RECT r = ToRECT(b);
-            r.left = std::max<LONG>(0, r.left);  // a word at the edge of the Shot: keep the bar on it
-            r.top = std::max<LONG>(0, r.top);
-            r.right = std::min<LONG>(s.w, r.right);
-            r.bottom = std::min<LONG>(s.h, r.bottom);
+            // A word at the edge of the Shot: keep the bar on it.
+            const RECT r = ToRECT(ClipToArea(b, s.w, s.h));
             if (r.right > r.left && r.bottom > r.top) FillRect(ss.backDc, &r, bar);
         }
         DeleteObject(bar);
@@ -168,11 +165,7 @@ static void RefreshHover(HWND hwnd, Session& ss) {
 static void PollWordMark(HWND hwnd, Session& ss) {
     if (!ss.heardWord || !*ss.heardWord || ss.track.Empty()) return;
     const std::vector<Rect> bars = ss.track.Bars((*ss.heardWord)(), ss.barThickness, ss.barGap);
-    const bool same = bars.size() == ss.bars.size() &&
-                      std::equal(bars.begin(), bars.end(), ss.bars.begin(), [](const Rect& a, const Rect& b) {
-                          return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
-                      });
-    if (same) return;
+    if (SameRects(bars, ss.bars)) return;
     ss.bars = bars;
     InvalidateRect(hwnd, nullptr, FALSE);
 }
@@ -378,8 +371,8 @@ static void Pump(HWND hwnd, Session& ss) {
 // `onSelect`, which reads the text aloud and says if it found any (the area then stays
 // highlighted). While the user looks at the screen, a job finds all text blocks so hovering and
 // clicking are instant.
-void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, const OverlayStyle& style,
-                const OverlayCallbacks& cb) {
+OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, const OverlayStyle& style,
+                       const OverlayCallbacks& cb) {
     static bool registered = false;
     HINSTANCE inst = GetModuleHandleW(nullptr);
     if (!registered) {
@@ -404,7 +397,7 @@ void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, c
     HWND hwnd = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"LexiaOverlay", L"Lexia",
                                 WS_POPUP, shot.ox, shot.oy, shot.w, shot.h, nullptr, nullptr, inst,
                                 nullptr);
-    if (!hwnd) return;
+    if (!hwnd) return {};
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&ss));
     const int dpi = std::max(96, static_cast<int>(GetDpiForWindow(hwnd)));
     ss.hoverTol = ScaleForDpi(8, dpi);
@@ -514,5 +507,8 @@ void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, c
     DeleteDC(ss.backDc);
     DestroyWindow(hwnd);
     // Only now, with nothing of the Session left on screen, may another window of Lexia take focus.
+    OverlayResult result;
+    result.track = std::move(ss.track);  // for the word mark layer (G2); the Session's own copy is done with
     if (ss.helpAsked && cb.onHelp) cb.onHelp();
+    return result;
 }
