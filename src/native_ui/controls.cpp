@@ -75,6 +75,12 @@ void Clickable::Activate() {
     if (enabled_ && onActivate_) onActivate_();
 }
 
+bool Clickable::AccInvoke() {
+    if (!enabled_) return false;  // a disabled control does what it does with a click: nothing, and says so
+    Activate();
+    return true;
+}
+
 // ----------------------------------------------------------------------------- IconButton ---
 
 IconButton::IconButton(std::string icon) : icon_(std::move(icon)) {
@@ -165,6 +171,7 @@ AccessInfo TextLink::Access() const {
     AccessInfo a = BaseAccess();
     a.role = Role::Link;
     a.selected = current_;  // the page the window shows now
+    a.selectable = nav_;
     return a;
 }
 

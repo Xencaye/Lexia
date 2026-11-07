@@ -46,6 +46,7 @@ Frame::Frame(const PageEnv& env) : env_(env) {
 
     topNav_ = Add<Panel>();
     topNav_->SetName(T(strings::id::kWindowNavMain));
+    topNav_->SetAutomationId("nav.main");
     AddLink(*topNav_, Page::Home, strings::id::kWindowNavHome, "home-05");
     AddLink(*topNav_, Page::Voices, strings::id::kWindowNavVoices, "user-profile-group");
     AddLink(*topNav_, Page::Settings, strings::id::kWindowNavSettings, "settings");
@@ -60,6 +61,7 @@ Frame::Frame(const PageEnv& env) : env_(env) {
 
     footNav_ = Add<Panel>();
     footNav_->SetName(T(strings::id::kWindowNavMore));
+    footNav_->SetAutomationId("nav.more");
     AddLink(*footNav_, Page::Report, strings::id::kWindowNavReport, "Spider");
     AddLink(*footNav_, Page::Help, strings::id::kWindowNavHelp, "book-04");
     AddLink(*footNav_, Page::About, strings::id::kWindowNavAbout, "heart");
@@ -85,6 +87,7 @@ Frame::Frame(const PageEnv& env) : env_(env) {
     volume_->SetBounds({layout::kVolumeSliderX - layout::kVolumeIconX, 0, layout::kVolumeSliderW,
                         layout::kVolumeBoxH});
     volume_->SetName(T(strings::id::kWindowVolume));
+    volume_->SetAutomationId("master.volume");
     volume_->Clear();
     // A drag or key asks for a value on the grid of the state; the host answers with a new state.
     volume_->SetOnValue([this](double v) {
@@ -99,6 +102,8 @@ Frame::Frame(const PageEnv& env) : env_(env) {
 TextLink* Frame::AddLink(Panel& group, Page page, const char* textId, const char* icon) {
     TextLink* link = group.Add<TextLink>(T(textId), icon);
     links_[static_cast<int>(page)] = link;
+    link->SetNav(true);  // accessibility: the link of the page that shows is the selected one
+    link->SetAutomationId(std::string("nav.") + PageName(page));
     // The page changes locally. The link is not inside the page that goes, but the Screen runs the
     // switch after the event anyway, like every callback that removes widgets.
     link->SetOnActivate([this, page] {

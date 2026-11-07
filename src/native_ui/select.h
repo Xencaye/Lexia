@@ -38,6 +38,8 @@ public:
     void OnPopupClosed() override;
     CursorHint Cursor() const override { return enabled_ ? CursorHint::Hand : CursorHint::Arrow; }
     AccessInfo Access() const override;
+    // UI Automation ExpandCollapse (K.5): opens or closes the list as Enter or Esc would.
+    bool AccExpand(bool expand) override;
 
 private:
     std::vector<std::string> items_;

@@ -24,6 +24,7 @@ public:
     void Paint(Canvas& canvas, const Palette& palette) override;
     bool OnMouse(const MouseEvent& ev) override;
     AccessInfo Access() const override;
+    bool AccSelect() override;
     CursorHint Cursor() const override { return CursorHint::Hand; }
 
 private:
@@ -130,7 +131,19 @@ AccessInfo ListRow::Access() const {
     a.role = Role::ListItem;
     const SelectList* list = List();
     a.selected = list && list->SelectedIndex() == index_;
+    a.selectable = true;
+    // The row the arrow keys are on has the keyboard focus for a screen reader: the focus itself stays on the
+    // Select (the Screen routes the keys to the list), so the row says it, and AccessFocus finds it.
+    a.focusable = true;
+    a.focused = list && list->Highlight() == index_;
     return a;
+}
+
+bool ListRow::AccSelect() {
+    SelectList* list = List();
+    if (!list) return false;
+    list->Choose(index_);  // as a release on the row: onChoose, then the list closes
+    return true;
 }
 
 }  // namespace
@@ -166,6 +179,7 @@ void Select::Open() {
     float y = r.Bottom();
     if (y + h > s->Size().h && r.y - h >= 0) y = r.y - h;
     list->SetBounds({r.x, y, r.w, h});
+    list->SetName(name_);  // the list is called what the select is called (a screen reader reads "Voice, list")
     list->LayoutRows();
     open_ = true;
     s->OpenPopup(std::move(list), this);
@@ -223,6 +237,18 @@ void Select::Paint(Canvas& canvas, const Palette& p) {
                         p.ink, 2.2f * k);
     }
     if (RingVisible()) DrawFocusRing(canvas, p, r, kRadius);
+}
+
+bool Select::AccExpand(bool expand) {
+    Screen* s = GetScreen();
+    if (!s || !enabled_) return false;
+    if (expand) {
+        if (items_.empty()) return false;
+        Open();  // nothing to do when it is open already
+    } else if (open_) {
+        s->ClosePopup();
+    }
+    return true;
 }
 
 AccessInfo Select::Access() const {

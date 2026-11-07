@@ -50,6 +50,9 @@ public:
     bool OnKey(const KeyEvent& ev) override;
     CursorHint Cursor() const override;
     AccessInfo Access() const override;
+    // UI Automation RangeValue.SetValue (K.5): asks for the value as a drag would (onValue, on the grid, only
+    // when it is new). The slider still shows the last state's value. False when it has no range or is off.
+    bool AccSetValue(double value) override;
 
 protected:
     float VisualTarget() const override;

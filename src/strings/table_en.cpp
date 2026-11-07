@@ -45,6 +45,7 @@ const Table& EnglishTable() {
         {id::kWindowNavHelp, "help"},
         {id::kWindowNavAbout, "about"},
         {id::kWindowVolume, "Lexia volume"},
+        {id::kUiaSwitch, "switch"},
         {id::kWindowVolumeValue, "{value}%"},
         {id::kWindowHomePower, "Lexia On / Off"},
         {id::kWindowHomeEnable, "enable"},

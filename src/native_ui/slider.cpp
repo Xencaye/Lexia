@@ -99,6 +99,12 @@ void Slider::Ask(double value) {
     if (onValue_) onValue_(value);
 }
 
+bool Slider::AccSetValue(double value) {
+    if (!Active()) return false;
+    Ask(value);  // snaps and holds the value in the range, exactly like an arrow key
+    return true;
+}
+
 void Slider::AskFromPointer(float x) {
     const RectF box = Abs();
     if (box.w <= 0) return;
