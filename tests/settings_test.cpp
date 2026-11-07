@@ -5,8 +5,10 @@
 #include <doctest/doctest.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <string>
 #include <vector>
@@ -935,4 +937,88 @@ TEST_CASE("ActiveVoicesToJson writes an object keyed by Language id") {
     std::string note;
     REQUIRE(UpdateSettingsText(text, "activeVoices", ActiveVoicesToJson(m), note));
     CHECK(Parse(text).settings.activeVoices == m);
+}
+
+namespace {
+
+// Points %LOCALAPPDATA% at a new temporary folder for one test, and puts the old value back after it.
+// SaveSettingValue / RunAsAdminSetting find settings.json through it (LexiaDataDir), so the tests never
+// touch the real one.
+struct TempLocalAppData {
+    std::filesystem::path dir;
+    std::string old;
+    bool hadOld = false;
+    TempLocalAppData() {
+        dir = std::filesystem::temp_directory_path() /
+              ("lexia_settings_test_" + std::to_string(reinterpret_cast<std::uintptr_t>(this)));
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        char* v = nullptr;
+        size_t n = 0;
+        if (_dupenv_s(&v, &n, "LOCALAPPDATA") == 0 && v) {
+            old = v;
+            hadOld = true;
+            free(v);
+        }
+        _putenv_s("LOCALAPPDATA", dir.string().c_str());
+    }
+    ~TempLocalAppData() {
+        _putenv_s("LOCALAPPDATA", hadOld ? old.c_str() : "");
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    }
+    std::filesystem::path File() const { return dir / "Lexia" / "settings.json"; }
+};
+
+std::string Slurp(const std::filesystem::path& p) {
+    std::ifstream in(p, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+}  // namespace
+
+TEST_CASE("--set-run-as-admin on a PC with no settings file: the file is made, runAsAdmin is on") {
+    TempLocalAppData tmp;
+    REQUIRE_FALSE(std::filesystem::exists(tmp.File()));
+    CHECK_FALSE(RunAsAdminSetting());
+    REQUIRE(SaveSettingValue("runAsAdmin", "true"));
+    REQUIRE(std::filesystem::exists(tmp.File()));
+    CHECK(RunAsAdminSetting());
+    // Every other value is the default, so the new file works as the first start would have made it.
+    std::vector<std::string> notes;
+    Settings s = ParseSettings(Slurp(tmp.File()), notes);
+    CHECK(notes.empty());
+    s.runAsAdmin = false;
+    CHECK(s == Settings{});
+}
+
+TEST_CASE("--set-run-as-admin on an existing settings file keeps its other keys, on and off") {
+    TempLocalAppData tmp;
+    std::filesystem::create_directories(tmp.File().parent_path());
+    {
+        std::ofstream out(tmp.File(), std::ios::binary);
+        out << "{\n  \"enabled\": true,\n  \"language\": \"eng\",\n  \"hotkeys\": { \"read\": \"F9\" },\n  \"runAsAdmin\": true\n}\n";
+    }
+    CHECK(RunAsAdminSetting());
+    REQUIRE(SaveSettingValue("runAsAdmin", "false"));
+    CHECK_FALSE(RunAsAdminSetting());
+    std::vector<std::string> notes;
+    Settings s = ParseSettings(Slurp(tmp.File()), notes);
+    CHECK(s.enabled);
+    CHECK(s.language == "eng");
+    CHECK(s.read.text == "F9");
+    REQUIRE(SaveSettingValue("runAsAdmin", "true"));
+    CHECK(RunAsAdminSetting());
+    CHECK(ParseSettings(Slurp(tmp.File()), notes).read.text == "F9");
+}
+
+TEST_CASE("--set-run-as-admin leaves a settings file that is not JSON alone and reports failure") {
+    TempLocalAppData tmp;
+    std::filesystem::create_directories(tmp.File().parent_path());
+    {
+        std::ofstream out(tmp.File(), std::ios::binary);
+        out << "not json at all";
+    }
+    CHECK_FALSE(SaveSettingValue("runAsAdmin", "true"));
+    CHECK(Slurp(tmp.File()) == "not json at all");
 }
