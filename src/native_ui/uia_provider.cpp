@@ -106,8 +106,8 @@ void SetR8(VARIANT* v, double value) {
 
 // One UI Automation element: the window root (id 0) or a widget (its Widget::Id()). All the interfaces live in
 // one object; GetPatternProvider offers only the ones the widget's role and state allow. It holds the id, never
-// a pointer into the tree.
-class Element : public IRawElementProviderSimple,
+// a pointer into the tree. final: Release ends with `delete this` on this exact type, never through a base.
+class Element final : public IRawElementProviderSimple,
                 public IRawElementProviderFragment,
                 public IRawElementProviderFragmentRoot,
                 public IInvokeProvider,
