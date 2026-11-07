@@ -27,6 +27,7 @@ struct ShotOptions {
     std::string select;   // Settings: the Key whose card shows (read | pause | speech)
     std::string capture;  // Settings: the Key whose chip waits for a key (the card shows that Key)
     bool switches = false;  // Settings: Run at startup, Run as admin and Left-handed on (the reference's look)
+    bool reading = false;   // Settings (K11): the selected card is being read aloud, so its button shows "stop" (volume-07)
 };
 
 // Builds the page `page` into `screen` (800 x 600 DIPs). `canvas` is only used to measure text while the

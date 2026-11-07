@@ -5,7 +5,7 @@
 //
 //   lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] [--hover <widget>]
 //                      [--voices none|changed|user] [--sheet <name>]
-//                      [--select read|pause|speech|readAlong|runAtStartup|startMinimised|runAsAdmin|darkMode|leftHanded] [--capture read|pause|speech] [--switches]
+//                      [--select read|pause|speech|readAlong|runAtStartup|startMinimised|runAsAdmin|darkMode|leftHanded] [--capture read|pause|speech] [--switches] [--reading]
 //                      [--theme light|dark] [--dpi N] out.png
 //
 // The picture is 800 x 600 DIPs (the window's client area), so 1200 x 900 pixels at 144 dpi. On success
@@ -35,7 +35,7 @@ int Usage() {
     std::fprintf(stderr,
                  "usage: lexia_settingsshot --page gallery|home|voices|settings|report|help|about [--on] "
                  "[--hover <widget>] [--voices none|changed|user] [--sheet <name>] "
-                 "[--select <key>] [--capture <key>] [--switches] "
+                 "[--select <key>] [--capture <key>] [--switches] [--reading] "
                  "[--theme light|dark] [--dpi N] out.png\n");
     return 2;
 }
@@ -69,6 +69,7 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"--select") options.select = WideToUtf8(next());
         else if (a == L"--capture") options.capture = WideToUtf8(next());
         else if (a == L"--switches") options.switches = true;
+        else if (a == L"--reading") options.reading = true;
         else if (a == L"--dpi") dpi = _wtoi(next().c_str());
         else if (a.rfind(L"--", 0) == 0) return Usage();
         else out = a;

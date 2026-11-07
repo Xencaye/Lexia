@@ -349,6 +349,8 @@ bool BuildRealPage(Page page, Screen& screen, bool dark, const ShotOptions& opti
         state.leftHanded = true;
         state.readAlong = true;
     }
+    // K11: the card that --select shows (the first Key by default) is the one being read aloud.
+    if (options.reading) state.readingCard = options.select.empty() ? std::string("read") : options.select;
     ui.SetState(state);
     // The Settings page opens on a Key and may start a capture, as the old ?select= / ?capture= did.
     ShowOptions show;
