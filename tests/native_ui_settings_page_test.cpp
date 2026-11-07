@@ -121,13 +121,13 @@ TEST_CASE("Settings: a Key with no key shows the word for none, in the none look
     CHECK(r.Chip("pause")->Access().name.find(r.Words(strings::id::kKeyNone)) != std::string::npos);
 }
 
-TEST_CASE("Settings: the card shows the selected Key: title, the lines of its text, the play button") {
+TEST_CASE("Settings: the card shows the selected Key: title, the lines of its text, the read button") {
     Rig r;
     CHECK(r.Page_().CardTitle()->Text() == r.Words(strings::id::kWindowKeysRead));
     CHECK(r.Page_().CardBody()->PlainText() == r.Words(strings::id::kWindowKeysReadDesc));
-    CHECK(r.Page_().PlayButton()->Access().name ==
+    CHECK(r.Page_().ReadButton()->Access().name ==
           strings::Format("en", strings::id::kWindowKeysReadAloud, {{"action", r.Words(strings::id::kWindowKeysRead)}}));
-    CHECK(r.Page_().PlayButton()->Tooltip() == r.Page_().PlayButton()->Access().name);
+    CHECK(r.Page_().ReadButton()->Tooltip() == r.Page_().ReadButton()->Access().name);
 
     // The card is where the old page had it, with the wine engraving inside and the card colour behind.
     r.ui.Frame();
@@ -138,11 +138,29 @@ TEST_CASE("Settings: the card shows the selected Key: title, the lines of its te
     for (const Call* c : r.ui.canvas.Of(Call::Picture)) wine |= c->text == "wine";
     CHECK(card);
     CHECK(wine);
-    // The title is at (293, 178); the play button 12 after it; the body 22 under the head.
-    CHECK(r.Page_().CardTitle()->Abs().x == doctest::Approx(293));
+    // The read button (the Master volume's speaker icon, no ring) is the first thing of the head: its icon
+    // sits on the card's 20 padding line, the title 10 after the icon, the body 22 under the head.
+    CHECK(r.Page_().ReadButton()->Abs().w == 28);  // the hit area
+    CHECK(r.Page_().ReadButton()->Abs().h == 28);
+    CHECK(r.Page_().ReadButton()->Abs().Right() < r.Page_().CardTitle()->Abs().x);
+    CHECK(r.Page_().CardTitle()->Abs().x == doctest::Approx(273 + 20 + 24 + 10));
     CHECK(r.Page_().CardTitle()->Abs().y == doctest::Approx(178));
-    CHECK(r.Page_().PlayButton()->Abs().x == doctest::Approx(r.Page_().CardTitle()->Abs().Right() + 12));
-    CHECK(r.Page_().PlayButton()->Abs().w == 24);
+    const Call* icon = nullptr;  // the card's one (the Master volume has its own at the bottom of the window)
+    for (const Call* c : r.ui.canvas.Of(Call::Icon)) {
+        if (c->text == "volume-05" && c->rect.y < 300) icon = c;
+    }
+    REQUIRE(icon != nullptr);
+    CHECK(r.ui.canvas.FindIcon("play-03") == nullptr);  // the old play icon is gone
+    CHECK(icon->rect.x == doctest::Approx(273 + 20));
+    CHECK(icon->rect.w == 24);
+    CHECK(icon->colour.rgb == r.ui.pal.accent.rgb);
+    CHECK(icon->rect.Right() + 10 == doctest::Approx(r.Page_().CardTitle()->Abs().x));
+    // No ring around it: nothing is stroked inside the button's rectangle while it is idle and unfocused.
+    bool ring = false;
+    for (const Call* c : r.ui.canvas.Of(Call::StrokeRect)) {
+        ring |= c->rect.x >= r.Page_().ReadButton()->Abs().x - 1 && c->rect.Right() <= r.Page_().ReadButton()->Abs().Right() + 1;
+    }
+    CHECK_FALSE(ring);
     CHECK(r.Page_().CardBody()->Abs().y == doctest::Approx(228));
 }
 
@@ -463,12 +481,12 @@ TEST_CASE("Settings: opening on a Key selects it, and with capture starts that c
     CHECK(r.settings.CurrentPage() == Page::Help);
 }
 
-// ------------------------------------------------------------------------------- play button ---
+// ------------------------------------------------------------------------------- read button ---
 
-TEST_CASE("Settings: the play button sends readKeyCard for the selected Key, never the text") {
+TEST_CASE("Settings: the read button sends readKeyCard for the selected Key, never the text") {
     Rig r;
     r.sent.clear();
-    PointF c = Centre(*r.Page_().PlayButton());
+    PointF c = Centre(*r.Page_().ReadButton());
     r.ui.Click(c.x, c.y);
     REQUIRE(r.sent.size() == 1);
     CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
@@ -479,7 +497,7 @@ TEST_CASE("Settings: the play button sends readKeyCard for the selected Key, nev
     const RectF row = r.Page_().RowFor("speech")->Abs();
     r.ui.Move(row.x + 20, row.y + 12);
     r.ui.Frame();
-    c = Centre(*r.Page_().PlayButton());
+    c = Centre(*r.Page_().ReadButton());
     r.ui.Click(c.x, c.y);
     REQUIRE(r.sent.size() == 2);
     CHECK(r.sent[1].action == "speech");
@@ -601,4 +619,113 @@ TEST_CASE("Settings: the page does not add widgets when a state arrives again") 
     r.Push(Rig::State());
     r.Push(Rig::State());
     CHECK(count(r.ui.screen.Root(), count) == before);
+}
+
+// ------------------------------------------------------------------- the read button wiggles ---
+
+namespace {
+
+// The calls between the first PushRotation and its PopRotation (empty when there is none).
+std::vector<Call> RotatedCalls(const FakeCanvas& c) {
+    std::vector<Call> out;
+    bool in = false;
+    for (const Call& k : c.calls) {
+        if (k.kind == Call::PopRotation) in = false;
+        if (in) out.push_back(k);
+        if (k.kind == Call::PushRotation) in = true;
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("Settings: the read button is still when the page opens and wakes the Screen for 5 s later") {
+    Rig r;
+    const double t0 = r.ui.now;  // the Rig drew the page at this time: the button's first paint
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 0);
+    CHECK(r.ui.canvas.Count(Call::PopRotation) == 0);
+    REQUIRE(r.ui.screen.NextWakeTime().has_value());
+    CHECK(*r.ui.screen.NextWakeTime() == doctest::Approx(t0 + 5.0));
+    CHECK_FALSE(r.ui.screen.NeedsTick());  // nothing moves: no frame timer between wiggles
+
+    // Four seconds on: still nothing, and the wake-up is where it was.
+    r.ui.now = t0 + 4.0;
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 0);
+    CHECK(*r.ui.screen.NextWakeTime() == doctest::Approx(t0 + 5.0));
+}
+
+TEST_CASE("Settings: the read button shakes for 0.6 s every 5 s, only the icon, about its centre") {
+    Rig r;
+    const double t0 = r.ui.now;
+
+    // The wake-up time comes: the Screen asks for a repaint, and the frame shows the shake.
+    r.ui.screen.Tick(t0 + 5.0 + 0.075);
+    CHECK(r.ui.screen.NeedsRepaint());
+    r.ui.now = t0 + 5.0 + 0.075;
+    r.ui.Frame();
+    REQUIRE(r.ui.canvas.Count(Call::PushRotation) == 1);
+    CHECK(r.ui.canvas.Count(Call::PopRotation) == 1);
+    const Call* push = r.ui.canvas.Of(Call::PushRotation)[0];
+    CHECK(push->number == doctest::Approx(7.0f));
+    const std::vector<Call> inside = RotatedCalls(r.ui.canvas);
+    REQUIRE(inside.size() == 1);  // only the icon turns, not the hover tile or the title
+    CHECK(inside[0].kind == Call::Icon);
+    CHECK(inside[0].text == "volume-05");
+    CHECK(push->points[0].x == doctest::Approx(inside[0].rect.x + 12));
+    CHECK(push->points[0].y == doctest::Approx(inside[0].rect.y + 12));
+    CHECK(r.ui.screen.NeedsTick());  // frames while it moves
+    REQUIRE(r.ui.screen.NextWakeTime().has_value());
+    CHECK(*r.ui.screen.NextWakeTime() == doctest::Approx(t0 + 10.0));
+
+    // Halfway through, frames go on; after 0.6 s the icon is straight and the timer is not needed.
+    r.ui.now = t0 + 5.2;
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 1);
+    r.ui.now = t0 + 5.0 + kWiggleSeconds + 0.001;
+    r.ui.Frame();  // the Tick of this frame paints the last (straight) picture
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 0);
+    CHECK_FALSE(r.ui.screen.NeedsTick());
+    CHECK(*r.ui.screen.NextWakeTime() == doctest::Approx(t0 + 10.0));
+
+    // The second wiggle, at 10 s.
+    r.ui.now = t0 + 10.0 + 0.075;
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 1);
+}
+
+TEST_CASE("Settings: with reduced motion the read button never shakes and nothing wakes the Screen") {
+    Rig r;
+    const double t0 = r.ui.now;
+    r.ui.screen.SetReducedMotion(true);
+    r.ui.Frame();
+    CHECK_FALSE(r.ui.screen.NextWakeTime().has_value());
+    r.ui.now = t0 + 5.0 + 0.075;
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 0);
+    CHECK_FALSE(r.ui.screen.NeedsTick());
+    CHECK_FALSE(r.ui.screen.NextWakeTime().has_value());
+    // Back to full motion: the button counts from its first paint, which was long ago.
+    r.ui.screen.SetReducedMotion(false);
+    r.ui.now = t0 + 10.0 + 0.075;
+    r.ui.Frame();
+    CHECK(r.ui.canvas.Count(Call::PushRotation) == 1);
+}
+
+TEST_CASE("Settings: another page asks for no wake-up") {
+    Rig r;
+    r.settings.ShowPage(Page::Home);
+    r.ui.Advance(0.1);
+    CHECK_FALSE(r.ui.screen.NextWakeTime().has_value());
+}
+
+TEST_CASE("Settings: the read button still reads the key card with Enter, whatever its look") {
+    Rig r;
+    r.sent.clear();
+    r.Page_().ReadButton()->Focus();
+    r.ui.Key(nui::Key::Enter);
+    REQUIRE(r.sent.size() == 1);
+    CHECK(r.sent[0].type == PageMessageType::ReadKeyCard);
+    CHECK(r.Page_().ReadButton()->Access().role == Role::Button);
 }

@@ -5,6 +5,9 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <cmath>
+
 using namespace nui;
 using namespace nui::test;
 
@@ -123,4 +126,71 @@ TEST_CASE("the switch knob and the slider thumb use the same 0.12 s") {
     CHECK(sw->OnAmount() == doctest::Approx(0.5f));
     ui.screen.Tick(0.12);
     CHECK(sw->OnAmount() == 1.0f);
+}
+
+// ---------------------------------------------------------------------------------- wiggle ---
+
+TEST_CASE("Wiggle: still for the first period, then 0.6 s of shake every 5 s") {
+    CHECK(kWigglePeriodSeconds == 5.0);
+    CHECK(kWiggleSeconds == doctest::Approx(0.6));
+    // Nothing before the first period, however the time is counted.
+    for (double t : {0.0, 0.5, 2.5, 4.99}) {
+        CHECK_FALSE(WiggleMoving(t));
+        CHECK(WiggleAngle(t) == 0.0f);
+    }
+    // The first wiggle: 5.0 .. 5.6. It starts and ends at rest, and in between it swings both ways.
+    CHECK(WiggleMoving(5.0));
+    CHECK(WiggleAngle(5.0) == doctest::Approx(0.0f));
+    CHECK(WiggleAngle(5.0 + 0.075) == doctest::Approx(7.0f));  // a quarter of a swing in: (1 - 1/8) * 8 degrees
+    float lo = 0, hi = 0;
+    for (double t = 5.0; t < 5.6; t += 0.005) {
+        lo = std::min(lo, WiggleAngle(t));
+        hi = std::max(hi, WiggleAngle(t));
+        CHECK(std::abs(WiggleAngle(t)) <= kWiggleDegrees);
+    }
+    CHECK(lo < -3.0f);
+    CHECK(hi > 3.0f);
+    // The shake dies away: the last swing is smaller than the first.
+    CHECK(std::abs(WiggleAngle(5.0 + 0.6 * 0.875)) < std::abs(WiggleAngle(5.0 + 0.6 * 0.125)));
+    CHECK_FALSE(WiggleMoving(5.61));  // not 5.6: 5.6 mod 5 is a hair under 0.6 in floating point
+    CHECK(WiggleAngle(5.9) == 0.0f);
+    CHECK(WiggleAngle(9.99) == 0.0f);
+    // And again at 10 and at every multiple of 5 after it.
+    CHECK(WiggleMoving(10.1));
+    CHECK(WiggleAngle(10.075) == doctest::Approx(7.0f));
+    CHECK(WiggleMoving(5.0 * 40 + 0.3));
+}
+
+TEST_CASE("Wiggle: the end of the one that moves, and the start of the next") {
+    CHECK(WiggleNextStart(0.0) == 5.0);  // never before the first period
+    CHECK(WiggleNextStart(4.99) == 5.0);
+    CHECK(WiggleNextStart(5.0) == 10.0);  // later than `elapsed`, always
+    CHECK(WiggleNextStart(5.3) == 10.0);
+    CHECK(WiggleNextStart(12.0) == 15.0);
+    CHECK(WiggleEnd(5.3) == doctest::Approx(5.6));
+    CHECK(WiggleEnd(10.0) == doctest::Approx(10.6));
+}
+
+TEST_CASE("Screen: a wake-up is asked for at a future time, needs no tick, and is reached by a Tick") {
+    Ui ui;
+    ui.Frame();
+    CHECK_FALSE(ui.screen.NextWakeTime().has_value());
+    ui.screen.NoteWakeAt(5.0);
+    ui.screen.NoteWakeAt(8.0);  // the earliest wins
+    ui.screen.NoteWakeAt(0.0);  // not ahead of the clock: ignored
+    REQUIRE(ui.screen.NextWakeTime().has_value());
+    CHECK(*ui.screen.NextWakeTime() == 5.0);
+    CHECK_FALSE(ui.screen.NeedsTick());  // a wake-up is not a reason for a frame timer
+
+    ui.screen.Tick(4.0);
+    CHECK_FALSE(ui.screen.NeedsRepaint());  // not reached yet (Frame cleared the flag)
+    CHECK(ui.screen.NextWakeTime().has_value());
+    ui.screen.Tick(5.0);
+    CHECK(ui.screen.NeedsRepaint());  // reached: the widget gets a paint to move or to note its next one
+    CHECK_FALSE(ui.screen.NextWakeTime().has_value());
+
+    // A paint forgets the wake-ups of the paint before (a widget that is not drawn any more asks for none).
+    ui.screen.NoteWakeAt(9.0);
+    ui.Frame();
+    CHECK_FALSE(ui.screen.NextWakeTime().has_value());
 }

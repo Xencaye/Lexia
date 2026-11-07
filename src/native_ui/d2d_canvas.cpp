@@ -272,7 +272,8 @@ bool D2dCanvas::BeginFrame() {
     // Text smoothing is left at the default: ClearType (the user's own setting) on this opaque target, as the
     // HTML reference it is compared with has it, and grey-scale inside a layer (an opacity group).
     dc_->BeginDraw();
-    dc_->SetTransform(D2D1::Matrix3x2F::Identity());
+    userTransform_ = D2D1::Matrix3x2F::Identity();  // a frame never starts inside a rotation
+    dc_->SetTransform(userTransform_);
     inFrame_ = true;
     return true;
 }
@@ -599,12 +600,13 @@ void D2dCanvas::Icon(const RectF& box, std::string_view name, Colour c) {
     ID2D1SvgDocument* doc = SvgFor(name, c.rgb);
     if (!doc) return;
     // The file is drawn on its 24 x 24 grid; a transform scales that to the box (strokes scale with it).
+    // The user transform (the rotation of PushRotation) comes last, in window DIPs.
     dc_->SetTransform(D2D1::Matrix3x2F::Scale(box.w / kIconViewport, box.h / kIconViewport) *
-                      D2D1::Matrix3x2F::Translation(box.x, box.y));
+                      D2D1::Matrix3x2F::Translation(box.x, box.y) * userTransform_);
     if (c.alpha < 1.0f) PushOpacity(c.alpha);
     dc_->DrawSvgDocument(doc);
     if (c.alpha < 1.0f) PopOpacity();
-    dc_->SetTransform(D2D1::Matrix3x2F::Identity());
+    dc_->SetTransform(userTransform_);
 }
 
 // -------------------------------------------------------------------------- pictures ---
@@ -719,6 +721,23 @@ void D2dCanvas::PushOpacity(float opacity) {
 
 void D2dCanvas::PopOpacity() {
     if (Drawing()) dc_->PopLayer();
+}
+
+// ----------------------------------------------------------------------------- rotation ---
+
+void D2dCanvas::PushRotation(PointF centre, float degrees) {
+    if (!Drawing()) return;
+    // About the centre, in DIPs (the context's DPI does the pixels). One level: the wiggle is the only user,
+    // so a second Push replaces the first. Only Icon (which composes userTransform_) is drawn rotated today;
+    // other primitives would follow the transform too.
+    userTransform_ = D2D1::Matrix3x2F::Rotation(degrees, D2D1::Point2F(centre.x, centre.y));
+    dc_->SetTransform(userTransform_);
+}
+
+void D2dCanvas::PopRotation() {
+    if (!Drawing()) return;
+    userTransform_ = D2D1::Matrix3x2F::Identity();
+    dc_->SetTransform(userTransform_);
 }
 
 }  // namespace nui

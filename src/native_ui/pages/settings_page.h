@@ -1,8 +1,8 @@
 #pragma once
 // The Settings page (K.4, ADR-0009), ported from old ui/index.html (#page-settings), old ui/js/settings.js and
 // old ui/css/pages.css. Left: the heading "keybinds" and one row per Key (its name and a KeyChip), the heading
-// "misc" and five switches. Right: the key card of the selected Key (wine engraving, title, a play button that
-// reads the card aloud, what the Key does) and, under it, the hint that shows while a chip waits for a key.
+// "misc" and five switches. Right: the key card of the selected Key (wine engraving, a read button (the speaker icon) that
+// reads the card aloud, the title, what the Key does) and, under it, the hint that shows while a chip waits for a key.
 //
 // What the page owns (the state message does not carry it, as before): which row is selected (a hover, a focus
 // or a press selects it, the card follows; while a chip waits for a key the card stays on that key) and which
@@ -11,7 +11,7 @@
 //   a key (with modifiers)   SetKey { action, key }     the host checks and keeps it or not, new state follows
 //   Esc, Tab, a press outside or the focus gone while waiting
 //                            CancelKeyCapture { action }
-//   the play button          ReadKeyCard { action }
+//   the read button          ReadKeyCard { action }
 //   the switches             SetRunAtStartup / SetStartMinimised / SetRunAsAdmin / SetTheme / SetLeftHanded
 // The capture reads the key chip's OnKey: a chip that waits takes every key, Tab and Esc too (Screen), and the
 // window gives it the keys DefWindowProc would eat (settings_window.cpp).
@@ -52,16 +52,22 @@ private:
     std::function<void()> onSelect_;
 };
 
-// The key card's play button: 24 x 24, a 2 DIP accent outline, radius 4, the play icon (14) in accent. Hover:
-// `line` fill; pressed: accent fill and on-accent icon.
-class KeyPlayButton : public Clickable {
+// The key card's read button: the Master volume's speaker icon (24, accent) with no ring, in a 28 x 28 hit
+// area, left of the card's title. Hover: the `line` tile of the icon buttons; pressed: accent tile and
+// on-accent icon. Every kWigglePeriodSeconds it shakes a little about the icon's centre (animation.h
+// `WiggleAngle`), counted from its first paint; not with reduced motion. It asks the Screen for a wake-up at
+// the next wiggle instead of keeping a timer running (Screen::NoteWakeAt).
+class KeyReadButton : public Clickable {
 public:
-    KeyPlayButton();
+    KeyReadButton();
     void Paint(Canvas& canvas, const Palette& palette) override;
     AccessInfo Access() const override;
+
+private:
+    double start_ = -1;  // Screen time of the first paint; negative = not painted yet
 };
 
-// The card: the card colour behind its children (the engraving, the title, the play button, the text).
+// The card: the card colour behind its children (the engraving, the read button, the title, the text).
 class KeyCard : public Widget {
 public:
     KeyCard();
@@ -82,7 +88,7 @@ public:
     const std::string& CapturingAction() const { return capturing_; }
     Label* CardTitle() const { return cardTitle_; }
     Paragraph* CardBody() const { return cardBody_; }
-    KeyPlayButton* PlayButton() const { return play_; }
+    KeyReadButton* ReadButton() const { return read_; }
     Label* Hint() const { return hint_; }
     SwitchRow* RunAtStartup() const { return startup_; }
     SwitchRow* StartMinimised() const { return minimised_; }
@@ -115,7 +121,7 @@ private:
     Label* miscHeading_ = nullptr;
     KeyCard* card_ = nullptr;
     Label* cardTitle_ = nullptr;
-    KeyPlayButton* play_ = nullptr;
+    KeyReadButton* read_ = nullptr;
     Paragraph* cardBody_ = nullptr;
     Label* hint_ = nullptr;
     SwitchRow* startup_ = nullptr;

@@ -52,4 +52,27 @@ float Tween::Value(double now) const {
     return from_ + (to_ - from_) * eased;
 }
 
+bool WiggleMoving(double elapsed) {
+    if (elapsed < kWigglePeriodSeconds) return false;  // none before the first period
+    return std::fmod(elapsed, kWigglePeriodSeconds) < kWiggleSeconds;
+}
+
+float WiggleAngle(double elapsed) {
+    if (!WiggleMoving(elapsed)) return 0.0f;
+    const float u = static_cast<float>(std::fmod(elapsed, kWigglePeriodSeconds) / kWiggleSeconds);  // 0..1
+    // A sine of kWiggleCycles swings that dies away linearly: sin(0) = 0 and (1 - 1) = 0 at the two ends.
+    constexpr float kTwoPi = 6.28318530718f;
+    return kWiggleDegrees * (1.0f - u) * std::sin(kTwoPi * kWiggleCycles * u);
+}
+
+double WiggleEnd(double elapsed) {
+    const double start = std::floor(elapsed / kWigglePeriodSeconds) * kWigglePeriodSeconds;
+    return start + kWiggleSeconds;
+}
+
+double WiggleNextStart(double elapsed) {
+    const double k = std::max(1.0, std::floor(elapsed / kWigglePeriodSeconds) + 1.0);
+    return k * kWigglePeriodSeconds;
+}
+
 }  // namespace nui

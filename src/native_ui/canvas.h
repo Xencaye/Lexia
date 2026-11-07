@@ -79,6 +79,11 @@ public:
     virtual void PopClip() = 0;
     virtual void PushOpacity(float opacity) = 0;
     virtual void PopOpacity() = 0;
+    // A rotation of everything drawn until the matching Pop, about `centre` (window DIPs), clockwise for a
+    // positive angle in degrees. It is for a small, short movement of one icon (the key card's read button
+    // wiggles). One level only: a second Push before the Pop replaces the first.
+    virtual void PushRotation(PointF centre, float degrees) = 0;
+    virtual void PopRotation() = 0;
 };
 
 }  // namespace nui

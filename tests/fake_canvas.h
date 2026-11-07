@@ -13,12 +13,12 @@ namespace nui {
 struct Call {
     enum Kind {
         FillRect, StrokeRect, FillEllipse, StrokeEllipse, Line, Polyline, Arc, Dotted, Text, Icon, Picture,
-        PushClip, PopClip, PushOpacity, PopOpacity
+        PushClip, PopClip, PushOpacity, PopOpacity, PushRotation, PopRotation
     };
     Kind kind = FillRect;
     RectF rect;               // the box of the call (Line: from a to b as x,y,w,h is not kept: see points)
     Colour colour;
-    float number = 0;         // stroke width, or the opacity of PushOpacity / Picture
+    float number = 0;         // stroke width, the opacity of PushOpacity / Picture, or the degrees of PushRotation (its centre is points[0])
     float radius = 0;
     std::string text;         // the text, or the icon / picture name
     TextStyle style;
@@ -109,6 +109,11 @@ public:
     void PopClip() override { Add(Call::PopClip, {}, {}, 0, 0); }
     void PushOpacity(float o) override { Add(Call::PushOpacity, {}, {}, o, 0); }
     void PopOpacity() override { Add(Call::PopOpacity, {}, {}, 0, 0); }
+    void PushRotation(PointF centre, float degrees) override {
+        Call& k = Add(Call::PushRotation, {}, {}, degrees, 0);
+        k.points = {centre};
+    }
+    void PopRotation() override { Add(Call::PopRotation, {}, {}, 0, 0); }
 
 private:
     Call& Add(Call::Kind k, const RectF& r, Colour c, float number, float radius) {

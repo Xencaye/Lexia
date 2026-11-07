@@ -58,6 +58,14 @@ public:
     bool AnimationsOn() const { return drawn_ && !reduced_; }
     void SkipAnimations() { drawn_ = false; }
     void NoteAnimationUntil(double endTime);  // widgets: "tick until this time"
+    // A wake-up at a future time, for something that moves rarely (the read button's wiggle, every 5 s), so
+    // no frame timer runs in between. A widget calls NoteWakeAt(t) from Paint for the next instant it wants
+    // to be drawn at. Each Paint starts the list again, so a widget that is no longer drawn (its page is
+    // gone) asks for nothing. NextWakeTime() is the earliest one noted in the last Paint: the window sets a
+    // one-shot timer for it. A Tick that reaches it asks for a repaint (the widget then moves, or notes
+    // its next wake-up). A time that is not ahead of the clock is ignored, so the timer cannot spin.
+    void NoteWakeAt(double time);
+    std::optional<double> NextWakeTime() const;
 
     void Invalidate() { dirty_ = true; }
     bool NeedsRepaint() const { return dirty_; }
@@ -145,6 +153,7 @@ private:
     SizeF size_{800, 600};
     double now_ = 0;
     double animUntil_ = 0;
+    double wakeAt_ = 0;  // the earliest NoteWakeAt since the last Paint; 0 = none
     bool animating_ = false;  // a transition was running at the last Tick
     bool reduced_ = false;
     bool drawn_ = false;

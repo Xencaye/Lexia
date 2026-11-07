@@ -92,6 +92,8 @@ public:
     void PopClip() override;
     void PushOpacity(float opacity) override;
     void PopOpacity() override;
+    void PushRotation(PointF centre, float degrees) override;
+    void PopRotation() override;
 
 private:
     // The decoded engraving: alpha = 1 - luminance, one byte per pixel. Device independent, so a lost
@@ -151,6 +153,9 @@ private:
     int widthPx_ = 0, heightPx_ = 0;
     float dpi_ = 96.0f;
     bool inFrame_ = false;
+    // The rotation of PushRotation (identity otherwise). Icon sets its own transform for each icon, so it
+    // composes this one in and puts it back, instead of resetting to the identity.
+    D2D1_MATRIX_3X2_F userTransform_ = D2D1::Matrix3x2F::Identity();
 };
 
 }  // namespace nui

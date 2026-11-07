@@ -41,12 +41,13 @@ constexpr float kHeadingW = 252, kHeadingH = 28, kHeadingFont = 24, kHeadingKeys
 constexpr float kKeysW = 253, kKeysY = 179, kKeyRowH = 24, kKeyRowGap = 17, kKeyNameFont = 20, kKeyNameGap = 16;
 // The five switches: 250 wide, first at y = 377, 28 apart.
 constexpr float kMiscW = 250, kMiscY = 377, kMiscRowH = 28;
-// The key card: 355 x 342 at (273, 160), padding 18 20 20; title 20 bold in a 28 high head; the play button
-// 24 x 24 (2 border, radius 4, icon 14) 12 after the title; the text 22 under the head, 20 line, paragraphs 14
-// apart; the wine at (72, 207) inside, 210 wide.
+// The key card: 355 x 342 at (273, 160), padding 18 20 20. The head is 28 high: the read button first (the
+// Master volume's speaker icon, 24, in accent, no ring, in a 28 x 28 hit area centred on the icon so the icon
+// sits on the 20 padding line), then the title (20 bold) 10 after the icon. The text is 22 under the head,
+// 20 line, paragraphs 14 apart; the wine at (72, 207) inside, 210 wide.
 constexpr RectF kKeyCard{273, 160, 355, 342};
 constexpr float kKeyCardPadX = 20, kKeyCardPadTop = 18, kKeyCardHeadH = 28, kKeyCardTitleFont = 20,
-                kKeyPlaySize = 24, kKeyPlayBorder = 2, kKeyPlayIcon = 14, kKeyPlayGap = 12, kKeyCardTextGap = 22,
+                kKeyReadHit = 28, kKeyReadIcon = 24, kKeyReadGap = 10, kKeyCardTextGap = 22,
                 kKeyCardParaGap = 14;
 constexpr RectF kKeyCardWine{72, 207, 210, 114};  // relative to the card
 // The capture hint under the card: 13 px at (273, 508).
