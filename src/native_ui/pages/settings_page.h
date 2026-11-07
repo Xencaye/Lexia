@@ -12,7 +12,7 @@
 //   Esc, Tab, a press outside or the focus gone while waiting
 //                            CancelKeyCapture { action }
 //   the read button          ReadKeyCard { action }
-//   the switches             SetRunAtStartup / SetStartMinimised / SetRunAsAdmin / SetTheme / SetLeftHanded
+//   the switches             SetRunAtStartup / SetStartMinimised / SetRunAsAdmin / SetTheme / SetLeftHanded / SetKeepWordMark
 // The capture reads the key chip's OnKey: a chip that waits takes every key, Tab and Esc too (Screen), and the
 // window gives it the keys DefWindowProc would eat (settings_window.cpp).
 #include <string>
@@ -95,6 +95,7 @@ public:
     SwitchRow* RunAsAdmin() const { return admin_; }
     SwitchRow* DarkMode() const { return dark_; }
     SwitchRow* LeftHanded() const { return left_; }
+    SwitchRow* KeepWordMark() const { return keepMark_; }
 
 protected:
     void Relayout(Canvas& canvas) override;
@@ -129,6 +130,7 @@ private:
     SwitchRow* admin_ = nullptr;
     SwitchRow* dark_ = nullptr;
     SwitchRow* left_ = nullptr;
+    SwitchRow* keepMark_ = nullptr;
 };
 
 }  // namespace nui

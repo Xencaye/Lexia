@@ -25,6 +25,7 @@ const Table& EnglishTable() {
         {id::kControlBarSizeSmall, "Show the Small bar"},
         {id::kControlBarSizeLarge, "Show the Large bar"},
         {id::kControlBarName, "Lexia controls"},
+        {id::kWordMarkName, "Lexia word mark"},  // the name of the click-through layer (G2); never shown, but a window has one
 
         {id::kTrayOn, "On"},
         {id::kTrayOff, "Off"},
@@ -104,6 +105,7 @@ const Table& EnglishTable() {
         {id::kWindowSettingsRunAsAdmin, "run as admin"},
         {id::kWindowSettingsDarkMode, "dark mode"},
         {id::kWindowSettingsLeftHanded, "left-handed"},
+        {id::kWindowSettingsKeepWordMark, "keep the word mark"},
         {id::kWindowReportTitle, "Found a bug?\nWant to request a feature?"},
         {id::kWindowReportText, "Get in touch, I’ll respond soon-ish!"},
         {id::kWindowReportMail, "mail"},

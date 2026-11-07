@@ -128,6 +128,15 @@ bool ReadingQueue::Paused() const {
     return paused_ || heldPause_;
 }
 
+bool ReadingQueue::HasReading(uint64_t id) const {
+    if (id == 0) return false;  // 0 = "the queue ignored that Reading"
+    std::lock_guard<std::mutex> lk(m_);
+    for (const QueuedReading& q : queue_) {
+        if (q.id == id) return true;
+    }
+    return false;
+}
+
 std::optional<HeardWord> ReadingQueue::HeardWordNow() const {
     std::lock_guard<std::mutex> lk(m_);
     // An Announcement plays over the Reading: its words are not the Reading's, and the Reading's own

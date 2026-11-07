@@ -35,12 +35,13 @@ constexpr RectF kEnable{331, 421, 138, 40};
 constexpr float kEnableFont = 22;
 
 // ---- Settings (pages.css `.heading` `.keys` `.misc` `.keycard` `.key-hint`, components.css) -----------------
-// Headings: right edge at 252, 24 bold, 28 high; keys at y = 120, misc at y = 335.
-constexpr float kHeadingW = 252, kHeadingH = 28, kHeadingFont = 24, kHeadingKeysY = 120, kHeadingMiscY = 335;
+// Headings: right edge at 252, 24 bold, 28 high; keys at y = 120, misc at y = 307 (G2: 28 higher than the
+// HTML page's 335, so the sixth switch ends above the bottom rule at y = 538; the key list ends at 285).
+constexpr float kHeadingW = 252, kHeadingH = 28, kHeadingFont = 24, kHeadingKeysY = 120, kHeadingMiscY = 307;
 // The key list: right edge at 253 (the chips), first row at y = 179, 24 high, 17 between, name 20, 16 before the chip.
 constexpr float kKeysW = 253, kKeysY = 179, kKeyRowH = 24, kKeyRowGap = 17, kKeyNameFont = 20, kKeyNameGap = 16;
-// The five switches: 250 wide, first at y = 377, 28 apart.
-constexpr float kMiscW = 250, kMiscY = 377, kMiscRowH = 28;
+// The six switches: 250 wide, first at y = 349 (G2: moved up 28 with the misc heading), 28 apart.
+constexpr float kMiscW = 250, kMiscY = 349, kMiscRowH = 28;
 // The key card: 355 x 342 at (273, 160), padding 18 20 20. The head is 28 high: the read button first (the
 // Master volume's speaker icon, 24, in accent, no ring, in a 28 x 28 hit area centred on the icon so the icon
 // sits on the 20 padding line), then the title (20 bold) 10 after the icon. The text is 22 under the head,

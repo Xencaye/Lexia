@@ -47,6 +47,7 @@ struct UiState {
     bool runAsAdmin = false;        // the stored setting
     bool elevated = false;          // Lexia runs elevated now (D8.3 fills it)
     bool leftHanded = false;
+    bool keepWordMark = false;      // G2: the word mark stays on the screen after the Overlay is left
     // Settings::speechVolume, 0..100 %. Steps of 5, like the Voice Volume control (0.05), so the slider
     // moves in visible steps; a value from settings.json that is not on the grid is shown as it is.
     UiControl masterVolume{100, 0, 100, 100, 5};
@@ -76,6 +77,7 @@ enum class PageMessageType {
     SetStartMinimised,
     SetRunAsAdmin,
     SetLeftHanded,
+    SetKeepWordMark,
     SetTheme,
     SetMasterVolume,
     DeleteVoice,
@@ -93,7 +95,7 @@ enum class LinkId { Mail, Discord, Github, Itch };
 struct PageMessage {
     PageMessageType type = PageMessageType::Unknown;
     std::string typeText;  // the command's name (for the log), "" if none
-    bool on = false;       // SetOn, SetRunAtStartup, SetStartMinimised, SetRunAsAdmin, SetLeftHanded
+    bool on = false;       // SetOn, SetRunAtStartup, SetStartMinimised, SetRunAsAdmin, SetLeftHanded, SetKeepWordMark
     std::string theme;     // SetTheme: system | light | dark
     std::string language;  // SetVoice: a Language id
     std::string voice;     // SetVoice, DeleteVoice

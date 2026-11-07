@@ -13,6 +13,8 @@
 
 #include "jobqueue.h"
 #include "ocr.h"
+#include "read_along.h"
+#include "read_along_layer.h"
 #include "settings.h"
 #include "settings_watch.h"
 #include "settings_window.h"
@@ -55,10 +57,15 @@ public:
     void SyncSpeechKeys();         // the Pause and Speech keys follow whether Lexia is speaking
     void OnSpeechKeyTimer();       // the Speech key's tap window ran out
     void OnSettingsWindowClosed();  // the window is gone: drop it (a posted message, not in its own callback)
+    void OnWordMarkEnded();         // the word mark layer ended by itself: delete it (a posted message, not in its own callback)
     void OnTrayMessage(WPARAM wp, LPARAM lp);  // an event of the tray icon
     void OnTaskbarCreated();                   // Explorer restarted: the tray icon is put back
 
 private:
+    // The word mark layer (G2, keepWordMark): a click-through window that goes on drawing the bar under the
+    // heard word after a Session ends, until the Session's Readings are done. At most one.
+    void StartWordMarkLayer(const RECT& mon, ReadAlongTrack track);
+    void EndWordMarkLayer(bool flush);  // removes it; flush = wait until the screen is drawn without it (before a Shot)
     bool RegisterKeys();
     bool TryRegister(int id);  // registers key `id` if it is wanted now; false if another program has it
     void UnregisterKey(int id);
@@ -91,6 +98,7 @@ private:
     Settings settings_;      // what is in force: keys that could not be registered are unbound
     Settings fileSettings_;  // what settings.json said last, to tell a real edit from a re-save
     Speaker speaker_;
+    std::unique_ptr<ReadAlongLayer> wordMarkLayer_;  // after speaker_: its callbacks ask the Speaker, so it is destroyed first
 
     // The engine is replaced as a whole when the Language changes (a failed load leaves the
     // working one alone). A job takes its own shared_ptr when it starts, so the engine it is

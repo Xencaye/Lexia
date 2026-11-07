@@ -78,8 +78,16 @@ struct OverlayCallbacks {
     const unsigned* languageEpoch = nullptr;
 };
 
+// What a Session leaves behind when it ends (G2): the Readings it Picked with their Blocks as the Pick
+// found them (Shot coordinates). With "keep the word mark" on, the App gives this to the click-through
+// layer (read_along_layer.h) if one of the Readings is still being read.
+struct OverlayResult {
+    ReadAlongTrack track;
+};
+
 // Shows the Overlay and keeps it up until the user leaves (F8 again, Esc, right-click or the
 // Control bar's Help). The Analysis and every Drag run as jobs on `jobs` while the UI thread keeps
 // handling messages; a Click that comes before the Analysis is done is held until it finishes.
-void RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, const OverlayStyle& style,
+// Returns when the Overlay and the Control bar are gone.
+OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue& jobs, const OverlayStyle& style,
                 const OverlayCallbacks& cb);

@@ -314,6 +314,36 @@ Rect UnderlineBar(const Rect& wordBox, int thickness, int gap) {
 
 // ------------------------------------------------------------------ the Readings ---
 
+Rect ClipToArea(const Rect& r, int w, int h) {
+    Rect out = r;
+    out.left = std::max(0, out.left);
+    out.top = std::max(0, out.top);
+    out.right = std::min(w, out.right);
+    out.bottom = std::min(h, out.bottom);
+    if (out.right <= out.left || out.bottom <= out.top) return Rect{};  // nothing is left of it
+    return out;
+}
+
+bool SameRects(const std::vector<Rect>& a, const std::vector<Rect>& b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i].left != b[i].left || a[i].top != b[i].top || a[i].right != b[i].right ||
+            a[i].bottom != b[i].bottom) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ReadAlongTrack::AnyActive(const std::function<bool(uint64_t)>& isActive) const {
+    // No one to ask: say "finished" rather than keep a layer on the screen for ever.
+    if (!isActive) return false;
+    for (const auto& entry : readings_) {
+        if (isActive(entry.first)) return true;
+    }
+    return false;
+}
+
 void ReadAlongTrack::Add(uint64_t readingId, std::vector<TextBlock> blocks) {
     if (readingId == 0) return;
     readings_[readingId] = std::move(blocks);
