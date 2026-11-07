@@ -1,4 +1,4 @@
-// Unit tests for tray_menu.h: the rows of the tray icon's menu (spec: ui/dev/tray.html).
+// Unit tests for tray_menu.h: the rows of the tray icon's menu (spec: old ui/dev/tray.html).
 #include <doctest/doctest.h>
 
 #include <string>

@@ -1,13 +1,13 @@
 #pragma once
 // The Voice library's answers to the Settings window, as typed values (K.3, ADR-0009). They replace the
-// JSON messages of the old page (`catalogue`, `downloadProgress`, `voiceAdded`, `presetSaved` ... in
-// ui_host.*): VoiceTab calls a VoiceEventSink instead of building JSON text, and the native pages (the
-// Voice download sheet, the result sheet) take the values as they are. Pure and Win32-free, in lexia_core.
+// JSON messages of the HTML pages (`catalogue`, `downloadProgress`, `voiceAdded`, `presetSaved` ...):
+// VoiceTab calls a VoiceEventSink, and the native pages (the Voice download sheet, the result sheet)
+// take the values as they are. Pure and Win32-free, in lexia_core.
 //
 // Where a problem is shown decides some of its words (a network failure of the catalogue reads differently
 // from one of a download), so the text of a problem is picked with `ProblemTextId(facts, where)`; the facts
 // (the language's English name, the quality) go into the text as {language} and {quality}. The ids and the
-// rule are those of the old ui/js/voice_library.js (`problemText`).
+// rule are those of the old ui/js/voice_library.js (`problemText`, deleted in K.6).
 #include <cstdint>
 #include <set>
 #include <string>

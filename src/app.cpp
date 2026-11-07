@@ -261,7 +261,7 @@ int App::Run() {
 
     speaker_.Stop();
     UnregisterKeys();
-    settingsWindow_.reset();  // the window and its WebView2 go before COM is shut down
+    settingsWindow_.reset();  // the window and its Direct2D resources go before COM is shut down
     tray_.Remove();
     return 0;
 }
@@ -320,7 +320,7 @@ void App::SetOn(bool on) {
 
 // ------------------------------------------------------------- Settings window ---
 
-// The state the page draws (ui/README.md). Voices and controls are the Voice tab's (D5).
+// The state the Settings window draws (UiState). Voices and controls are the Voice tab's (D5).
 UiState App::BuildUiState() const {
     UiState s;
     s.on = settings_.enabled;

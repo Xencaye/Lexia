@@ -1,6 +1,5 @@
 // The typed Voice library events (K.3): the text id of every problem in each place it is shown, the facts that go
-// into a text, the filter that keeps only the Voices of offered Languages, and that the JSON builders of the old
-// page still say the same through the typed functions (K.6 removes them).
+// into a text, the filter that keeps only the Voices of offered Languages.
 #include "strings/string_ids.h"
 #include "strings/strings.h"
 #include "ui_host.h"
@@ -8,7 +7,6 @@
 
 #include <doctest/doctest.h>
 
-#include <nlohmann/json.hpp>
 #include <set>
 #include <string>
 #include <vector>
@@ -96,7 +94,7 @@ TEST_CASE("OfferedCatalogue keeps only the Voices of offered Languages and marks
     CHECK(shown[1].installed);
 }
 
-TEST_CASE("the typed facts and the old JSON builders agree") {
+TEST_CASE("the typed facts of a refusal and of an added Voice") {
     VoiceOutcome refused;
     refused.problem = VoiceProblem::UnsupportedLanguage;
     refused.languageName = "German";
@@ -105,9 +103,6 @@ TEST_CASE("the typed facts and the old JSON builders agree") {
     CHECK(f.problem == VoiceProblem::UnsupportedLanguage);
     CHECK(f.language == "German");
     CHECK(f.quality == "low");
-    const auto json = nlohmann::json::parse(VoiceRefusedMessage(refused));
-    CHECK(json["language"] == "German");
-    CHECK(json["quality"] == "low");
 
     VoiceOutcome added;
     added.voiceName = "en_US-amy-medium";
@@ -115,7 +110,6 @@ TEST_CASE("the typed facts and the old JSON builders agree") {
     const VoiceAddedFacts a = AddedFactsOf(added);
     CHECK(a.voice == "en_US-amy-medium");
     CHECK(a.language == "eng");
-    CHECK(nlohmann::json::parse(VoiceAddedMessage(added))["language"] == "eng");
 
     // A Language that is not offered gives no Language id.
     added.languageCode = "bg";
@@ -123,6 +117,5 @@ TEST_CASE("the typed facts and the old JSON builders agree") {
 
     const std::vector<CatalogueVoice> catalogue = {Voice("en_US-amy-medium", "en_US", 60, 3),
                                                    Voice("de_DE-thorsten-medium", "de_DE", 40, 1)};
-    const auto list = nlohmann::json::parse(CatalogueMessage(catalogue, {}))["voices"];
-    CHECK(list.size() == OfferedCatalogue(catalogue, {}).size());
+    CHECK(OfferedCatalogue(catalogue, {}).size() == 1);  // the German Voice is of a Language Lexia does not offer
 }

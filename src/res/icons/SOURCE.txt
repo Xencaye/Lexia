@@ -2,8 +2,7 @@ The line icons of the Settings window and the Control bar.
 Stratis UI Icons (CC BY 4.0), https://www.figma.com/community/file/1177180791780461401/stratis-ui-icons-1000-free-figma-icons
 except discord.svg, github.svg and itch.svg (the logos of those sites). See licenses/components/ui-icons.txt.
 
-The SVG files have a fixed colour (#6E504A). The page draws each one as a CSS mask, so the colour
-comes from the page (currentColor), not from the file. The Control bar recolours them in C++.
+The SVG files have a fixed colour (#6E504A). The native Settings window and the Control bar recolour them in C++ (svg_recolour.h) before Direct2D draws them.
 
 The tray icons src/res/lexia.ico and lexia_off.ico are not made from these icons: they come from the
 Lexia logo src/res/lexia_logo.png (see licenses/components/ui-engravings.txt and scripts/make_tray_icons.ps1).

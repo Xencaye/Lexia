@@ -12,7 +12,7 @@ namespace {
 
 namespace sid = strings::id;
 
-// ---- the numbers of the sheets (ui/css/voice_library.css and components.css; DIPs) ---------------------
+// ---- the numbers of the sheets (old ui/css/voice_library.css and components.css; DIPs) ---------------------
 constexpr float kNameFont = 16, kSizeFont = 13, kLineFactor = 1.35f;       // `line-height: 1.35`
 constexpr float kRowPadY = 9, kRowGap = 8, kInfoGap = 12;                   // row padding, progress / error gap, name to action
 constexpr float kActionMinH = 30;                                           // `.voice-action { min-height: 30px }`

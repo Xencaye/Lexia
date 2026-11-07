@@ -1,6 +1,6 @@
 #pragma once
 // The D8 "paper" palette: the one source of the colours of the Settings window and the Control bar
-// (K1, ADR-0009). The values come from the old ui/css/tokens.css. The dark set is a placeholder of the
+// (K1, ADR-0009). The values are those of the HTML pages' tokens.css (deleted in K.6). The dark set is a placeholder of the
 // same roles until the owner gives the final one (TODO(owner)). Pure, Win32-free, in lexia_core; the
 // contrast of the pairs is checked by tests/palette_test.cpp (text 4.5:1, edges and states 3:1).
 #include <cstdint>

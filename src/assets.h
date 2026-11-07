@@ -1,6 +1,6 @@
 #pragma once
 // The files the UI draws with (the icons, the engravings, the font) as resources of the exe (K.1a,
-// ADR-0009). CMake lists ui/icons/*.svg, ui/img/*.jpg and ui/fonts/*.woff2 into a generated assets.rc
+// ADR-0009). CMake lists src/res/icons/*.svg, src/res/img/*.jpg and src/res/fonts/*.woff2 into a generated assets.rc
 // (RCDATA, named "<KIND>/<stem>"), so a new file needs no hand edit and the program has no asset
 // folder to read: nothing outside the exe can change what the UI loads. lexia.exe and lexia_barshot.exe
 // carry them; lexia_core and the tests do not.
@@ -9,9 +9,9 @@
 #include <string_view>
 
 enum class AssetKind {
-    Icon,     // ui/icons/<name>.svg
-    Picture,  // ui/img/<name>.jpg
-    Font,     // ui/fonts/<name>.woff2
+    Icon,     // src/res/icons/<name>.svg
+    Picture,  // src/res/img/<name>.jpg
+    Font,     // src/res/fonts/<name>.woff2
 };
 
 // The bytes of the asset `name` (the file name without its extension: "home-05", "bee",

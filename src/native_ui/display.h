@@ -1,7 +1,7 @@
 #pragma once
 // The widgets that show something and do nothing (K1.b): Label (one line), Paragraph (wrapped text with
 // bold `{name}` runs and optional per-line indents), Notice (a mark, a lead word and a text), ProgressBar,
-// IconWidget and PictureWidget. Look from ui/css/components.css (`.notice`) and base.css; numbers in DIPs.
+// IconWidget and PictureWidget. Look from old ui/css/components.css (`.notice`) and base.css; numbers in DIPs.
 #include "native_ui/text_layout.h"
 #include "native_ui/widget.h"
 

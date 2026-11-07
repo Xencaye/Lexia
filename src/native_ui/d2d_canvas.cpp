@@ -19,7 +19,7 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 constexpr int kMaxPictureSide = 8192;     // a larger "engraving" is not one of ours: refuse it
 constexpr size_t kMaxMeasureEntries = 4096;  // the measure cache is cleared when it grows past this
-constexpr float kIconViewport = 24.0f;    // every file of ui/icons is drawn on a 24 x 24 grid
+constexpr float kIconViewport = 24.0f;    // every file of src/res/icons is drawn on a 24 x 24 grid
 
 // A log-friendly form of an HRESULT.
 std::string Hex(HRESULT hr) {

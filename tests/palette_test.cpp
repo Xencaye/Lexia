@@ -1,7 +1,7 @@
-// The contrast of the palette's colour pairs (K.1a): the same 16 pairs as scripts/ui_contrast.ps1,
+// The contrast of the palette's colour pairs (K.1a): the 16 pairs that scripts/ui_contrast.ps1 checked for the HTML pages (deleted in K.6),
 // for the light and the dark set, with nui::ContrastRatio (WCAG 2). A pair of the code's own colours
 // must pass its minimum (text 4.5:1, edges and states 3:1). A pair that is the owner's design
-// ("design colour" in the script) is not changed to pass; its result today is recorded exactly, so a
+// ("design colour" below) is not changed to pass; its result today is recorded exactly, so a
 // change of a colour is noticed here and reported to the owner.
 #include <doctest/doctest.h>
 
@@ -37,7 +37,7 @@ struct Pair {
     bool passesDark;
 };
 
-// The order and the minimums are those of scripts/ui_contrast.ps1.
+// The pairs and the minimums are the old script's. The colours are in src/native_ui/palette.cpp.
 const Pair kPairs[] = {
     {"ink on paper (text)", Role::Ink, Role::Paper, 4.5, false, true, true},
     {"ink on card (the key card, the select)", Role::Ink, Role::Card, 4.5, false, true, true},
@@ -70,7 +70,7 @@ void CheckTheme(bool dark) {
         } else if (dark ? p.passesDark : p.passesLight) {
             CHECK(ratio >= p.min);
         } else {
-            // The owner's design colour, reported (scripts/ui_contrast.ps1): it is below the minimum
+            // The owner's design colour, reported here: it is below the minimum
             // and stays so until the owner changes the colour. If this fails, a colour changed.
             CHECK_FALSE(ratio >= p.min);
         }

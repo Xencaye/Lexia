@@ -1,9 +1,9 @@
 #pragma once
 // SvgIconCache (lexia.exe): draws an SVG icon into a premultiplied BGRA picture of a given pixel
-// size and colour, for the Control bar. The icon is a resource of the exe (assets.h: ui/icons/<name>.svg
+// size and colour, for the Control bar. The icon is a resource of the exe (assets.h: src/res/icons/<name>.svg
 // is embedded at build time), named by its file stem ("pause-03"); no file is read from disk. Direct2D
 // draws it: ID2D1DeviceContext5::DrawSvgDocument (Windows 10 1703 and later) into a bitmap of a
-// Direct3D 11 device, read back to memory. The colour of the file (#6E504A in ui/icons) is replaced
+// Direct3D 11 device, read back to memory. The colour of the file (#6E504A in src/res/icons) is replaced
 // before it is parsed (RecolourSvg), so one file serves every state. Pictures are kept per (name,
 // size, colour) for the life of the process; the Direct2D objects are made on the first picture that
 // is not kept yet and let go with the cache object, so a Session that needs no new picture makes none.

@@ -1,5 +1,5 @@
 #pragma once
-// Sheet: a modal card over the page (K1.b; ui/css/components.css `.sheet`, the old <dialog>). The Voice
+// Sheet: a modal card over the page (K1.b; old ui/css/components.css `.sheet`, the old <dialog>). The Voice
 // download, the result sheet and Delete voice are Sheets. Screen::OpenSheet puts it on the layer stack:
 // a scrim is drawn behind it, the focus moves into it and goes back to the opener on close, Tab stays
 // inside, Esc closes the top one. A press on the scrim does nothing (as with the old dialog).

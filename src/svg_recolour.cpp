@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdio>
 
-// Recolours the icons of ui/icons for the Control bar. The files are drawn in one fixed colour; the
+// Recolours the icons of src/res/icons for the Control bar. The files are drawn in one fixed colour; the
 // page recolours them with CSS, but in C++ the colour has to be changed in the SVG text before it is
 // parsed. Only a hex colour after `stroke` or `fill` (an attribute stroke="#..." or a style
 // stroke:#...) is changed; "none" and every other value stay as they are.
