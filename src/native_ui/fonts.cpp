@@ -18,6 +18,17 @@ using Microsoft::WRL::ComPtr;
 constexpr std::array<const char*, 3> kStems = {"AtkinsonHyperlegibleNext-Regular", "AtkinsonHyperlegibleNext-SemiBold",
                                                "AtkinsonHyperlegibleNext-Bold"};
 
+// The index of a weight in kStems / Loaded::bytes. FontWeight's values are CSS weights (400, 600, 700)
+// so the canvas can hand them to DirectWrite as they are; they are not array indexes.
+size_t SlotOf(FontWeight weight) {
+    switch (weight) {
+        case FontWeight::SemiBold: return 1;
+        case FontWeight::Bold: return 2;
+        case FontWeight::Regular: break;
+    }
+    return 0;
+}
+
 // The unpacked fonts of the process. Filled once (std::call_once), then only read, so no lock is
 // needed after that. The vectors are never resized again: DirectWrite and GDI+ keep pointers into them.
 struct Loaded {
@@ -105,7 +116,7 @@ bool RegisterWithGdi() {
 std::string_view FontBytes(FontWeight weight) {
     const Loaded& l = Fonts();
     if (!l.ok) return {};
-    const std::vector<char>& b = l.bytes[static_cast<size_t>(weight)];
+    const std::vector<char>& b = l.bytes[SlotOf(weight)];
     return std::string_view(b.data(), b.size());
 }
 

@@ -17,14 +17,14 @@
 
 #include <string_view>
 
+#include "native_ui/canvas.h"  // nui::FontWeight: the one weight enum of the canvas and the font loader
+
 namespace nui {
 
 // The family name of the three files (name table ID 1 and the typographic family).
 inline constexpr wchar_t kFontFamily[] = L"Atkinson Hyperlegible Next";
 // What the callers use when the font is not available.
 inline constexpr wchar_t kFallbackFontFamily[] = L"Segoe UI";
-
-enum class FontWeight { Regular, SemiBold, Bold };
 
 // The unpacked OpenType bytes of one weight, valid for the life of the process; empty if the font
 // could not be loaded (logged once). GDI+ gets them with PrivateFontCollection::AddMemoryFont, which
