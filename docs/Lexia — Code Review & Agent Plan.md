@@ -598,7 +598,7 @@ supersedes ADR-0006). Sub-branches `feat/K.N` merge into `feat/K-native-settings
     pages, Master volume in the frame); Key card (new term); Preset file (Voices page; loads into the Voice the file
     names); Interface language (no Overlay hints); Language key (offered Languages); Run as admin (Setup task); the
     quit note (the tray exists); UI words are American English.
-  - **Verification:** see the PR's report (Release build, `ctest`, `score_layout.ps1`).
+  - **Verification:** Release build with 0 warnings, `ctest` 883 of 883 (`uia_tree` and `read_along_layer` ran), `score_layout.ps1` OK (no Fixture worse). `git grep -i "word mark"` finds only the glossary's "Avoid" lists and this note. The 16, 32 and 256 px frames were looked at.
   *Your check:* the exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and on a
     light taskbar: the dark tile #1E1E1E can be hard to see on a dark taskbar), the Setup icon and the installer's
     window, the Start menu entry; the Settings page card and switch text say read-along; read-along On and Off behave as in
