@@ -12,7 +12,7 @@
 
 TEST_CASE("LinkUrl: the fixed address of each link; the window never builds one") {
     CHECK(LinkUrl(LinkId::Mail) == "mailto:lexia@xencaye.com");
-    CHECK(LinkUrl(LinkId::Discord) == "https://discord.gg/FAaZx9KVpB");
+    CHECK(LinkUrl(LinkId::Discord) == "https://discord.gg/vPsjF5NzPG");
     CHECK(LinkUrl(LinkId::Itch) == "https://xencaye.itch.io/lexia");
     CHECK(LinkUrl(LinkId::Github) == "https://github.com/Xencaye/Lexia/issues/new");
 }

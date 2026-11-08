@@ -41,7 +41,7 @@ const char* LinkName(LinkId id) {
 std::string LinkUrl(LinkId id, const std::string& lexiaVersion, const std::string& windowsVersion) {
     switch (id) {
     case LinkId::Mail: return "mailto:lexia@xencaye.com";
-    case LinkId::Discord: return "https://discord.gg/FAaZx9KVpB";
+    case LinkId::Discord: return "https://discord.gg/vPsjF5NzPG";
     case LinkId::Itch: return "https://xencaye.itch.io/lexia";
     case LinkId::Github:
         if (lexiaVersion.empty() && windowsVersion.empty()) return "https://github.com/Xencaye/Lexia/issues/new";
