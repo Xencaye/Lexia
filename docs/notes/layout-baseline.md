@@ -1,5 +1,7 @@
 # Layout baseline (A1)
 
+The current numbers are in `tests/fixtures/baseline.json`; this page is the A1 record.
+
 Measured 2026-10-25 on commit `90a3213` (before any change to `layout.*`), 18 Fixtures.
 
 > **Note (2026-11-05):** the `steam_01` Fixture (a Steam screenshot) is removed from `tests/fixtures/`

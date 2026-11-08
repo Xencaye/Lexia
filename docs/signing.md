@@ -4,6 +4,9 @@ An Authenticode signature tells Windows (and SmartScreen) who built `lexia.exe`.
 default**: the default build, CI and the zip are unsigned. Nothing about signing is stored in the
 repo or in the CMake cache.
 
+Planned for Lexia 1.0 (plan task H5): free signing of `lexia.exe` and the setup file through SignPath
+Foundation, from a release workflow. Until then every release ships unsigned.
+
 ## What gets signed
 
 With `-DLEXIA_SIGN=ON` the package step (`cmake/package.cmake`, running `lexia_sign_files` from
