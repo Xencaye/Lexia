@@ -9,8 +9,8 @@ On-screen wording follows the glossary.
 ## Status (Nov 8, 2026)
 
 - **Released:** Lexia 0.5.0 (Nov 5, tag `v0.5.0`) and **Lexia 0.6.0** (Nov 8, tag `v0.6.0`:
-  `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, kept in `release\0.6.0\`). **Lexia 0.6.1** (Nov 8, branch
-  `release/0.6.1` from `v0.6.0`, files in `release\0.6.1\`): the same code with a corrected package `README.txt` (the
+  `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, kept in `release\0.6.0\`). **Lexia 0.6.1** (Nov 8, tag `v0.6.1`,
+  made from `v0.6.0`, files in `release\0.6.1\`): the same code with a corrected package `README.txt` (the
   0.6.0 one still described the console prototype).
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
   No 0.7 task is planned yet.
