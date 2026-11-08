@@ -11,7 +11,9 @@ On-screen wording follows the glossary.
 - **Released:** Lexia 0.5.0 (Nov 5, tag `v0.5.0`) and **Lexia 0.6.0** (Nov 8, tag `v0.6.0`:
   `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, kept in `release\0.6.0\`). **Lexia 0.6.1** (Nov 8, tag `v0.6.1`,
   made from `v0.6.0`, files in `release\0.6.1\`): the same code with a corrected package `README.txt` (the
-  0.6.0 one still described the console prototype).
+  0.6.0 one still described the console prototype). **Lexia 0.6.2** (Nov 8, tag `v0.6.2`, made from `v0.6.1`, files
+  in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
+  broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
   No 0.7 task is planned yet.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
