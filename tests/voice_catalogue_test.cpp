@@ -22,18 +22,18 @@ std::string Entry(const std::string& key, const std::string& family, const std::
 }  // namespace
 
 TEST_CASE("ParseVoiceCatalogue: reads the name, language, quality and the two files with size and MD5") {
-    const std::string json = "{" + Entry("bg_BG-dimitar-medium", "bg", "bg_BG", "Bulgarian", "medium") + "}";
+    const std::string json = "{" + Entry("bg_BG-sample-medium", "bg", "bg_BG", "Bulgarian", "medium") + "}";
     const auto voices = ParseVoiceCatalogue(json);
     REQUIRE(voices.size() == 1);
     const CatalogueVoice& v = voices[0];
-    CHECK(v.name == "bg_BG-dimitar-medium");
+    CHECK(v.name == "bg_BG-sample-medium");
     CHECK(v.languageCode == "bg_BG");
     CHECK(v.languageName == "Bulgarian");
     CHECK(v.quality == "medium");
-    CHECK(v.model.path == "bg/bg_BG/x/medium/bg_BG-dimitar-medium.onnx");
+    CHECK(v.model.path == "bg/bg_BG/x/medium/bg_BG-sample-medium.onnx");
     CHECK(v.model.sizeBytes == 1000);
     CHECK(v.model.md5 == "fc1ce62a4f04f089e22b8c3a13bde28a");  // lower-cased
-    CHECK(v.config.path == "bg/bg_BG/x/medium/bg_BG-dimitar-medium.onnx.json");
+    CHECK(v.config.path == "bg/bg_BG/x/medium/bg_BG-sample-medium.onnx.json");
     CHECK(v.config.sizeBytes == 50);
 }
 
@@ -67,12 +67,12 @@ TEST_CASE("FilterCatalogueForLexia: Lexia's Languages in Medium quality, sorted 
     const std::string json = "{" + Entry("en_US-zed-medium", "en", "en_US", "English", "medium") + "," +
                              Entry("en_US-low-low", "en", "en_US", "English", "low") + "," +
                              Entry("de_DE-thorsten-medium", "de", "de_DE", "German", "medium") + "," +
-                             Entry("bg_BG-dimitar-medium", "bg", "bg_BG", "Bulgarian", "medium") + "," +
+                             Entry("bg_BG-sample-medium", "bg", "bg_BG", "Bulgarian", "medium") + "," +
                              Entry("en_GB-alan-medium", "en", "en_GB", "English", "medium") + "," +
                              Entry("en_US-big-high", "en", "en_US", "English", "x_high") + "}";
     const auto kept = FilterCatalogueForLexia(ParseVoiceCatalogue(json));
     REQUIRE(kept.size() == 3);
-    CHECK(kept[0].name == "bg_BG-dimitar-medium");
+    CHECK(kept[0].name == "bg_BG-sample-medium");
     CHECK(kept[1].name == "en_GB-alan-medium");
     CHECK(kept[2].name == "en_US-zed-medium");
 }

@@ -9,13 +9,13 @@
 #include "tts/voice_library.h"
 
 struct CatalogueFile {
-    std::string path;     // inside the repository, e.g. "bg/bg_BG/dimitar/medium/bg_BG-dimitar-medium.onnx"
+    std::string path;     // inside the repository, e.g. "bg/bg_BG/sample/medium/bg_BG-sample-medium.onnx"
     uint64_t sizeBytes = 0;
     std::string md5;      // lower case hex
 };
 
 struct CatalogueVoice {
-    std::string name;          // "bg_BG-dimitar-medium"
+    std::string name;          // "bg_BG-sample-medium"
     std::string languageCode;  // the catalogue's, "bg_BG"
     std::string languageName;  // "Bulgarian" (name_english)
     std::string quality;       // "medium", "low", ...

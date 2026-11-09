@@ -321,9 +321,9 @@ TEST_CASE("ParseCliArgs: --voices-catalogue, --voice-download and --voice-add st
     CHECK(list.args.listVoices);
     CHECK(list.args.imagePath.empty());
 
-    const CliParse dl = ParseCliArgs({"--voice-download", "bg_BG-dimitar-medium"});
+    const CliParse dl = ParseCliArgs({"--voice-download", "bg_BG-sample-medium"});
     REQUIRE(dl.ok);
-    CHECK(dl.args.downloadVoice == "bg_BG-dimitar-medium");
+    CHECK(dl.args.downloadVoice == "bg_BG-sample-medium");
 
     const CliParse add = ParseCliArgs({"--voice-add", "C:/v/my.onnx", "--voices-dir", "D:/voices"});
     REQUIRE(add.ok);
@@ -344,7 +344,7 @@ TEST_CASE("ParseCliArgs: the Voice library options cannot be mixed with each oth
 
 TEST_CASE("VoiceCatalogueToText: one line per Voice with its Language and size, marking installed ones") {
     CatalogueVoice a;
-    a.name = "bg_BG-dimitar-medium";
+    a.name = "bg_BG-sample-medium";
     a.languageName = "Bulgarian";
     a.model.sizeBytes = 63221984;
     a.config.sizeBytes = 5123;
@@ -354,17 +354,17 @@ TEST_CASE("VoiceCatalogueToText: one line per Voice with its Language and size, 
     b.model.sizeBytes = 63000000;
     b.config.sizeBytes = 1000;
     const std::string text = VoiceCatalogueToText({a, b}, {"en_US-amy-medium"});
-    CHECK(text == "bg_BG-dimitar-medium\tBulgarian\t60.3 MB\n"
+    CHECK(text == "bg_BG-sample-medium\tBulgarian\t60.3 MB\n"
                   "en_US-amy-medium\tEnglish\t60.1 MB\tinstalled\n");
     CHECK(VoiceCatalogueToText({}, {}).empty());
 }
 
 TEST_CASE("VoiceOutcomeToText: says what was added, or the problem id with the fact the message needs") {
     VoiceOutcome ok;
-    ok.voiceName = "bg_BG-dimitar-medium";
+    ok.voiceName = "bg_BG-sample-medium";
     ok.languageCode = "bg";
     ok.languageName = "Bulgarian";
-    CHECK(VoiceOutcomeToText(ok) == "added bg_BG-dimitar-medium (Bulgarian)\n");
+    CHECK(VoiceOutcomeToText(ok) == "added bg_BG-sample-medium (Bulgarian)\n");
 
     VoiceOutcome german;
     german.problem = VoiceProblem::UnsupportedLanguage;

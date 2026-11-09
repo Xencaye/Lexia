@@ -763,7 +763,7 @@ TEST_CASE("VoiceControlsToJson writes what ParseSettings reads back") {
     c.pitch = -3.f;
     c.volume = 0.5f;
     voices["en_GB-cori-medium"] = c;
-    voices["bg_BG-dimitar-medium"];  // a Voice with the defaults
+    voices["bg_BG-sample-medium"];  // a Voice with the defaults
 
     const std::string text = "{\"voices\": " + VoiceControlsToJson(voices) + "}";
     const Parsed p = Parse(text);
