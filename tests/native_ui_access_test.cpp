@@ -22,7 +22,7 @@ using namespace nui::test;
 
 namespace {
 
-constexpr const char* kLjspeech = "en_US-ljspeech-medium";
+constexpr const char* kCori = "en_GB-cori-medium";
 constexpr const char* kAlba = "en_GB-alba-medium";
 
 std::string T(const char* id) { return strings::Text("en", id); }
@@ -34,7 +34,7 @@ UiState SampleState(bool on = false, const std::string& active = kAlba) {
     s.masterVolume = {50, 0, 100, 100, 5};
     s.keys = {{"read", "F8"}, {"pause", "F7"}, {"speech", "F6"}};
     UiVoices v;
-    v.installed = {kLjspeech, kAlba};
+    v.installed = {kCori, kAlba};
     v.active = active;
     v.removable = {kAlba};
     s.controls["speed"] = {1.0, 0.5, 2.0, 1.0, 0.05};
@@ -345,7 +345,7 @@ TEST_CASE("access: an open Select offers its list, and the highlighted row has t
     CHECK(FindAccessible(r.S(), voice->Id()) == voice);
     const std::vector<Widget*> rows = AccessChildren(r.S(), list);
     REQUIRE(rows.size() == 2);
-    CHECK(rows[0]->Access().name == kLjspeech);
+    CHECK(rows[0]->Access().name == kCori);
     CHECK(rows[1]->Access().selected);  // alba is the shown choice
     CHECK(AccessFocus(r.S()) == rows[1]);
     CHECK(AccessParent(r.S(), *rows[0]) == list);
@@ -358,7 +358,7 @@ TEST_CASE("access: an open Select offers its list, and the highlighted row has t
     r.ui.Frame();
     REQUIRE_FALSE(r.sent.empty());
     CHECK(r.sent.back().type == PageMessageType::SetVoice);
-    CHECK(r.sent.back().voice == kLjspeech);
+    CHECK(r.sent.back().voice == kCori);
     CHECK(r.S().Popup() == nullptr);
     CHECK(AccessFocus(r.S()) == voice);
 }

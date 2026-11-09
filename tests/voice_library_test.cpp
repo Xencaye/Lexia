@@ -420,9 +420,9 @@ TEST_CASE("AddVoiceZip: the config is checked before the model is unpacked, and 
 TEST_CASE("ListInstalledVoices: the shipped Voices first, then the user's, each with its Language") {
     TempDir shipped, user;
     WriteText(shipped.path / "voices.json",
-              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-ljspeech-medium\"}, "
+              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}, "
               "{\"language\": \"bg\", \"name\": \"bg_BG-gone-medium\"}]}");
-    WriteText(shipped.path / "en_US-ljspeech-medium.onnx", "M");  // bg_BG-gone-medium has no file: not listed
+    WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");  // bg_BG-gone-medium has no file: not listed
     WriteText(user.path / "en_US-zoe-medium.onnx", "M");
     WriteText(user.path / "en_US-zoe-medium.onnx.json", Config("en_US", "English", "medium"));
     WriteText(user.path / "bg_BG-dimitar-medium.onnx", "M");
@@ -430,13 +430,13 @@ TEST_CASE("ListInstalledVoices: the shipped Voices first, then the user's, each 
     WriteText(user.path / "de_DE-t-medium.onnx", "M");  // not a Language Lexia reads
     WriteText(user.path / "de_DE-t-medium.onnx.json", Config("de_DE", "German", "medium"));
     WriteText(user.path / "en_US-nojson-medium.onnx", "M");  // no config
-    WriteText(user.path / "en_US-ljspeech-medium.onnx", "M");  // the name of a shipped Voice: left out
-    WriteText(user.path / "en_US-ljspeech-medium.onnx.json", Config("en_US", "English", "medium"));
+    WriteText(user.path / "en_GB-cori-medium.onnx", "M");  // the name of a shipped Voice: left out
+    WriteText(user.path / "en_GB-cori-medium.onnx.json", Config("en_US", "English", "medium"));
     WriteText(user.path / "en_US-half-medium.onnx.part", "M");
 
     const auto voices = ListInstalledVoices(shipped.path, user.path);
     REQUIRE(voices.size() == 3);
-    CHECK(voices[0].name == "en_US-ljspeech-medium");
+    CHECK(voices[0].name == "en_GB-cori-medium");
     CHECK(voices[0].shipped);
     CHECK(voices[0].languageCode == "en");
     CHECK(voices[1].name == "bg_BG-dimitar-medium");
@@ -455,18 +455,36 @@ TEST_CASE("ListInstalledVoices: missing folders give an empty list, not an error
 
 TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, else the first one") {
     const std::vector<InstalledVoice> list = {
-        {"en_US-ljspeech-medium", "en", "a.onnx", true},
+        {"en_GB-cori-medium", "en", "a.onnx", true},
         {"en_GB-alba-medium", "en", "b.onnx", false},
         {"bg_BG-dimitar-medium", "bg", "c.onnx", true},
     };
     REQUIRE(PickVoice(list, "en", "en_GB-alba-medium"));
     CHECK(PickVoice(list, "en", "en_GB-alba-medium")->name == "en_GB-alba-medium");
-    CHECK(PickVoice(list, "en", "")->name == "en_US-ljspeech-medium");
-    CHECK(PickVoice(list, "en", "not-installed")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(list, "en", "")->name == "en_GB-cori-medium");
+    CHECK(PickVoice(list, "en", "not-installed")->name == "en_GB-cori-medium");
     // a Voice of another Language is not a choice for this one
-    CHECK(PickVoice(list, "en", "bg_BG-dimitar-medium")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(list, "en", "bg_BG-dimitar-medium")->name == "en_GB-cori-medium");
     CHECK(PickVoice(list, "de", "") == nullptr);
     CHECK(PickVoice({}, "en", "") == nullptr);
+}
+
+// The default English Voice is the first one voices.json lists (Cori, then Mike). A settings.json from
+// Lexia 0.6 names en_US-ljspeech-medium as the active Voice; that Voice no longer ships, so the
+// first listed one speaks instead, with no migration step.
+TEST_CASE("PickVoice: the first Voice in voices.json is the default, also for a Voice that no longer ships") {
+    TempDir shipped;
+    WriteText(shipped.path / "voices.json",
+              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}, "
+              "{\"language\": \"en\", \"name\": \"en_US-mike-medium\"}]}");
+    WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");
+    WriteText(shipped.path / "en_US-mike-medium.onnx", "M");
+
+    const auto voices = ListInstalledVoices(shipped.path, {});
+    REQUIRE(voices.size() == 2);
+    CHECK(PickVoice(voices, "en", "")->name == "en_GB-cori-medium");
+    CHECK(PickVoice(voices, "en", "en_US-ljspeech-medium")->name == "en_GB-cori-medium");
+    CHECK(PickVoice(voices, "en", "en_US-mike-medium")->name == "en_US-mike-medium");
 }
 
 // ------------------------------------------------------------- RemoveVoice ---
