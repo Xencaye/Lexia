@@ -139,10 +139,10 @@ void BuildLeftColumn(Screen& screen, Canvas& canvas) {
     Caption(root, canvas, x, 222, "Select: normal, disabled");
     Flow sel(root, canvas, x, 240, 16);
     Select* s1 = sel.PutWide<Select>(170);
-    s1->SetItems({"Amy", "Anna", "Dimitar"});
+    s1->SetItems({"Amy", "Anna", "Mike"});
     s1->SetSelected(1);
     Select* s2 = sel.PutWide<Select>(170);
-    s2->SetItems({"Amy", "Anna", "Dimitar"});
+    s2->SetItems({"Amy", "Anna", "Mike"});
     s2->SetSelected(0);
     s2->SetEnabled(false);
 

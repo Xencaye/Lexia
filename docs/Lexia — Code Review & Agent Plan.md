@@ -119,7 +119,7 @@ Lexia offers English only. E3–E5 are done and stay in the code; Bulgarian is i
 - [ ] **E1 Cyrillic fixtures.** 10+ Bulgarian screenshots with expected text.
 - [ ] **E2 OCR quality.** Score `rec_cyrillic.onnx`; note confusions.
 - [ ] **E6 The owner's Bulgarian Voice (owner).** The owner records their own voice and trains a Bulgarian Medium
-  Piper Voice (decided Nov 5; it replaces Dimitar, whose model has no clear licence). Train from the clean Piper base
+  Piper Voice (decided Nov 5). Train from the clean Piper base
   (`rhasspy/piper-checkpoints/_base_model`, CC BY 4.0), not from a lessac-derived checkpoint. *Done when:* the Voice is
   in `voices/voices.json` with `ship: true`, has `licenses/components/voice-<name>.txt` (`docs/third-party.md`), and
   `lexia_cli --say "..." --lang bg --wav out.wav` speaks with it.
@@ -238,5 +238,3 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 ## Sources
 
 - [piper-voices voices.json — Hugging Face](https://huggingface.co/rhasspy/piper-voices/raw/main/voices.json)
-- [bg_BG dimitar MODEL_CARD — Hugging Face](https://huggingface.co/rhasspy/piper-voices/raw/main/bg/bg_BG/dimitar/medium/MODEL_CARD)
-- [Dimitar 1.0 Bulgarian TTS dataset — Mozilla Data Collective](https://prod.datacollective.mozillafoundation.org/datasets/cmhpahaib00d8mk07ely2m8wh)
