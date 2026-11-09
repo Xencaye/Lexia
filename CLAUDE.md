@@ -41,8 +41,8 @@ LLVM's (`C:\Program Files\LLVM\bin`, must be on PATH).
 **Not in git** (fetch with `powershell -ExecutionPolicy Bypass -File scripts\fetch_deps.ps1`):
 - `onnxruntime\` — prebuilt ONNX Runtime zip (include\, lib\)
 - `models\` — det.onnx, rec_en.onnx, dict_en.txt, rec_cyrillic.onnx, dict_cyrillic.txt
-- `voices\` — the Piper Voice files listed in `voices\voices.json` (`bg_BG-dimitar-medium` is for local testing only,
-  never packaged)
+- `voices\` — the Piper Voice files listed in `voices\voices.json` (all of them ship; Lexia has no Bulgarian Voice
+  now)
 
 Piper is not fetched: the first build clones piper1-gpl and espeak-ng at pinned commits and builds `piper.dll` into
 `build\lp_install` (CMake `libpiper_external`; needs the network and a short build path).
