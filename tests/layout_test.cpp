@@ -564,6 +564,221 @@ TEST_CASE("GroupBlocks: kCutNarrow, a vertical strip of 1.5 line heights (30 px)
 
 // -------------------------------------------------------------- BlocksToText ---
 
+// ----------------------------------------------- row fragments, centred stacks ---
+// 1920 x 1080 Shot, neutral text. Pixel-font lines are 40 px tall (lh 40): a word gap of 0.6-1.0 lh
+// is 24-40 px.
+
+TEST_CASE("MergeRowFragments: pieces of one row become one Line (union box, lowest confidence)") {
+    const auto out = MergeRowFragments({
+        MakeLine(100, 500, 220, 540, "THE", 90.f),
+        MakeLine(250, 502, 400, 541, "QUICK", 70.f),
+        MakeLine(425, 499, 560, 540, "BROWN", 95.f),
+    });
+    REQUIRE(out.size() == 1);
+    CHECK(out[0].text == "THE QUICK BROWN");
+    CHECK(out[0].box.left == 100);
+    CHECK(out[0].box.top == 499);
+    CHECK(out[0].box.right == 560);
+    CHECK(out[0].box.bottom == 541);
+    CHECK(out[0].conf == doctest::Approx(70.f));
+}
+
+TEST_CASE("MergeRowFragments: the gap limit is 1.2 line heights") {
+    // Heights 40, so 1.2 lh = 48 px.
+    SUBCASE("48 px joins") {
+        CHECK(MergeRowFragments({MakeLine(0, 0, 100, 40, "A"), MakeLine(148, 0, 250, 40, "B")}).size() == 1);
+    }
+    SUBCASE("49 px stays apart") {
+        CHECK(MergeRowFragments({MakeLine(0, 0, 100, 40, "A"), MakeLine(149, 0, 250, 40, "B")}).size() == 2);
+    }
+}
+
+TEST_CASE("MergeRowFragments: different heights or vertical positions are not one row") {
+    SUBCASE("a heading and small print on the same baseline") {
+        CHECK(MergeRowFragments({MakeLine(0, 0, 100, 60, "BIG"), MakeLine(130, 30, 230, 60, "small")}).size() == 2);
+    }
+    SUBCASE("centres 0.5 lh apart") {
+        CHECK(MergeRowFragments({MakeLine(0, 0, 100, 40, "A"), MakeLine(130, 20, 230, 60, "B")}).size() == 2);
+    }
+}
+
+TEST_CASE("MergeRowFragments: no Lines, one Line, and unsorted input") {
+    CHECK(MergeRowFragments({}).empty());
+    CHECK(MergeRowFragments({MakeLine(0, 0, 10, 10, "x")}).size() == 1);
+    const auto out = MergeRowFragments({MakeLine(130, 0, 230, 40, "second"), MakeLine(0, 0, 100, 40, "first")});
+    REQUIRE(out.size() == 1);
+    CHECK(out[0].text == "first second");
+}
+
+TEST_CASE("GroupBlocks: a pixel-font line cut into word pieces is one Block, in order") {
+    // Word gaps of 0.6 to 1.0 lh (24..40 px), pieces arriving shuffled.
+    const auto blocks = GroupBlocks({
+        MakeLine(730, 500, 905, 540, "HONESTLY?"),
+        MakeLine(100, 500, 260, 540, "HAVE"),
+        MakeLine(290, 501, 400, 541, "YOU"),
+        MakeLine(430, 499, 700, 540, "ANSWERED"),
+    });
+    REQUIRE(blocks.size() == 1);
+    CHECK(blocks[0].text == "HAVE YOU ANSWERED HONESTLY?");
+    CHECK(blocks[0].box.left == 100);
+    CHECK(blocks[0].box.right == 905);
+}
+
+TEST_CASE("GroupBlocks: a sentence of two lines, each cut into pieces, reads line by line") {
+    // Line 2's pieces start in lower case, which used to join each to whatever piece lay above.
+    const auto blocks = GroupBlocks({
+        MakeLine(400, 300, 560, 340, "It's a"),
+        MakeLine(590, 300, 780, 340, "beautiful"),
+        MakeLine(810, 300, 900, 340, "day"),
+        MakeLine(400, 350, 560, 390, "and the"),
+        MakeLine(590, 350, 700, 390, "sun is"),
+        MakeLine(730, 350, 810, 390, "out."),
+    });
+    REQUIRE(blocks.size() == 1);
+    CHECK(blocks[0].text == "It's a beautiful day and the sun is out.");
+    REQUIRE(blocks[0].lines.size() == 2);
+    CHECK(blocks[0].lines[0].text == "It's a beautiful day");
+    CHECK(blocks[0].lines[1].text == "and the sun is out.");
+}
+
+TEST_CASE("GroupBlocks: a hyphenated word across two merged rows is re-joined") {
+    const auto blocks = GroupBlocks({
+        MakeLine(100, 300, 240, 340, "a long"),
+        MakeLine(270, 300, 560, 340, "descrip-"),
+        MakeLine(100, 350, 240, 390, "tion of"),
+        MakeLine(270, 350, 400, 390, "it."),
+    });
+    REQUIRE(blocks.size() == 1);
+    CHECK(blocks[0].text == "a long description of it.");
+}
+
+TEST_CASE("GroupBlocks: grid cells 1.7 line heights apart stay separate") {
+    // 30 px tall, 51 px between cells.
+    const auto blocks = GroupBlocks({
+        MakeLine(484, 419, 589, 449, "Cell 01"),
+        MakeLine(640, 419, 745, 449, "Cell 02"),
+        MakeLine(796, 419, 901, 449, "Cell 03"),
+    });
+    REQUIRE(blocks.size() == 3);
+    CHECK(blocks[0].text == "Cell 01");
+    CHECK(blocks[2].text == "Cell 03");
+}
+
+TEST_CASE("GroupBlocks: a label and its value far apart stay separate") {
+    const auto blocks = GroupBlocks({
+        MakeLine(870, 804, 1146, 857, "BRIGHTNESS"),
+        MakeLine(1346, 804, 1616, 857, "HIGH"),
+    });
+    REQUIRE(blocks.size() == 2);
+    CHECK(blocks[0].text == "BRIGHTNESS");
+    CHECK(blocks[1].text == "HIGH");
+}
+
+TEST_CASE("GroupBlocks: a centred all-caps bubble of five tight short lines is one Block, in order") {
+    // 30 px tall, 6 px between lines (0.2 lh), all centred on x = 960, all under 8 lh wide. Lines 2
+    // and 3 have almost the same edges; the stack is already known by then.
+    const auto blocks = GroupBlocks({
+        MakeLine(900, 100, 1020, 130, "BUT IT"),
+        MakeLine(860, 136, 1060, 166, "DOESN'T GIVE"),
+        MakeLine(865, 172, 1055, 202, "ANY DETAILS"),
+        MakeLine(890, 208, 1030, 238, "ABOUT IT"),
+        MakeLine(910, 244, 1010, 274, "AT ALL"),
+    });
+    REQUIRE(blocks.size() == 1);
+    CHECK(blocks[0].text == "BUT IT DOESN'T GIVE ANY DETAILS ABOUT IT AT ALL");
+}
+
+TEST_CASE("GroupBlocks: a centred caption in two tight lines is one Block, a sentence end splits it") {
+    SUBCASE("a question over its tail") {
+        const auto blocks = GroupBlocks({MakeLine(880, 100, 1040, 130, "ARE YOU"),
+                                         MakeLine(900, 136, 1020, 166, "THERE?")});
+        REQUIRE(blocks.size() == 1);
+        CHECK(blocks[0].text == "ARE YOU THERE?");
+    }
+    SUBCASE("a full stop ends the first sentence") {
+        CHECK(GroupBlocks({MakeLine(880, 100, 1040, 130, "ARE YOU."),
+                           MakeLine(900, 136, 1020, 166, "THERE")}).size() == 2);
+    }
+    SUBCASE("a full stop inside a closing quote still ends it") {
+        CHECK(GroupBlocks({MakeLine(880, 100, 1040, 130, "I SAID \"NO.\""),
+                           MakeLine(900, 136, 1020, 166, "THERE")}).size() == 2);
+    }
+    SUBCASE("a comma does not") {
+        CHECK(GroupBlocks({MakeLine(880, 100, 1040, 130, "WAIT,"),
+                           MakeLine(900, 136, 1020, 166, "THERE")}).size() == 1);
+    }
+    SUBCASE("a gap over 0.5 lh splits") {
+        CHECK(GroupBlocks({MakeLine(880, 100, 1040, 130, "ARE YOU"),
+                           MakeLine(900, 146, 1020, 176, "THERE")}).size() == 2);  // 16 px
+    }
+    SUBCASE("a gap of 15 px (0.5 lh) joins") {
+        CHECK(GroupBlocks({MakeLine(880, 100, 1040, 130, "ARE YOU"),
+                           MakeLine(900, 145, 1020, 175, "THERE")}).size() == 1);
+    }
+    SUBCASE("a mixed-case pair is not joined by this cue") {
+        CHECK(GroupBlocks({MakeLine(880, 100, 1040, 130, "Are you"),
+                           MakeLine(900, 136, 1020, 166, "There")}).size() == 2);
+    }
+}
+
+TEST_CASE("SortReadingOrder: stacked centred lines that overlap by 60% are read top first") {
+    // "DOESN'T GIVE" is wider, so its left edge is further left, and its top is only 12 px
+    // lower: a row rule on the vertical overlap alone would read it first.
+    std::vector<TextLine> v = {
+        MakeLine(860, 112, 1060, 142, "DOESN'T GIVE"),
+        MakeLine(900, 100, 1020, 130, "BUT IT"),
+    };
+    SortReadingOrder(v);
+    REQUIRE(v.size() == 2);
+    CHECK(v[0].text == "BUT IT");
+    CHECK(v[1].text == "DOESN'T GIVE");
+
+    // Through GroupBlocks too (the boxes overlap too much to be one Block, but the order holds).
+    const auto blocks = GroupBlocks({MakeLine(860, 112, 1060, 142, "DOESN'T GIVE"),
+                                     MakeLine(900, 100, 1020, 130, "BUT IT")});
+    REQUIRE(blocks.size() >= 1);
+    CHECK(blocks[0].text.rfind("BUT IT", 0) == 0);
+}
+
+TEST_CASE("SortReadingOrder: boxes that share little width are still one row") {
+    // Overlap of 1 px against a 120 px wide neighbour.
+    std::vector<TextLine> v = {MakeLine(119, 0, 300, 20, "right"), MakeLine(0, 2, 120, 22, "left")};
+    SortReadingOrder(v);
+    CHECK(v[0].text == "left");
+    CHECK(v[1].text == "right");
+}
+
+TEST_CASE("GroupBlocks: a centred menu with 0.7 lh padding is one Block per item") {
+    const auto blocks = GroupBlocks({
+        MakeLine(890, 100, 1030, 130, "NEW GAME"),
+        MakeLine(900, 151, 1020, 181, "CONTINUE"),
+        MakeLine(905, 202, 1015, 232, "OPTIONS"),
+    });
+    REQUIRE(blocks.size() == 3);
+    CHECK(blocks[0].text == "NEW GAME");
+    CHECK(blocks[2].text == "OPTIONS");
+}
+
+TEST_CASE("GroupBlocks: tight lists with equal edges are one Block per item") {
+    SUBCASE("left-aligned all caps") {
+        const auto blocks = GroupBlocks({MakeLine(500, 100, 600, 130, "START"),
+                                         MakeLine(500, 136, 580, 166, "LOAD"),
+                                         MakeLine(500, 172, 580, 202, "QUIT")});
+        REQUIRE(blocks.size() == 3);
+        CHECK(blocks[1].text == "LOAD");
+    }
+    SUBCASE("right-aligned all caps") {
+        const auto blocks = GroupBlocks({MakeLine(500, 100, 640, 130, "QUALITY"),
+                                         MakeLine(540, 136, 640, 166, "SHADOWS"),
+                                         MakeLine(520, 172, 640, 202, "TEXTURES")});
+        REQUIRE(blocks.size() == 3);
+    }
+    SUBCASE("centred but all the same width") {
+        CHECK(GroupBlocks({MakeLine(500, 100, 620, 130, "SLOT ONE"),
+                           MakeLine(500, 136, 620, 166, "SLOT TWO")}).size() == 2);
+    }
+}
+
 TEST_CASE("BlocksToText: no Blocks gives an empty string") {
     CHECK(BlocksToText({}).empty());
 }

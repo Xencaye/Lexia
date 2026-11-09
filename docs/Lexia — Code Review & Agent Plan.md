@@ -15,7 +15,7 @@ On-screen wording follows the glossary.
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
-  No 0.7 task is planned yet.
+  Done for 0.7: A6 (row fragments and tight centred stacks in the Layout).
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -84,6 +84,10 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
 - [ ] **D4 / C5 in games.** In Undertale, the Control bar does not minimise the game (note whether bar clicks also
   reach the game); F6 and F7 reach the game when Lexia is silent.
 - [ ] **A5 Grouping.** Undertale, a browser and a video with subtitles.
+- [ ] **A6 Row fragments and centred stacks.** In Undertale and Deltarune dialogue (pixel fonts) and on a comic page
+  (all-caps bubbles), click a line or a bubble: Lexia reads the whole line or bubble, in order, not one word. Menus
+  (title screen, settings, save slots) still read one entry per click. A mixed-case centred prompt is still one
+  Block per line (known limit).
 - [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
 
 ## Open tasks
@@ -173,7 +177,9 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - **Phase 0** (P0.1–P0.8): repo audit (R17+), git and `fetch_deps.ps1`, build hygiene (`/utf-8 /W4`), `lexia_core`
   split, doctest `lexia_tests`, `lexia_cli` and the Fixture score, the logger, CI.
 - **A — Layout:** A1 baseline (`docs/notes/layout-baseline.md`), A2 failure classes (`docs/notes/layout-failures.md`),
-  A3 fixes for L1, L3, L4 (Dist 0.1998 → 0.1412, BlkErr 4.22 → 2.39; L2 deferred), A4 `layout` knobs in settings.json.
+  A3 fixes for L1, L3, L4 (Dist 0.1998 → 0.1412, BlkErr 4.22 → 2.39; L2 deferred), A4 `layout` knobs in settings.json,
+  A6 (0.7) row fragments and tight centred stacks: `MergeRowFragments` joins the pieces of one row, all-caps centred
+  tight stacks go on into the next Line, stacked Lines are ordered top first (Dist 0.1356 → 0.1310, BlkErr 1.76 → 1.29).
 - **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
   Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`).
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
@@ -199,7 +205,7 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); no tasks yet.
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); A6 done (Layout: row fragments and tight centred stacks).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
