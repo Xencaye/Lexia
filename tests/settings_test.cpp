@@ -683,16 +683,16 @@ TEST_CASE("ParseSettings: no voices section means every Voice has the default co
     const Parsed p = Parse("{}");
     CHECK(p.settings.voices.empty());
     CHECK(p.notes.empty());
-    CHECK(Settings{}.ControlsFor("en_US-ljspeech-medium") == VoiceControls{});
+    CHECK(Settings{}.ControlsFor("en_GB-cori-medium") == VoiceControls{});
 }
 
 TEST_CASE("ParseSettings: the current controls per Voice, a left-out control is the default") {
     const Parsed p = Parse(R"({"voices": {
-        "en_US-ljspeech-medium": {"speed": 0.8, "pitch": -2, "volume": 0.9, "expressiveness": 0.7},
+        "en_GB-cori-medium": {"speed": 0.8, "pitch": -2, "volume": 0.9, "expressiveness": 0.7},
         "other": {"speed": 1.5},
         "empty": {}}})");
     CHECK(p.notes.empty());  // the old "expressiveness" is ignored silently
-    const VoiceControls& c = p.settings.voices.at("en_US-ljspeech-medium");
+    const VoiceControls& c = p.settings.voices.at("en_GB-cori-medium");
     CHECK(c.speed == doctest::Approx(0.8f));
     CHECK(c.pitch == doctest::Approx(-2.f));
     CHECK(c.volume == doctest::Approx(0.9f));
@@ -762,7 +762,7 @@ TEST_CASE("VoiceControlsToJson writes what ParseSettings reads back") {
     c.speed = 1.25f;
     c.pitch = -3.f;
     c.volume = 0.5f;
-    voices["en_US-ljspeech-medium"] = c;
+    voices["en_GB-cori-medium"] = c;
     voices["bg_BG-dimitar-medium"];  // a Voice with the defaults
 
     const std::string text = "{\"voices\": " + VoiceControlsToJson(voices) + "}";

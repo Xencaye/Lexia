@@ -73,7 +73,7 @@ struct Settings {
     LayoutParams layout;  // how Lines are grouped into Blocks; only settings.json changes it
 
     // Each Voice's current controls, keyed by the Voice's name (the file name in voices.json without
-    // ".onnx", e.g. "en_US-ljspeech-medium"). A Voice with no entry speaks with the defaults.
+    // ".onnx", e.g. "en_GB-cori-medium"). A Voice with no entry speaks with the defaults.
     // settings.json: "voices": { "<name>": { "speed": 1, "pitch": 0, "volume": 1 } }
     // (An older file kept named Presets: { "preset": "<active>", "presets": { "<Preset>": {...} } };
     // reading it, the active Preset's controls become the current ones, with no note.)
@@ -81,7 +81,7 @@ struct Settings {
 
     // The Voice that speaks each Language, by Language id ("eng") -> Voice name. A Language with no
     // entry, or whose Voice is not installed, speaks with the first installed Voice for it (the
-    // shipped one). settings.json: "activeVoices": { "eng": "en_US-ljspeech-medium" }
+    // shipped one). settings.json: "activeVoices": { "eng": "en_GB-cori-medium" }
     std::map<std::string, std::string> activeVoices;
 
     VoiceControls ControlsFor(const std::string& voiceName) const {

@@ -6,7 +6,7 @@
 namespace shot {
 
 namespace {
-constexpr const char* kShipped = "en_US-ljspeech-medium";  // comes with Lexia
+constexpr const char* kShipped = "en_GB-cori-medium";  // comes with Lexia
 constexpr const char* kUser = "en_GB-alba-medium";         // one a person added: it can be deleted
 constexpr uint64_t kMiB = 1024 * 1024;
 }  // namespace
@@ -48,7 +48,7 @@ std::vector<CatalogueEntry> SampleCatalogue() {
             {"en_GB-northern_english_male-medium", "eng", 63 * kMiB, false},
             {"en_US-amy-medium", "eng", 63 * kMiB, false},
             {"en_US-lessac-medium", "eng", 63 * kMiB, false},
-            {"en_US-ljspeech-medium", "eng", 63 * kMiB, true}};
+            {"en_GB-cori-medium", "eng", 63 * kMiB, true}};
 }
 
 }  // namespace shot

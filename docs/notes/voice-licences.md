@@ -1,5 +1,11 @@
 # Voice licences (B6)
 
+Update 2026-11-10 (B8): `rhasspy/piper-voices` commit `cf910fb` (2026-11-09) retrained several voices from the
+`rdh` (CC0) and `hifi_tts_92` bases. Lexia 0.7 ships `en_GB-cori-medium` (now from `hifi_tts_92`, dataset Hi-Fi
+TTS, CC BY 4.0, British phonemes) as the default and `en_US-mike-medium` (from `rdh`, CC0), and no longer ships
+`en_US-ljspeech-medium`. Dimitar is removed from `voices.json` (the owner does not plan to use it). The tables below describe the voices as they were on
+2026-10-25; `docs/third-party.md` has the current state.
+
 Update 2026-10-28: Lexia offers English only for now (ADR-0007). The Bulgarian findings below are kept for a
 later return of the language.
 

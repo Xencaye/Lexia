@@ -1,0 +1,9 @@
+Piper Voice en_US-mike-medium (English, US, male)
+Licence: CC0 1.0, the licence of its dataset and of its base model (https://creativecommons.org/publicdomain/zero/1.0/)
+Source: https://huggingface.co/rhasspy/piper-voices (en/en_US/mike/medium, commit cf910fb59f1d79ab3b625a63993a108751c6c25d)
+Used for: speaking English (voices\en_US-mike-medium.onnx and .onnx.json).
+
+Trained by the Piper project on a dataset from https://github.com/OHF-Voice/voice-datasets (CC0), fine-tuned
+from Piper's rdh base model (one Flemish speaker, CC0). Lexia uses the model unchanged. The model card states no
+separate licence for the model weights; the repository rhasspy/piper-voices is tagged MIT. No attribution is
+required; credit is given as a courtesy. The Voice is provided as is, without warranty.

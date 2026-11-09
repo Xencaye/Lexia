@@ -21,7 +21,7 @@ using namespace nui::test;
 
 namespace {
 
-constexpr const char* kLjspeech = "en_US-ljspeech-medium";
+constexpr const char* kCori = "en_GB-cori-medium";
 constexpr const char* kAlba = "en_GB-alba-medium";
 constexpr uint64_t kMiB = 1024 * 1024;
 
@@ -43,13 +43,13 @@ void Collect(Widget& w, Role role, std::vector<Widget*>& out) {
     for (const auto& c : w.Children()) Collect(*c, role, out);
 }
 
-UiState VoiceState(const std::string& active = kLjspeech, double pitch = 0, bool installed = true) {
+UiState VoiceState(const std::string& active = kCori, double pitch = 0, bool installed = true) {
     UiState s;
     s.version = "0.6.0";
     s.masterVolume = {50, 0, 100, 100, 5};
     UiVoices v;
     if (installed) {
-        v.installed = {kLjspeech, kAlba};
+        v.installed = {kCori, kAlba};
         v.active = active;
         v.removable = {kAlba};
         s.controls["speed"] = {1.0, 0.5, 2.0, 1.0, 0.05};
@@ -64,7 +64,7 @@ std::vector<CatalogueEntry> Catalogue(int extra = 0) {
     std::vector<CatalogueEntry> list = {{"en_GB-alba-medium", "eng", 63 * kMiB, true},
                                         {"en_GB-jenny_dioco-medium", "eng", 63 * kMiB, false},
                                         {"en_US-amy-medium", "eng", 63 * kMiB, false},
-                                        {"en_US-ljspeech-medium", "eng", 63 * kMiB, true}};
+                                        {"en_GB-cori-medium", "eng", 63 * kMiB, true}};
     for (int i = 0; i < extra; ++i) list.push_back({"en_US-extra" + std::to_string(i) + "-medium", "eng", 20 * kMiB, false});
     return list;
 }
@@ -103,7 +103,7 @@ struct Rig {
 TEST_CASE("voices page: the Voice choice and the icon buttons send their messages") {
     Rig r;
     VoicesPage& p = r.Page_();
-    CHECK(p.VoiceSelect()->Items() == std::vector<std::string>{kLjspeech, kAlba});
+    CHECK(p.VoiceSelect()->Items() == std::vector<std::string>{kCori, kAlba});
     CHECK(p.VoiceSelect()->Selected() == 0);
     CHECK(p.VoiceSelect()->Enabled());
 
@@ -133,7 +133,7 @@ TEST_CASE("voices page: the Voice choice and the icon buttons send their message
 }
 
 TEST_CASE("voices page: a slider asks for a snapped value, a reset button for the default") {
-    Rig r(VoiceState(kLjspeech, 3.0));
+    Rig r(VoiceState(kCori, 3.0));
     VoicesPage& p = r.Page_();
 
     Slider* pitch = p.SliderFor("pitch");
@@ -164,18 +164,18 @@ TEST_CASE("voices page: a reset button shows only beside a value that is not the
     VoicesPage& p = r.Page_();
     for (const char* name : {"speed", "pitch", "volume"}) CHECK_FALSE(p.ResetFor(name)->Visible());
 
-    r.Push(VoiceState(kLjspeech, 1.5));
+    r.Push(VoiceState(kCori, 1.5));
     CHECK(p.ResetFor("pitch")->Visible());
     CHECK_FALSE(p.ResetFor("speed")->Visible());
     CHECK_FALSE(p.ResetFor("volume")->Visible());
     CHECK(p.ResetFor("pitch")->Access().name == "Reset pitch");
 
-    r.Push(VoiceState(kLjspeech, 0));
+    r.Push(VoiceState(kCori, 0));
     CHECK_FALSE(p.ResetFor("pitch")->Visible());
 }
 
 TEST_CASE("voices page: Delete is on only for a Voice the person added") {
-    Rig r;  // ljspeech comes with Lexia
+    Rig r;  // cori comes with Lexia
     VoicesPage& p = r.Page_();
     CHECK_FALSE(p.DeleteButton()->Enabled());
     CHECK(p.DeleteButton()->Tooltip() == T(strings::id::kWindowVoiceDeleteShipped));
@@ -190,7 +190,7 @@ TEST_CASE("voices page: Delete is on only for a Voice the person added") {
 }
 
 TEST_CASE("voices page: with no Voice the note shows, the controls are off and the presets cannot be used") {
-    Rig r(VoiceState(kLjspeech, 0, /*installed=*/false));
+    Rig r(VoiceState(kCori, 0, /*installed=*/false));
     VoicesPage& p = r.Page_();
     CHECK_FALSE(p.VoiceSelect()->Enabled());
     CHECK(p.VoiceSelect()->Selected() == -1);
@@ -211,7 +211,7 @@ TEST_CASE("voices page: with no Voice the note shows, the controls are off and t
 }
 
 TEST_CASE("voices page: a slider's value reads as the old page wrote it") {
-    Rig r(VoiceState(kLjspeech, 1.5));
+    Rig r(VoiceState(kCori, 1.5));
     VoicesPage& p = r.Page_();
     CHECK(p.SliderFor("speed")->Tooltip() == "1.0\xC3\x97");
     CHECK(p.SliderFor("pitch")->Tooltip() == "+1.5 semitones");
