@@ -1,21 +1,29 @@
 {
-  "source": "https://huggingface.co/rhasspy/piper-voices/resolve/5041a7a49ae5b3a0f30e6837769eb03fdbb231bd",
+  "source": "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d",
   "voices": [
     {
       "language": "en",
-      "name": "en_US-ljspeech-medium",
-      "path": "en/en_US/ljspeech/medium",
+      "name": "en_GB-cori-medium",
+      "path": "en/en_GB/cori/medium",
       "ship": true,
-      "onnxSha256": "6F52A751E2349ABE7A76735EB09DC1875298C77EA2342FFD2FEF79FF81B87F22",
-      "jsonSha256": "141D612CC0A95ED7EFC1CA936B845C2364967F2E9217C5DBFCF69FC4D6C65860"
+      "onnxSha256": "2E0A55E140DE672AA19B182602B407607BD2E6C35FC6020C0B1516053C02E995",
+      "jsonSha256": "F89B01C5E483C75CE9085FF89C79446C1A95A1CB4A362F629DAC3B5A4B5DDE75"
+    },
+    {
+      "language": "en",
+      "name": "en_US-mike-medium",
+      "path": "en/en_US/mike/medium",
+      "ship": true,
+      "onnxSha256": "6876866E3DFADC7F044BC5E4FBAC16C47B5A1E79EAEC04E3BB0C2C6E9DA8A857",
+      "jsonSha256": "57893C9E492CC6650E2A91E26EC7AA3BF23C267C080649F7CFB6AA1843FCD6ED"
     },
     {
       "language": "bg",
       "name": "bg_BG-dimitar-medium",
       "path": "bg/bg_BG/dimitar/medium",
       "ship": false,
-      "onnxSha256": "4972FE764468E8501416407AD81662DE94CC6C9CDC680FCF807DAEF04E319F13",
-      "jsonSha256": "EC9A9ABDD17384D3DB225E83085B2F68B790B112F058417C3A8A2AC58B79E7F0"
+      "onnxSha256": "2305BC55DEF71C799FBFC866D15415F57A3465097B7BF9BE41A14A26574AD6F3",
+      "jsonSha256": "AA3B0CF8236C205CE953D449E112E184EBDE325E7DB82E769CFCF2926C375631"
     }
   ]
 }

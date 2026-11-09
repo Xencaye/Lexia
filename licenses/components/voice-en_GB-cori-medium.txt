@@ -1,0 +1,13 @@
+Piper Voice en_GB-cori-medium (English, British, female; the default English Voice)
+Licence: CC BY 4.0, the licence of its dataset (https://creativecommons.org/licenses/by/4.0/)
+Source: https://huggingface.co/rhasspy/piper-voices (en/en_GB/cori/medium, commit cf910fb59f1d79ab3b625a63993a108751c6c25d)
+Used for: speaking English (voices\en_GB-cori-medium.onnx and .onnx.json).
+
+The voice of Cori Samuel, a volunteer reader for LibriVox (https://librivox.org), from her public-domain
+audiobook recordings in the Hi-Fi Multi-Speaker English TTS Dataset (reader 92, the clean subset) by NVIDIA
+Corporation, https://www.openslr.org/109/, licensed under CC BY 4.0. Paper: Bakhturina, Lavrukhin, Ginsburg and
+Zhang, "Hi-Fi Multi-Speaker English TTS Dataset", Interspeech 2021, https://arxiv.org/abs/2104.01497.
+Changes: the Piper project trained the model on these recordings: fine-tuned for 150 epochs from its
+hifi_tts_92 base model (trained from scratch on the same recordings), phonemised as British English. Lexia uses
+the model unchanged. The model card states no separate licence for the model weights; the repository
+rhasspy/piper-voices is tagged MIT. The Voice is provided as is, without warranty.

@@ -61,7 +61,7 @@ InstalledVoice Installed(const std::string& name, const std::string& code, bool 
 VoiceModel SampleModel() {
     VoiceModel m;
     m.languageId = "eng";
-    m.installed = {Installed("en_US-ljspeech-medium", "en", true), Installed("en_GB-alba-medium", "en"),
+    m.installed = {Installed("en_GB-cori-medium", "en", true), Installed("en_GB-alba-medium", "en"),
                    Installed("bg_BG-dimitar-medium", "bg", true)};
     return m;
 }
@@ -72,8 +72,8 @@ TEST_CASE("FillVoiceState: the offered Languages list their installed Voices; th
     UiState s;
     FillVoiceState(s, SampleModel());
     REQUIRE(s.voices.count("eng") == 1);
-    CHECK(s.voices.at("eng").installed == std::vector<std::string>{"en_US-ljspeech-medium", "en_GB-alba-medium"});
-    CHECK(s.voices.at("eng").active == "en_US-ljspeech-medium");
+    CHECK(s.voices.at("eng").installed == std::vector<std::string>{"en_GB-cori-medium", "en_GB-alba-medium"});
+    CHECK(s.voices.at("eng").active == "en_GB-cori-medium");
     CHECK(s.voices.count("bul") == 0);  // Bulgarian is not offered (ADR-0007)
 }
 
@@ -87,7 +87,7 @@ TEST_CASE("FillVoiceState: the chosen Voice is active, a chosen Voice that is go
     m.activeVoices["eng"] = "en_gone-medium";
     UiState t;
     FillVoiceState(t, m);
-    CHECK(t.voices.at("eng").active == "en_US-ljspeech-medium");
+    CHECK(t.voices.at("eng").active == "en_GB-cori-medium");
 }
 
 TEST_CASE("FillVoiceState: removable lists the installed Voices that are not shipped") {
@@ -127,7 +127,7 @@ TEST_CASE("FillVoiceState: controls have the range, default and step of each con
 
 TEST_CASE("FillVoiceState: the sliders show the active Voice's controls, not another Voice's") {
     VoiceModel m = SampleModel();
-    m.controls["en_US-ljspeech-medium"] = VoiceControls{0.8f, -2.f, 1.f};
+    m.controls["en_GB-cori-medium"] = VoiceControls{0.8f, -2.f, 1.f};
     m.controls["en_GB-alba-medium"] = VoiceControls{1.5f, 3.f, 1.f};
     UiState s;
     FillVoiceState(s, m);

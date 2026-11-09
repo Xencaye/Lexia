@@ -223,10 +223,11 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   (G1, G2), the native Settings window (K), the logo and the final palette), **Lexia 0.6.1** (2026-11-08, tag `v0.6.1`,
   made from `v0.6.0`: the corrected package `README.txt` only) and **Lexia 0.6.2** (2026-11-08, tag `v0.6.2`, made from
   `v0.6.1`: the new Discord invite only), kept in `release\<v>\` (git-ignored).
-- **Now: towards Lexia 0.7** (owner, Nov 8: future changes go into 0.7); `vcpkg.json` says 0.7.0. No 0.7 task is
-  planned yet. New work branches from `main`.
-- **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, games, the installer
-  pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
+- **Now: towards Lexia 0.7** (owner, Nov 8: future changes go into 0.7); `vcpkg.json` says 0.7.0. Done for 0.7:
+  B8, the shipped Voices `en_GB-cori-medium` (the default: the first English Voice in `voices.json`) and
+  `en_US-mike-medium` instead of `en_US-ljspeech-medium`. New work branches from `main`.
+- **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B8, games, the
+  installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
 - **Later:** E1, E2, E6 (the owner trains a Bulgarian Voice from their own voice) and the Language UI (Lexia 0.8);
   J, Linux on Ubuntu, and H5, free signing through SignPath Foundation (Lexia 1.0; 0.7 and 0.8 ship unsigned).
 - **History reset (2026-11-05):** `Xencaye/Lexia` restarted from one commit. The old history, its PRs and issues

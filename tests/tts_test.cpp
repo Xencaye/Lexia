@@ -102,12 +102,12 @@ TEST_CASE("ParseVoiceList: reads language and name, ignores the other fields") {
     std::string err;
     const auto v = ParseVoiceList(
         R"({"source":"x","voices":[
-            {"language":"en","name":"en_US-ljspeech-medium","ship":true,"onnxSha256":"AB"},
+            {"language":"en","name":"en_GB-cori-medium","ship":true,"onnxSha256":"AB"},
             {"language":"bg","name":"bg_BG-dimitar-medium","ship":false}]})", &err);
     REQUIRE(v.size() == 2);
     CHECK(err.empty());
     CHECK(v[0].language == "en");
-    CHECK(v[0].name == "en_US-ljspeech-medium");
+    CHECK(v[0].name == "en_GB-cori-medium");
     CHECK(v[1].language == "bg");
 }
 

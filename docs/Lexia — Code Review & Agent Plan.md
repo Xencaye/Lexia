@@ -15,7 +15,7 @@ On-screen wording follows the glossary.
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
-  No 0.7 task is planned yet.
+  Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -85,6 +85,9 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   reach the game); F6 and F7 reach the game when Lexia is silent.
 - [ ] **A5 Grouping.** Undertale, a browser and a video with subtitles.
 - [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
+- [ ] **B8 Voices Cori and Mike.** Listen to Cori (the default) and Mike in Lexia, at Speed, Pitch and Volume
+  changed; pick Mike on the Voices page and Pick text; update a 0.6 install whose active Voice was ljspeech: Cori
+  speaks and the Voices page shows only Cori and Mike (plus your own Voices).
 
 ## Open tasks
 
@@ -175,7 +178,9 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - **A — Layout:** A1 baseline (`docs/notes/layout-baseline.md`), A2 failure classes (`docs/notes/layout-failures.md`),
   A3 fixes for L1, L3, L4 (Dist 0.1998 → 0.1412, BlkErr 4.22 → 2.39; L2 deferred), A4 `layout` knobs in settings.json.
 - **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
-  Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`).
+  Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`), B8 (0.7)
+  the shipped Voices `en_GB-cori-medium` (the default) and `en_US-mike-medium` instead of `en_US-ljspeech-medium`
+  (`rhasspy/piper-voices` commit `cf910fb`; `docs/third-party.md`).
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
   quit key).
 - **D — Tray, Settings window, Control bar:** D0 / D1 (HTML pages in WebView2, replaced by K), D2 tray, D3–D6 window and
@@ -199,7 +204,7 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); no tasks yet.
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
