@@ -129,6 +129,13 @@ static json ActiveVoicesJson(const std::map<std::string, std::string>& m) {
     return out;
 }
 
+// ["<Voice name>", ...]: the retired Voices that were already dealt with (Settings::adoptedVoices).
+static json AdoptedVoicesJson(const std::vector<std::string>& names) {
+    json out = json::array();
+    for (const std::string& n : names) out.push_back(n);
+    return out;
+}
+
 // A whole Settings as settings.json, with every key, in the order a person reads them best. Used to
 // write the file when there is none yet.
 static json ToJson(const Settings& s) {
@@ -149,6 +156,7 @@ static json ToJson(const Settings& s) {
     j["speech"] = {{"rate", s.speechRate}, {"volume", s.speechVolume}};
     j["voices"] = VoiceControlsJson(s.voices);
     j["activeVoices"] = ActiveVoicesJson(s.activeVoices);
+    j["adoptedVoices"] = AdoptedVoicesJson(s.adoptedVoices);
     j["controlBar"] = {{"size", s.controlBar.size == BarSize::Small ? "small" : "large"},
                        {"x", s.controlBar.x},
                        {"y", s.controlBar.y}};
@@ -305,6 +313,33 @@ static void ParseActiveVoices(const json& root, std::map<std::string, std::strin
     }
 }
 
+// Reads "adoptedVoices": an array of Voice names. A value of another shape, or an entry that is not a
+// non-empty string, gives one note and an empty list (the Voices are then simply adopted again if they are
+// still retired and not present, which is safe: AdoptRetiredVoices never replaces). The result is sorted
+// and without duplicates so that equality and saving are stable.
+static void ParseAdoptedVoices(const json& root, std::vector<std::string>& out, std::vector<std::string>& notes) {
+    const json* av = Find(root, nullptr, "adoptedVoices");
+    if (!av) return;
+    std::vector<std::string> names;
+    bool good = av->is_array();
+    if (good) {
+        for (const json& item : *av) {
+            if (!item.is_string() || Trim(item.get<std::string>()).empty()) {
+                good = false;
+                break;
+            }
+            names.push_back(Trim(item.get<std::string>()));
+        }
+    }
+    if (!good) {
+        notes.push_back(Note("adoptedVoices must be a list of Voice names; ignoring it."));
+        return;
+    }
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+    out = std::move(names);
+}
+
 // The "voices" value of a settings.json (VoiceControlsToJson as JSON, for ToJson).
 static json VoiceControlsJson(const std::map<std::string, VoiceControls>& voices) {
     // Three decimals are plenty for a slider and keep 0.8f from being written as 0.800000011920929.
@@ -324,6 +359,10 @@ std::string ActiveVoicesToJson(const std::map<std::string, std::string>& activeV
     return ActiveVoicesJson(activeVoices).dump(2);
 }
 
+std::string AdoptedVoicesToJson(const std::vector<std::string>& adoptedVoices) {
+    return AdoptedVoicesJson(adoptedVoices).dump();
+}
+
 bool operator==(const Hotkey& a, const Hotkey& b) {
     return a.mods == b.mods && a.vk == b.vk && a.text == b.text;
 }
@@ -338,7 +377,7 @@ bool operator==(const Settings& a, const Settings& b) {
            a.speechVolume == b.speechVolume && a.hoverColor == b.hoverColor &&
            a.pickedColor == b.pickedColor && a.layout.paragraphGap == b.layout.paragraphGap &&
            a.layout.columnGap == b.layout.columnGap && a.layout.listLine == b.layout.listLine &&
-           a.voices == b.voices && a.activeVoices == b.activeVoices && a.controlBar.size == b.controlBar.size &&
+           a.voices == b.voices && a.activeVoices == b.activeVoices && a.adoptedVoices == b.adoptedVoices && a.controlBar.size == b.controlBar.size &&
            a.controlBar.x == b.controlBar.x && a.controlBar.y == b.controlBar.y;
 }
 
@@ -540,6 +579,7 @@ Settings ParseSettings(const std::string& jsonText, std::vector<std::string>& no
     knob("listLine", 0.0, 30.0, s.layout.listLine);
     ParseVoices(j, s.voices, notes);
     ParseActiveVoices(j, s.activeVoices, notes);
+    ParseAdoptedVoices(j, s.adoptedVoices, notes);
 
     // The Control bar (D4): x and y are offsets from the monitor's corner, so never below 0; -1 = not set.
     if (const json* v = Find(j, "controlBar", "size")) {

@@ -79,13 +79,13 @@ TEST_CASE("CheckVoiceConfig: a Medium Voice for a Language Lexia reads is accept
     CHECK(en.ok());
     CHECK(en.languageCode == "en");
     CHECK(en.voiceName == "en_US-amy-medium");
-    const VoiceOutcome bg = CheckVoiceConfig("bg_BG-dimitar-medium", Config("bg_BG", "Bulgarian", "medium"));
+    const VoiceOutcome bg = CheckVoiceConfig("bg_BG-sample-medium", Config("bg_BG", "Bulgarian", "medium"));
     CHECK(bg.ok());
     CHECK(bg.languageCode == "bg");
 }
 
 TEST_CASE("CheckVoiceConfig: a config with no language object falls back to the Voice's name, then espeak's voice") {
-    const VoiceOutcome byName = CheckVoiceConfig("bg_BG-dimitar-medium", kNoLanguageConfig);
+    const VoiceOutcome byName = CheckVoiceConfig("bg_BG-sample-medium", kNoLanguageConfig);
     CHECK(byName.ok());
     CHECK(byName.languageCode == "bg");
     const VoiceOutcome byEspeak = CheckVoiceConfig("mine", "{\"audio\": {\"quality\": \"medium\"}, \"espeak\": {\"voice\": \"en-us\"}}");
@@ -425,8 +425,8 @@ TEST_CASE("ListInstalledVoices: the shipped Voices first, then the user's, each 
     WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");  // bg_BG-gone-medium has no file: not listed
     WriteText(user.path / "en_US-zoe-medium.onnx", "M");
     WriteText(user.path / "en_US-zoe-medium.onnx.json", Config("en_US", "English", "medium"));
-    WriteText(user.path / "bg_BG-dimitar-medium.onnx", "M");
-    WriteText(user.path / "bg_BG-dimitar-medium.onnx.json", kNoLanguageConfig);
+    WriteText(user.path / "bg_BG-sample-medium.onnx", "M");
+    WriteText(user.path / "bg_BG-sample-medium.onnx.json", kNoLanguageConfig);
     WriteText(user.path / "de_DE-t-medium.onnx", "M");  // not a Language Lexia reads
     WriteText(user.path / "de_DE-t-medium.onnx.json", Config("de_DE", "German", "medium"));
     WriteText(user.path / "en_US-nojson-medium.onnx", "M");  // no config
@@ -439,7 +439,7 @@ TEST_CASE("ListInstalledVoices: the shipped Voices first, then the user's, each 
     CHECK(voices[0].name == "en_GB-cori-medium");
     CHECK(voices[0].shipped);
     CHECK(voices[0].languageCode == "en");
-    CHECK(voices[1].name == "bg_BG-dimitar-medium");
+    CHECK(voices[1].name == "bg_BG-sample-medium");
     CHECK_FALSE(voices[1].shipped);
     CHECK(voices[1].languageCode == "bg");
     CHECK(voices[2].name == "en_US-zoe-medium");
@@ -457,14 +457,14 @@ TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, e
     const std::vector<InstalledVoice> list = {
         {"en_GB-cori-medium", "en", "a.onnx", true},
         {"en_GB-alba-medium", "en", "b.onnx", false},
-        {"bg_BG-dimitar-medium", "bg", "c.onnx", true},
+        {"bg_BG-sample-medium", "bg", "c.onnx", true},
     };
     REQUIRE(PickVoice(list, "en", "en_GB-alba-medium"));
     CHECK(PickVoice(list, "en", "en_GB-alba-medium")->name == "en_GB-alba-medium");
     CHECK(PickVoice(list, "en", "")->name == "en_GB-cori-medium");
     CHECK(PickVoice(list, "en", "not-installed")->name == "en_GB-cori-medium");
     // a Voice of another Language is not a choice for this one
-    CHECK(PickVoice(list, "en", "bg_BG-dimitar-medium")->name == "en_GB-cori-medium");
+    CHECK(PickVoice(list, "en", "bg_BG-sample-medium")->name == "en_GB-cori-medium");
     CHECK(PickVoice(list, "de", "") == nullptr);
     CHECK(PickVoice({}, "en", "") == nullptr);
 }
@@ -542,4 +542,133 @@ TEST_CASE("RemoveVoice: the Voice is gone from ListInstalledVoices") {
     REQUIRE(ListInstalledVoices({}, dir.path).size() == 1);
     CHECK(RemoveVoice(dir.path, "en_US-amy-medium").ok());
     CHECK(ListInstalledVoices({}, dir.path).empty());
+}
+
+// -------------------------------------------------- AdoptRetiredVoices (B9) ---
+
+namespace {
+
+// A program folder as an update of 0.6 leaves it: voices.json lists only Cori; ljspeech is a leftover.
+void MakeOldProgramFolder(const fs::path& exe) {
+    WriteText(exe / "voices.json", "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}]}");
+    WriteText(exe / "en_GB-cori-medium.onnx", "CORI");
+    WriteText(exe / "en_GB-cori-medium.onnx.json", Config("en_GB", "English", "medium"));
+    WriteText(exe / "en_US-ljspeech-medium.onnx", "LJSPEECH");
+    WriteText(exe / "en_US-ljspeech-medium.onnx.json", Config("en_US", "English", "medium"));
+}
+
+}  // namespace
+
+TEST_CASE("AdoptRetiredVoices: a retired Voice is copied and then listed as the user's own") {
+    TempDir exe, user;
+    MakeOldProgramFolder(exe.path);
+    const fs::path dest = user.path / "voices";  // does not exist yet: made by the copy
+
+    const auto adopted = AdoptRetiredVoices(exe.path, dest, {}).outcomes;
+    REQUIRE(adopted.size() == 1);
+    CHECK(adopted[0].ok());
+    CHECK(adopted[0].voiceName == "en_US-ljspeech-medium");
+    CHECK(ReadText(dest / "en_US-ljspeech-medium.onnx") == "LJSPEECH");
+    CHECK(fs::exists(dest / "en_US-ljspeech-medium.onnx.json"));
+    CHECK(ReadText(exe.path / "en_US-ljspeech-medium.onnx") == "LJSPEECH");  // nothing is deleted or moved
+
+    const auto listed = ListInstalledVoices(exe.path, dest);
+    REQUIRE(listed.size() == 2);
+    CHECK(listed[0].name == "en_GB-cori-medium");
+    CHECK(listed[0].shipped);
+    CHECK(listed[1].name == "en_US-ljspeech-medium");
+    CHECK_FALSE(listed[1].shipped);
+    CHECK(listed[1].languageCode == "en");
+    CHECK(fs::exists(exe.path / "en_US-ljspeech-medium.onnx.json"));
+}
+
+TEST_CASE("AdoptRetiredVoices: a Voice that voices.json lists is shipped, not retired") {
+    TempDir exe, user;
+    MakeOldProgramFolder(exe.path);
+    AdoptRetiredVoices(exe.path, user.path, {});
+    CHECK_FALSE(fs::exists(user.path / "en_GB-cori-medium.onnx"));
+    CHECK_FALSE(fs::exists(user.path / "en_GB-cori-medium.onnx.json"));
+}
+
+TEST_CASE("AdoptRetiredVoices: a Voice of that name in the user's folder is never replaced") {
+    TempDir exe, user;
+    MakeOldProgramFolder(exe.path);
+    WriteText(user.path / "en_US-ljspeech-medium.onnx", "MINE");
+    WriteText(user.path / "en_US-ljspeech-medium.onnx.json", Config("en_US", "English", "medium"));
+    CHECK(AdoptRetiredVoices(exe.path, user.path, {}).outcomes.empty());
+    CHECK(AdoptRetiredVoices(exe.path, user.path, {}).handled == std::vector<std::string>{"en_US-ljspeech-medium"});  // present = handled
+    CHECK(ReadText(user.path / "en_US-ljspeech-medium.onnx") == "MINE");
+}
+
+TEST_CASE("AdoptRetiredVoices: a bad config, a missing config or an odd name is skipped") {
+    TempDir exe, user;
+    WriteText(exe.path / "voices.json", "{\"voices\": []}");
+    WriteText(exe.path / "en_US-low-low.onnx", "M");  // quality low: refused, and reported
+    WriteText(exe.path / "en_US-low-low.onnx.json", Config("en_US", "English", "low"));
+    WriteText(exe.path / "en_US-junk-medium.onnx", "M");  // not JSON: refused, and reported
+    WriteText(exe.path / "en_US-junk-medium.onnx.json", "not json");
+    WriteText(exe.path / "en_US-nojson-medium.onnx", "M");  // no config file: skipped
+    WriteText(exe.path / "nul.onnx", "M");  // a Windows device name: skipped
+    WriteText(exe.path / "nul.onnx.json", Config("en_US", "English", "medium"));
+    WriteText(exe.path / "bad name.onnx", "M");  // a space: skipped
+    WriteText(exe.path / "bad name.onnx.json", Config("en_US", "English", "medium"));
+
+    const auto results = AdoptRetiredVoices(exe.path, user.path, {}).outcomes;
+    REQUIRE(results.size() == 2);
+    for (const VoiceOutcome& o : results) CHECK_FALSE(o.ok());
+    CHECK(ListInstalledVoices({}, user.path).empty());
+    CHECK_FALSE(fs::exists(user.path / "en_US-low-low.onnx"));
+    CHECK_FALSE(fs::exists(user.path / "en_US-junk-medium.onnx"));
+    CHECK_FALSE(fs::exists(user.path / "en_US-nojson-medium.onnx"));
+    CHECK_FALSE(fs::exists(user.path / "nul.onnx"));
+}
+
+TEST_CASE("AdoptRetiredVoices: without a readable voices.json nothing is adopted") {
+    TempDir exe, user;
+    WriteText(exe.path / "en_US-ljspeech-medium.onnx", "LJSPEECH");
+    WriteText(exe.path / "en_US-ljspeech-medium.onnx.json", Config("en_US", "English", "medium"));
+    CHECK(AdoptRetiredVoices(exe.path, user.path, {}).outcomes.empty());  // no voices.json
+    CHECK_FALSE(fs::exists(user.path / "en_US-ljspeech-medium.onnx"));
+    WriteText(exe.path / "voices.json", "not json at all");  // unreadable list
+    CHECK(AdoptRetiredVoices(exe.path, user.path, {}).outcomes.empty());
+    CHECK_FALSE(fs::exists(user.path / "en_US-ljspeech-medium.onnx"));
+}
+
+TEST_CASE("AdoptRetiredVoices: a second start adopts nothing; empty or missing folders do nothing") {
+    TempDir exe, user;
+    MakeOldProgramFolder(exe.path);
+    CHECK(AdoptRetiredVoices(exe.path, user.path, {}).outcomes.size() == 1);
+    CHECK(AdoptRetiredVoices(exe.path, user.path, {}).outcomes.empty());
+    CHECK(AdoptRetiredVoices({}, user.path, {}).outcomes.empty());
+    CHECK(AdoptRetiredVoices(exe.path, {}, {}).outcomes.empty());
+    CHECK(AdoptRetiredVoices(exe.path / "no" / "such", user.path, {}).outcomes.empty());
+}
+
+TEST_CASE("AdoptRetiredVoices: a Voice the person deleted is not adopted again once it is handled") {
+    TempDir exe, user;
+    MakeOldProgramFolder(exe.path);
+    const AdoptResult first = AdoptRetiredVoices(exe.path, user.path, {});
+    REQUIRE(first.outcomes.size() == 1);
+    CHECK(first.handled == std::vector<std::string>{"en_US-ljspeech-medium"});
+
+    // The person deletes it on the Voices page; its files are still in the program folder.
+    REQUIRE(RemoveVoice(user.path, "en_US-ljspeech-medium").ok());
+    CHECK_FALSE(fs::exists(user.path / "en_US-ljspeech-medium.onnx"));
+
+    const AdoptResult again = AdoptRetiredVoices(exe.path, user.path, first.handled);
+    CHECK(again.outcomes.empty());
+    CHECK(again.handled.empty());
+    CHECK_FALSE(fs::exists(user.path / "en_US-ljspeech-medium.onnx"));
+    CHECK(fs::exists(exe.path / "en_US-ljspeech-medium.onnx"));  // nothing in the program folder is touched
+}
+
+TEST_CASE("AdoptRetiredVoices: a refused Voice is not handled, so it is tried again") {
+    TempDir exe, user;
+    WriteText(exe.path / "voices.json", "{\"voices\": []}");
+    WriteText(exe.path / "en_US-low-low.onnx", "M");
+    WriteText(exe.path / "en_US-low-low.onnx.json", Config("en_US", "English", "low"));  // refused: not Medium
+    const AdoptResult r = AdoptRetiredVoices(exe.path, user.path, {});
+    REQUIRE(r.outcomes.size() == 1);
+    CHECK_FALSE(r.outcomes[0].ok());
+    CHECK(r.handled.empty());
 }

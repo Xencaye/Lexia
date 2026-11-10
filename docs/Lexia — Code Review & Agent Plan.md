@@ -15,7 +15,8 @@ On-screen wording follows the glossary.
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
-  Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech; A6, row fragments and tight centred
+  Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech; B9, an update keeps a Voice that Lexia
+  no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
   stacks in the Layout.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
@@ -91,8 +92,10 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   Block per line (known limit).
 - [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
 - [ ] **B8 Voices Cori and Mike.** Listen to Cori (the default) and Mike in Lexia, at Speed, Pitch and Volume
-  changed; pick Mike on the Voices page and Pick text; update a 0.6 install whose active Voice was ljspeech: Cori
-  speaks and the Voices page shows only Cori and Mike (plus your own Voices).
+  changed; pick Mike on the Voices page and Pick text.
+- [ ] **B9 Update keeps old Voices.** Update a 0.6 install with ljspeech active, its Speed changed and a ljspeech Preset
+  saved: ljspeech is on the Voices page as your own Voice (Delete works), still speaks, keeps its Speed, and the Preset
+  loads into it. Then delete it, Quit and start Lexia again: it stays deleted.
 
 ## Open tasks
 
@@ -119,7 +122,7 @@ Lexia offers English only. E3–E5 are done and stay in the code; Bulgarian is i
 - [ ] **E1 Cyrillic fixtures.** 10+ Bulgarian screenshots with expected text.
 - [ ] **E2 OCR quality.** Score `rec_cyrillic.onnx`; note confusions.
 - [ ] **E6 The owner's Bulgarian Voice (owner).** The owner records their own voice and trains a Bulgarian Medium
-  Piper Voice (decided Nov 5; it replaces Dimitar, whose model has no clear licence). Train from the clean Piper base
+  Piper Voice (decided Nov 5). Train from the clean Piper base
   (`rhasspy/piper-checkpoints/_base_model`, CC BY 4.0), not from a lessac-derived checkpoint. *Done when:* the Voice is
   in `voices/voices.json` with `ship: true`, has `licenses/components/voice-<name>.txt` (`docs/third-party.md`), and
   `lexia_cli --say "..." --lang bg --wav out.wav` speaks with it.
@@ -187,7 +190,9 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
   Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`), B8 (0.7)
   the shipped Voices `en_GB-cori-medium` (the default) and `en_US-mike-medium` instead of `en_US-ljspeech-medium`
-  (`rhasspy/piper-voices` commit `cf910fb`; `docs/third-party.md`).
+  (`rhasspy/piper-voices` commit `cf910fb`; `docs/third-party.md`); B9 (0.7) an update keeps a Voice that Lexia no
+  longer ships: Setup no longer empties `{app}\voices`, and `AdoptRetiredVoices` (`tts/voice_library.*`, called by
+  `App::Init`) copies it into the user's Voices folder once (the names handled are kept in settings.json `adoptedVoices`, so deleting the Voice sticks; the rule "Updates keep the user's data").
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
   quit key).
 - **D — Tray, Settings window, Control bar:** D0 / D1 (HTML pages in WebView2, replaced by K), D2 tray, D3–D6 window and
@@ -211,8 +216,8 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); A6 done (Layout:
-   row fragments and tight centred stacks).
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); B9 done (an update
+   keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
@@ -227,6 +232,9 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - **Run as admin** is a setting with a UAC relaunch (ADR-0008).
 - **Native Settings window** in Direct2D with UI Automation (ADR-0009, Nov 7; supersedes ADR-0006, WebView2).
 - **Inno Setup installer.**
+- **Updates keep the user's data** (owner, Nov 10): an update never deletes or resets settings, the user's Voices,
+  Presets or the chosen Voice unless there is no other way; a Voice that a new version no longer ships stays usable
+  as one of the user's own Voices (B9).
 - **Linux on Ubuntu in 1.0** (Nov 5); **the owner trains the Bulgarian Voice** (E6, Nov 5).
 - **SignPath signing moved to 1.0** (Nov 7); 0.7 and 0.8 ship unsigned.
 
@@ -238,5 +246,3 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 ## Sources
 
 - [piper-voices voices.json — Hugging Face](https://huggingface.co/rhasspy/piper-voices/raw/main/voices.json)
-- [bg_BG dimitar MODEL_CARD — Hugging Face](https://huggingface.co/rhasspy/piper-voices/raw/main/bg/bg_BG/dimitar/medium/MODEL_CARD)
-- [Dimitar 1.0 Bulgarian TTS dataset — Mozilla Data Collective](https://prod.datacollective.mozillafoundation.org/datasets/cmhpahaib00d8mk07ely2m8wh)

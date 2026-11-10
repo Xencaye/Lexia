@@ -103,7 +103,7 @@ TEST_CASE("ParseVoiceList: reads language and name, ignores the other fields") {
     const auto v = ParseVoiceList(
         R"({"source":"x","voices":[
             {"language":"en","name":"en_GB-cori-medium","ship":true,"onnxSha256":"AB"},
-            {"language":"bg","name":"bg_BG-dimitar-medium","ship":false}]})", &err);
+            {"language":"bg","name":"bg_BG-sample-medium","ship":false}]})", &err);
     REQUIRE(v.size() == 2);
     CHECK(err.empty());
     CHECK(v[0].language == "en");

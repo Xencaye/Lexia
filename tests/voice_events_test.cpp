@@ -81,7 +81,7 @@ TEST_CASE("ProblemText: every problem reads in every place and the facts are fil
 TEST_CASE("OfferedCatalogue keeps only the Voices of offered Languages and marks the installed ones") {
     // English is offered; Bulgarian is in the code but not offered (ADR-0007); German is not a Language of Lexia.
     const std::vector<CatalogueVoice> catalogue = {Voice("en_US-amy-medium", "en_US", 60, 3),
-                                                   Voice("bg_BG-dimitar-medium", "bg_BG", 50, 2),
+                                                   Voice("bg_BG-sample-medium", "bg_BG", 50, 2),
                                                    Voice("de_DE-thorsten-medium", "de_DE", 40, 1),
                                                    Voice("en_GB-alba-medium", "en_GB", 70, 5)};
     const std::vector<CatalogueEntry> shown = OfferedCatalogue(catalogue, {"en_GB-alba-medium"});

@@ -183,7 +183,7 @@ bool ParseVoiceConfig(const std::string& name, const std::string& configText, Vo
         c.languageCode = StringOf(*lang, "code");
         c.languageName = StringOf(*lang, "name_english");
     }
-    if (c.languageCode.empty()) {  // "bg_BG-dimitar-medium" -> "bg_BG"
+    if (c.languageCode.empty()) {  // "bg_BG-sample-medium" -> "bg_BG"
         const size_t dash = name.find('-');
         if (dash != std::string::npos && dash > 0) c.languageCode = name.substr(0, dash);
     }
@@ -242,6 +242,57 @@ std::vector<InstalledVoice> ListInstalledVoices(const fs::path& voicesDir, const
         // A folder that cannot be read: the Voices found so far are what there is.
     }
     return out;
+}
+
+AdoptResult AdoptRetiredVoices(const fs::path& exeVoicesDir, const fs::path& userVoicesDir,
+                               const std::vector<std::string>& alreadyHandled) {
+    AdoptResult result;
+    if (exeVoicesDir.empty() || userVoicesDir.empty()) return result;
+    try {
+        std::error_code ec;
+        // Which Voices are shipped: without a readable voices.json nothing can be called retired, so
+        // nothing is copied (a half-installed folder must not be copied into the user's data).
+        std::string listText;
+        if (!ReadFileToString(exeVoicesDir / "voices.json", &listText, kMaxConfigBytes)) return result;
+        std::string listError;
+        const std::vector<VoiceEntry> shipped = ParseVoiceList(listText, &listError);
+        if (!listError.empty() && shipped.empty()) return result;
+        if (!fs::is_directory(exeVoicesDir, ec)) return result;
+
+        // A plain file only: symlink_status does not follow a link, so a link or junction is not "regular".
+        auto isPlainFile = [](const fs::path& p) {
+            std::error_code e;
+            const fs::file_status st = fs::symlink_status(p, e);
+            return !e && st.type() == fs::file_type::regular;
+        };
+        // Collect first, copy after: the folders are not changed while they are iterated.
+        std::vector<fs::path> models;
+        for (const fs::directory_entry& f : fs::directory_iterator(exeVoicesDir, ec)) {
+            if (isPlainFile(f.path()) && HasExtension(f.path().filename().u8string(), ".onnx")) models.push_back(f.path());
+        }
+        std::sort(models.begin(), models.end());  // a stable order for the log and the tests
+        for (const fs::path& model : models) {
+            const std::string name = model.stem().u8string();
+            if (!CheckName(name).ok()) continue;
+            if (std::any_of(shipped.begin(), shipped.end(), [&](const VoiceEntry& e) { return e.name == name; })) continue;
+            const fs::path config = fs::path(model) += ".json";
+            if (std::find(alreadyHandled.begin(), alreadyHandled.end(), name) != alreadyHandled.end()) continue;  // done before: a Voice the person deleted stays deleted
+            if (!isPlainFile(config)) continue;
+            // Never replace: a Voice of this name in the user's folder is the user's. Any entry of that
+            // name counts (a link too), so nothing is written over it.
+            const fs::path present = userVoicesDir / fs::u8path(name + ".onnx");
+            if (fs::exists(fs::symlink_status(present, ec))) {
+                result.handled.push_back(name);  // the person has this Voice already: nothing to do, and never again
+                continue;
+            }
+            result.outcomes.push_back(AddVoiceFiles(model, config, userVoicesDir));
+            // Handled only when it is really in place: a refusal (bad config, disk full ...) is tried again next start.
+            if (result.outcomes.back().ok()) result.handled.push_back(name);
+        }
+    } catch (const std::exception&) {
+        // A folder that cannot be read (or a name that is not UTF-8): what was done so far is what there is.
+    }
+    return result;
 }
 
 VoiceOutcome AddVoiceFiles(const fs::path& model, const fs::path& config, const fs::path& destDir) {

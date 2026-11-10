@@ -29,6 +29,7 @@
 #include "version.h"
 #include "strings/string_ids.h"
 #include "strings/strings.h"
+#include "tts/voice_library.h"
 #include "tray_menu.h"
 
 static const UINT kMsgSettingsChanged = WM_APP + 10;
@@ -173,6 +174,7 @@ void App::OnSettingsFileChanged() {
     if (s.speechVolume == fileSettings_.speechVolume) next.speechVolume = settings_.speechVolume;
     if (s.voices == fileSettings_.voices) next.voices = settings_.voices;
     if (s.activeVoices == fileSettings_.activeVoices) next.activeVoices = settings_.activeVoices;
+    if (s.adoptedVoices == fileSettings_.adoptedVoices) next.adoptedVoices = settings_.adoptedVoices;
     fileSettings_ = s;
     LogInfo("[settings] settings.json changed; applying it.");
     ApplySettings(next);
@@ -195,6 +197,37 @@ bool App::Init() {
     // update installed it elsewhere) and has --minimised exactly when Start minimised is on (a value of
     // an older Lexia may say otherwise).
     if (runKey) WriteRunAtStartup(true, settings_.startMinimised);
+
+    // An update keeps the user's Voices (B9): a Voice that an older Lexia shipped and this one no longer
+    // does (ljspeech after 0.6) is copied from the program folder into the user's Voices folder, before
+    // anything lists or loads Voices (the Speaker below, the Voices page later). Runs here on the UI thread,
+    // once per start: the first start after such an update copies ~60 MB per Voice. Each retired Voice is
+    // handled once: its name goes into settings.json ("adoptedVoices"), so a Voice that the person deletes
+    // on the Voices page is not copied back by the next start (its files stay in the program folder).
+    // Only the exe's own folder is read; no path comes from a setting or file. Voice names are not user
+    // text, so they may be logged.
+    if (const std::filesystem::path userVoices = UserVoicesDir(); !userVoices.empty()) {
+        const AdoptResult adopt = AdoptRetiredVoices(ExeDir() / "voices", userVoices, settings_.adoptedVoices);
+        for (const VoiceOutcome& o : adopt.outcomes) {
+            if (o.ok()) {
+                LogInfo("[voices] Kept the Voice ", o.voiceName, " from an older Lexia as one of your own Voices.");
+            } else {
+                LogWarn("[voices] Could not keep the Voice ", o.voiceName, " from an older Lexia (", ProblemId(o.problem),
+                        "): ", o.detail);
+            }
+        }
+        if (!adopt.handled.empty()) {
+            // The union of the old and the new names, sorted and without duplicates. Saved with
+            // SaveSettingValue, which keeps every other key of the file; fileSettings_ follows only when
+            // the save worked, so a failed save is tried again at the next start.
+            std::vector<std::string> all = settings_.adoptedVoices;
+            all.insert(all.end(), adopt.handled.begin(), adopt.handled.end());
+            std::sort(all.begin(), all.end());
+            all.erase(std::unique(all.begin(), all.end()), all.end());
+            settings_.adoptedVoices = all;
+            if (SaveSettingValue("adoptedVoices", AdoptedVoicesToJson(all))) fileSettings_.adoptedVoices = all;
+        }
+    }
 
     if (!speaker_.Init()) LogError("Speech is unavailable: Lexia starts, but will not read aloud.");
     speaker_.SetInterfaceLanguage(settings_.interfaceLanguage);
