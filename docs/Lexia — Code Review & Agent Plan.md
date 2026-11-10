@@ -240,9 +240,13 @@ mixed with normal text so that other text does not get worse.
   `en_PP-OCRv3_rec.yml`: the pretrained training checkpoint, a low learning rate (about 1/10 of the original, cosine,
   warm-up), 10–30 epochs, batch 128, early stop on the check set. Checkpoints and logs stay outside git.
   - **Hardware: the owner's RTX 3080** (10 or 12 GB). This is enough for this 8.6 M parameter model at height 48 and
-  batch 128 (lower the batch if memory runs out); expect a few hours for 400 000 lines and 20 epochs. Set-up: WSL2
-  Ubuntu with the NVIDIA driver for WSL, then `paddlepaddle-gpu` (a CUDA 11.8 or 12.x build, pinned) and PaddleOCR at a
-  pinned release tag in a venv; `training/rec_en/README.md` lists the exact steps. Nothing goes to a cloud service.
+  batch 128 (lower the batch if memory runs out); expect a few hours for 400 000 lines and 20 epochs. Set-up
+  (owner, Nov 10): **native Windows 11**: the NVIDIA driver, Python, then the native Windows build of
+  `paddlepaddle-gpu` (a CUDA 11.8 or 12.x build, pinned; the CUDA / cuDNN versions as PaddlePaddle's install guide
+  says), PaddleOCR at a pinned release tag and `paddle2onnx` in a venv. Windows settings in the training config:
+  `num_workers` low (0–2) and `use_shared_memory: False` (multi-process data loading is unreliable on Windows); one GPU,
+  so no multi-GPU training. If the Windows build fails, the fallback is WSL2 Ubuntu with the same pinned versions.
+  `training/rec_en/README.md` lists the exact steps for both. Nothing goes to a cloud service.
 - [ ] **L3 Export to ONNX (agent).** `tools/export_model.py` (inference model, CTC head only), then `paddle2onnx`
   (pinned version) with `--opset_version 11` (or the lowest one ONNX Runtime 1.20.1 runs) and the input
   `x:[-1,3,48,-1]`. A script `training/rec_en/check_onnx.py` checks: one input, rank 4, 3 channels, height 48, a
@@ -276,7 +280,7 @@ mixed with normal text so that other text does not get worse.
 **Security.** The app does not change: no network (ADR-0005), the model is still a file from `fetch_deps.ps1` checked
 by SHA-256 before Lexia loads it. The training side: every download (fonts, the PaddleOCR checkpoint, Python packages)
 pinned by URL and hash or version; the PaddleOCR checkpoint (`.pdparams`, a pickle format) only from PaddleOCR's own
-URL; font files are untrusted input to FreeType / Pillow, so they are parsed only in the training venv (WSL2 on the owner's PC), each in its own folder, scripts run with `python -I`; nothing from the user's screen is used, only the Fixtures
+URL; font files are untrusted input to FreeType / Pillow, so they are parsed only in the training venv (on the owner's PC), each in its own folder, scripts run with `python -I`; nothing from the user's screen is used, only the Fixtures
 in the repo. `--dump-crops` writes only to the folder it is given and never logs recognised text.
 
 **Alternatives, not chosen now.** A word fix after recognition (a dictionary that turns "Cance1" into "Cancel") is

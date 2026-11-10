@@ -236,7 +236,7 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   longer ships (it becomes one of the user's own Voices; Lexia adopts it at start); A6, Layout: row fragments and
   tight centred stacks. **Planned: L** (plan only, waits for the owner's review): fine-tune the English recogniser
   `rec_en.onnx` on synthetic lines in pixel game fonts mixed with normal fonts (only fonts with an allowed licence,
-  listed in `docs/notes/training-fonts.md`; the fonts and lines are not committed), on the owner's RTX 3080, export with
+  listed in `docs/notes/training-fonts.md`; the fonts and lines are not committed), on the owner's RTX 3080 under native Windows 11 (WSL2 the fallback), export with
   the same input and output (`ocr.cpp`, `ctc.*` unchanged), the model committed as `ocr_models/rec_en.onnx` and copied
   into `models\` by `fetch_deps.ps1`, new pixel-font Fixtures; in 0.7. New work branches from `main`.
 - **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B8, B9, A6, games, the
