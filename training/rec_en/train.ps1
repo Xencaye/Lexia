@@ -39,6 +39,10 @@ if ($Epochs -gt 0) { $opts += "Global.epoch_num=$Epochs" }
 if ($BatchSize -gt 0) { $opts += "Train.loader.batch_size_per_card=$BatchSize" }
 $opts += $Set
 
+# Read every image once in parallel first: a cold first epoch is 4x slower (warm_files.py says why).
+Write-Host 'Reading the training images into the file cache ...'
+Invoke-Py (Join-Path $Here 'warm_files.py') $data
+
 # PaddleOCR's tools import ppocr from the repo root, so run from there.
 Push-Location $PaddleOcr
 try {

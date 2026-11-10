@@ -57,6 +57,7 @@ fonts better. `try_model.ps1` then runs `scripts\score_layout.ps1`: no Fixture m
 | `requirements.txt` | The pinned Python packages |
 | `setup.ps1`, `train.ps1`, `export.ps1`, `try_model.ps1`, `common.ps1` | The steps above |
 | `check_onnx.py` | The model check |
+| `warm_files.py` | Reads every image once before training (a cold first epoch is 4x slower on Windows) |
 
 ## Security
 

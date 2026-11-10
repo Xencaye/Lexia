@@ -235,7 +235,8 @@ mixed with normal text so that other text does not get worse.
 - [ ] **L2 Fine-tune (owner runs it: `training/rec_en/README.md`).** PaddleOCR v2.9.1 (Apache-2.0) `tools/train.py`
   with `lexia_rec_en.yml`: from the pretrained `en_PP-OCRv3_rec` training checkpoint (pinned SHA-256), Adam with
   learning rate 0.0002 (1/5 of the original), cosine, 1 warm-up epoch, 10 epochs, batch 64, width 480, mixed
-  precision (AMP O1). About 250 lines/s, so about 4–5 hours on the owner's RTX 3080 (6.4 GB used). Set-up (native
+  precision (AMP O1). About 220 lines/s, so about 5 hours on the owner's RTX 3080 (6.4 GB used); `warm_files.py` reads
+  every image once first (cold file opens on Windows made the first epoch 4x slower). Set-up (native
   Windows 11): Python 3.12, `paddlepaddle-gpu` 2.6.2 from PyPI (built for CUDA 11.8) with NVIDIA's CUDA 11.8 / cuDNN
   8.9 pip packages in the venv (no CUDA install; `common.ps1` puts their DLLs on PATH); `num_workers` 4,
   `use_shared_memory: false`; PaddleOCR's RecAug removed (it made the loader 4x slower than the GPU). PaddlePaddle 3
