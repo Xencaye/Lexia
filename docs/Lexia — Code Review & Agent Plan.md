@@ -17,7 +17,8 @@ On-screen wording follows the glossary.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
   Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech; B9, an update keeps a Voice that Lexia
   no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
-  stacks in the Layout.
+  stacks in the Layout. **Planned: L**, the English recogniser fine-tuned to read pixel game fonts (plan only, waits
+  for the owner's review; 0.7 or 0.8, the owner decides).
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -179,6 +180,98 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - [ ] **J7 Package.** A `.deb` (maybe Flatpak or AppImage, decided in J0) with the models, Voices and notices.
 - [ ] **J8 Your check.** A browser, a video with subtitles and a game on your Ubuntu PC.
 
+### L — The English recogniser reads pixel game fonts (plan; waits for the owner's review)
+
+**Why.** On the Undertale instruction screen (`tests/fixtures/undertale_05`, distance 0.150) the reading order is
+right but the recogniser reads "[Z or ENTER] - Confirm" as "t2 or EHTER]", "Cancel" as "Cance1", "Fullscreen" as
+"Ful1screen" and "you" as "yoU". Image changes before recognition (invert, blur, padding) fixed some words and broke
+others, so they were dropped. The fix is in the model: fine-tune `models/rec_en.onnx` on lines drawn in pixel fonts,
+mixed with normal text so that other text does not get worse.
+
+**What stays the same** (so `src/ocr.cpp`, `ctc.*`, the Alphabet mask and the Lookalike fix need no change):
+
+- The architecture: `en_PP-OCRv3_rec` (SVTR_LCNet, about 8.6 M parameters; the training has a CTC and a SAR head, the
+  export keeps only CTC). Training starts from PaddleOCR's published *training* checkpoint of that model.
+- The input: one tensor `[1, 3, 48, W]` (W dynamic, a multiple of 4, at most 4096), BGR as OpenCV gives it,
+  `x / 127.5 - 1`. Lexia resizes a crop to height 48 with `INTER_CUBIC` (up) or `INTER_AREA` (down): the training
+  images go through **the same resize** (a small Python copy of `Recognize`'s steps), else the model learns pixels
+  Lexia never gives it.
+- The output: one tensor `[1, T, 97]` of softmax scores (blank + the 95 lines of `dict_en.txt` + space). `dict_en.txt`
+  stays byte for byte the same (same characters, same order), so the classes keep their indices. The config keeps
+  `use_space_char: True` and `max_text_length` 25 or more (a longer value only changes training).
+
+**Tasks.**
+
+- [ ] **L0 Fonts and their licences (agent, then owner).** Find the fonts: Undertale's menu and dialogue text (named as
+  "8bitoperator JVE" or the fan font "Determination Mono"; sources disagree) and 10–20 other pixel / bitmap fonts of
+  the kind games use. Record each in `docs/notes/training-fonts.md`: name, author, source URL, licence, SHA-256.
+  **Allowed:** SIL OFL 1.1, CC0, public domain, CC BY (credit given), MIT / Apache / BSD-style. **Not allowed:** any
+  font with a non-commercial (NC) or no-derivatives (ND) clause, "personal use only", "no AI or machine learning", no
+  stated licence, or fonts taken out of a game's own files (Undertale's are the game's assets). Determination Mono is
+  listed as CC BY-NC-ND, so it is out unless its author gives written permission. The model weights do not contain
+  the font, and OFL / CC BY allow the font to be used to make images, but a font whose terms say otherwise is left
+  out, not argued about. *Done when:* the owner agrees the list.
+- [ ] **L1 Training data generator (agent).** `training/rec_en/` (Python, pinned `requirements.txt`; not built by CMake,
+  not packaged): renders text lines and writes PaddleOCR's `SimpleDataSet` format (`image path\tlabel`).
+  - **Text:** words and lines from public-domain text and Lexia's own fixture texts, plus game-style strings
+  (`[Z or ENTER] - Confirm`, `HP 20/20`, `LV 1`, `v1.08`, key names, all-caps menus, digits next to letters:
+  `l1I|`, `O0`, `S5`, `Z2`). Every character must be in `dict_en.txt`; a line with another character is dropped.
+  - **Pixel fonts:** drawn at the font's own pixel size with no anti-aliasing (Pillow `fontmode = "1"`), scaled up by
+  a whole number (x1–x4) with nearest neighbour, as a game does; light-on-dark and dark-on-light, coloured text, a
+  1 px outline or shadow, small offsets and padding as the detector's boxes give them; then Lexia's resize.
+  - **Normal fonts:** 20+ OFL / Apache fonts (Noto, Liberation, DejaVu, Atkinson Hyperlegible, Source Sans, Roboto ...),
+  anti-aliased, at sizes and contrasts seen in browsers and subtitles, so normal text keeps its accuracy.
+  - **Real crops:** the text boxes of the Fixtures, cut out with the detector's boxes and the expected text as labels
+  (a new dev flag `lexia_cli --dump-crops <dir>`, the only C++ change of L, in `cli.*`); used for the check set only,
+  never for training (they are the test).
+  - Mix: about 40 % pixel fonts, 60 % normal fonts; 300 000–500 000 lines; a fixed seed, so the same command gives the
+  same data. TextRecognitionDataGenerator (MIT) may be used for the normal-font part if it is simpler than Pillow.
+- [ ] **L2 Fine-tune (owner runs it, agent writes the scripts).** PaddleOCR (Apache-2.0) `tools/train.py` with a copy of
+  `en_PP-OCRv3_rec.yml`: the pretrained training checkpoint, a low learning rate (about 1/10 of the original, cosine,
+  warm-up), 10–30 epochs, batch 128, early stop on the check set. Checkpoints and logs stay outside git.
+  - **Hardware:** an NVIDIA GPU with 6 GB or more (CUDA) is enough: a few hours. A CPU works but takes days. Without a
+  GPU: Kaggle or Google Colab (free T4 / P100 hours, session limits) or a rented GPU by the hour. PaddlePaddle runs on
+  Windows, but WSL2 Ubuntu is the simpler path for `paddlepaddle-gpu`. The data is synthetic and the Fixture crops are
+  already public in the repo, so nothing private goes to a cloud service.
+- [ ] **L3 Export to ONNX (agent).** `tools/export_model.py` (inference model, CTC head only), then `paddle2onnx`
+  (pinned version) with `--opset_version 11` (or the lowest one ONNX Runtime 1.20.1 runs) and the input
+  `x:[-1,3,48,-1]`. A script `training/rec_en/check_onnx.py` checks: one input, rank 4, 3 channels, height 48, a
+  dynamic width; one output `[N, T, 97]`; the scores of each time step add up to 1; the old and new model give the same
+  text on the normal-font check set within the agreed error. Lexia reads the tensor names from the session
+  (`IoNames`), so a name change does no harm, but the script reports it.
+- [ ] **L4 Fixtures (agent, owner gives screenshots).** New Fixtures with pixel fonts, each `screen.png` + `expected.txt`:
+  the Undertale instruction screen cut to the instruction box only (`undertale_06`), the Undertale menu and battle text,
+  Deltarune, and 3–5 other pixel-font games the owner plays. Add them to `tests/fixtures/baseline.json` with the old
+  model's score *before* the model changes, so the gain shows.
+- [ ] **L5 The check (agent).** With the new model in `models\`: `ctest` and `.\scripts\score_layout.ps1` pass (no
+  Fixture worse than the tolerance, the Block count not worse anywhere). `undertale_05` and the new pixel Fixtures read
+  `[Z or ENTER]`, `Cancel`, `Fullscreen`, `you` right. On the check set: the character error rate on normal fonts does
+  not rise by more than 0.5 points; on pixel fonts it falls. Report every Fixture before and after in the PR; then
+  `score_layout.ps1 -SaveBaseline` with the reason.
+- [ ] **L6 Ship it (agent).** The model is hosted where the owner chooses (a GitHub release asset on `Xencaye/Lexia`,
+  such as tag `models-rec-en-1`, or the owner's Hugging Face repo) and pinned in `scripts/fetch_deps.ps1` by URL and
+  SHA-256, in place of the deepghs `rec_en.onnx` (`dict_en.txt` stays the deepghs file). `licenses/components/paddleocr-models.txt`
+  says that `rec_en.onnx` is fine-tuned by the Lexia project from `en_PP-OCRv3_rec` (Apache-2.0; the changed file
+  carries a "modified" notice, as Apache-2.0 asks) and names the training fonts with their licences and credits (a
+  new `licenses/components/rec-en-training-fonts.txt` if the list is long; fonts are not shipped, so no `@covers`).
+  `docs/third-party.md` gets the same in its table. The training scripts, the config and the data seed are in
+  `training/rec_en/` so anyone can make the model again (GPL-3 spirit). *Done when:* a clean clone with
+  `fetch_deps.ps1` builds, `ctest` and `score_layout.ps1` pass, and the package notices name the new model.
+- [ ] **L7 Your check (owner).** In Undertale: the instruction screen, the menu, dialogue and battle text read right
+  aloud; a browser page and a video with subtitles read as well as before.
+
+**Security.** The app does not change: no network (ADR-0005), the model is still a file from `fetch_deps.ps1` checked
+by SHA-256 before Lexia loads it. The training side: every download (fonts, the PaddleOCR checkpoint, Python packages)
+pinned by URL and hash or version; the PaddleOCR checkpoint (`.pdparams`, a pickle format) only from PaddleOCR's own
+URL; font files are untrusted input to FreeType / Pillow, so they are parsed only in the training venv (or a VM / cloud
+box), each in its own folder, scripts run with `python -I`; nothing from the user's screen is used, only the Fixtures
+in the repo. `--dump-crops` writes only to the folder it is given and never logs recognised text.
+
+**Alternatives, not chosen now.** A word fix after recognition (a dictionary that turns "Cance1" into "Cancel") is
+cheaper but guesses, and breaks names and codes. A newer recogniser (PP-OCRv4 / v5 English) may read pixel fonts better
+without training, but has other input and output sizes and dictionaries, so `ocr.cpp` and the Alphabet mask change; it
+can be scored with `lexia_cli` first if L does not reach its goal.
+
 ## Done (one line each)
 
 - **Phase 0** (P0.1–P0.8): repo audit (R17+), git and `fetch_deps.ps1`, build hygiene (`/utf-8 /W4`), `lexia_core`
@@ -217,7 +310,8 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
 6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); B9 done (an update
-   keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks).
+   keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L planned
+   (pixel game fonts), if the owner puts it in 0.7.
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
@@ -242,6 +336,9 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 
 - [ ] Target hardware for friends' PCs: any very old CPUs? Affects the ONNX Runtime build, the OCR speed budget and
   the Voice quality.
+- [ ] **L (pixel fonts):** 0.7 or 0.8? Train on the owner's own GPU (which one, how much memory?) or in the cloud?
+  Where is the new `rec_en.onnx` hosted (a GitHub release asset or a Hugging Face repo)? Which other pixel-font games
+  go into the Fixtures?
 
 ## Sources
 
