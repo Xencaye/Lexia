@@ -1051,3 +1051,62 @@ TEST_CASE("SettingsToText round-trips readAlong, and UpdateSettingsText changes 
     REQUIRE(UpdateSettingsText(text, "readAlong", "false", note));
     CHECK_FALSE(Parse(text).settings.readAlong);
 }
+
+// ------------------------------------------------------------ updates keep Voice names (B9) ---
+
+TEST_CASE("A Voice name that is not installed (any more) survives a load and a save") {
+    // ljspeech after Lexia 0.7: settings.json still names it. Nothing may reset it.
+    std::string text = R"({"activeVoices": {"eng": "en_US-ljspeech-medium"},
+        "voices": {"en_US-ljspeech-medium": {"speed": 1.25, "pitch": -1, "volume": 0.8}}})";
+    Parsed p = Parse(text);
+    CHECK(p.notes.empty());
+    CHECK(p.settings.activeVoices.at("eng") == "en_US-ljspeech-medium");
+    CHECK(p.settings.voices.at("en_US-ljspeech-medium").speed == doctest::Approx(1.25f));
+
+    // A save of another value keeps both entries as they are.
+    std::string note;
+    REQUIRE(UpdateSettingsText(text, "leftHanded", "true", note));
+    p = Parse(text);
+    CHECK(p.notes.empty());
+    CHECK(p.settings.leftHanded);
+    CHECK(p.settings.activeVoices.at("eng") == "en_US-ljspeech-medium");
+    CHECK(p.settings.voices.at("en_US-ljspeech-medium").speed == doctest::Approx(1.25f));
+    CHECK(p.settings.voices.at("en_US-ljspeech-medium").pitch == doctest::Approx(-1.f));
+
+    // The whole file written from the parsed settings keeps them too.
+    const Parsed again = Parse(SettingsToText(p.settings));
+    CHECK(again.settings.activeVoices.at("eng") == "en_US-ljspeech-medium");
+    CHECK(again.settings.voices.at("en_US-ljspeech-medium").volume == doctest::Approx(0.8f));
+}
+
+TEST_CASE("adoptedVoices: read sorted without duplicates, written back, and saved without touching other keys") {
+    Parsed p = Parse(R"({"adoptedVoices": ["en_US-zed-medium", "en_US-ljspeech-medium", "en_US-zed-medium"], "leftHanded": true})");
+    CHECK(p.notes.empty());
+    CHECK(p.settings.adoptedVoices == std::vector<std::string>{"en_US-ljspeech-medium", "en_US-zed-medium"});
+
+    // Round trip through the whole-file writer.
+    const Parsed again = Parse(SettingsToText(p.settings));
+    CHECK(again.notes.empty());
+    CHECK(again.settings.adoptedVoices == p.settings.adoptedVoices);
+
+    // A save of just this key keeps the others.
+    std::string text = R"({"leftHanded": true, "activeVoices": {"eng": "en_US-ljspeech-medium"}})";
+    std::string note;
+    REQUIRE(UpdateSettingsText(text, "adoptedVoices", AdoptedVoicesToJson({"en_US-ljspeech-medium"}), note));
+    p = Parse(text);
+    CHECK(p.notes.empty());
+    CHECK(p.settings.leftHanded);
+    CHECK(p.settings.activeVoices.at("eng") == "en_US-ljspeech-medium");
+    CHECK(p.settings.adoptedVoices == std::vector<std::string>{"en_US-ljspeech-medium"});
+
+    CHECK(Parse("{}").settings.adoptedVoices.empty());
+}
+
+TEST_CASE("adoptedVoices: a bad value gives a note and an empty list") {
+    for (const char* bad : {R"({"adoptedVoices": "x"})", R"({"adoptedVoices": {"a": 1}})", R"({"adoptedVoices": ["ok", 5]})",
+                            R"({"adoptedVoices": ["ok", ""]})"}) {
+        const Parsed p = Parse(bad);
+        CHECK(Mentions(p.notes, "adoptedVoices"));
+        CHECK(p.settings.adoptedVoices.empty());
+    }
+}

@@ -15,8 +15,8 @@ On-screen wording follows the glossary.
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
-  Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech. Planned for 0.7: B9, an update keeps
-  a Voice that Lexia no longer ships (owner, Nov 10).
+  Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech; B9, an update keeps a Voice that Lexia
+  no longer ships (owner, Nov 10): it becomes one of the user's own Voices.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -87,38 +87,12 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
 - [ ] **A5 Grouping.** Undertale, a browser and a video with subtitles.
 - [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
 - [ ] **B8 Voices Cori and Mike.** Listen to Cori (the default) and Mike in Lexia, at Speed, Pitch and Volume
-  changed; pick Mike on the Voices page and Pick text. (An update of a 0.6 install is checked with B9.)
+  changed; pick Mike on the Voices page and Pick text.
+- [ ] **B9 Update keeps old Voices.** Update a 0.6 install with ljspeech active, its Speed changed and a ljspeech Preset
+  saved: ljspeech is on the Voices page as your own Voice (Delete works), still speaks, keeps its Speed, and the Preset
+  loads into it. Then delete it, Quit and start Lexia again: it stays deleted.
 
 ## Open tasks
-
-### B9 — An update keeps a Voice that Lexia no longer ships (Lexia 0.7)
-
-The rule (owner, Nov 10): an update never deletes the user's data or settings unless there is no other way. B8
-stopped shipping `en_US-ljspeech-medium`, and today an update of 0.6 loses it: Setup empties `{app}\voices`
-(`[InstallDelete]` in `installer\lexia.iss`), and Lexia lists the program folder's Voices only through its
-`voices.json`, so even a file left there would not show. A person whose Voice was ljspeech then hears Cori, and
-their ljspeech controls (`voices.<name>` in settings.json) and Preset files no longer have a Voice to go to.
-
-- **Setup:** `{app}\voices` leaves `[InstallDelete]`; `[Files]` still replaces the Voices it ships. (The uninstaller
-  still removes `{app}`; the user's data stays unless the person says yes to removing it.) The portable zip
-  unpacked over an old folder already leaves the old files there.
-- **Lexia at start:** a new function `AdoptRetiredVoices(exeVoicesDir, userVoicesDir)` in `tts/voice_library.*`
-  copies each `<name>.onnx` + `<name>.onnx.json` in the exe's `voices\` that its `voices.json` does not list and that
-  `CheckVoiceConfig` accepts into `%LOCALAPPDATA%\Lexia\voices` (through `AddVoiceFiles`: temporary names, then put
-  in place), unless a Voice of that name is already there. One log line per Voice; it never deletes anything. The
-  Voice is then one of the person's own Voices: listed, removable, still the active Voice if it was
-  (`activeVoices` is unchanged), with its controls and Presets working. Every Windows user of an all-users install
-  gets it at their own first start, so Setup needs no per-user step.
-- **Settings:** nothing is reset or removed. A Voice name in `activeVoices`, `voices` or a Preset that is not
-  installed stays in the file as it is (today's fallback to the first installed Voice is unchanged).
-- **Tests:** `voice_library_test.cpp`: a retired Voice is copied; a listed (shipped) Voice is not; a name already in
-  the user's folder is not replaced; a bad config is skipped; a second start does nothing. A settings test that an
-  unknown Voice name in `activeVoices` / `voices` survives a load and a save.
-- **Security:** reads only the exe's own `voices\` folder (no path from settings or a file), names through
-  `SafeName`, sizes through the existing limits, no reparse point followed, no network.
-- *Done when:* an update of a 0.6 install keeps ljspeech: it is on the Voices page as the person's own Voice, still
-  speaks if it was active, keeps its Speed / Pitch / Volume, and a ljspeech Preset file loads into it. The owner's
-  check: update a real 0.6 install with ljspeech active and a ljspeech Preset saved.
 
 ### D7 Help video (owner)
 
@@ -209,7 +183,9 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
   Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`), B8 (0.7)
   the shipped Voices `en_GB-cori-medium` (the default) and `en_US-mike-medium` instead of `en_US-ljspeech-medium`
-  (`rhasspy/piper-voices` commit `cf910fb`; `docs/third-party.md`).
+  (`rhasspy/piper-voices` commit `cf910fb`; `docs/third-party.md`); B9 (0.7) an update keeps a Voice that Lexia no
+  longer ships: Setup no longer empties `{app}\voices`, and `AdoptRetiredVoices` (`tts/voice_library.*`, called by
+  `App::Init`) copies it into the user's Voices folder once (the names handled are kept in settings.json `adoptedVoices`, so deleting the Voice sticks; the rule "Updates keep the user's data").
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
   quit key).
 - **D — Tray, Settings window, Control bar:** D0 / D1 (HTML pages in WebView2, replaced by K), D2 tray, D3–D6 window and
@@ -233,7 +209,7 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); B9 planned (an update
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); B9 done (an update
    keeps a Voice that Lexia no longer ships).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
