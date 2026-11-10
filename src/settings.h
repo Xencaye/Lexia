@@ -84,6 +84,12 @@ struct Settings {
     // shipped one). settings.json: "activeVoices": { "eng": "en_GB-cori-medium" }
     std::map<std::string, std::string> activeVoices;
 
+    // Retired Voices that Lexia has already dealt with (AdoptRetiredVoices): a Voice that an older
+    // version shipped and is still in the program folder is copied into the user's Voices once; its name
+    // is kept here so that deleting the copy on the Voices page sticks (else the next start would copy it
+    // back). Sorted, no duplicates. settings.json: "adoptedVoices": ["en_US-ljspeech-medium"]
+    std::vector<std::string> adoptedVoices;
+
     VoiceControls ControlsFor(const std::string& voiceName) const {
         const auto it = voices.find(voiceName);
         return it == voices.end() ? VoiceControls{} : it->second;
@@ -133,6 +139,9 @@ std::string VoiceControlsToJson(const std::map<std::string, VoiceControls>& voic
 
 // The "activeVoices" value as JSON text, for SaveSettingValue("activeVoices", ...).
 std::string ActiveVoicesToJson(const std::map<std::string, std::string>& activeVoices);
+
+// The "adoptedVoices" value as JSON text (a sorted array of names), for SaveSettingValue("adoptedVoices", ...).
+std::string AdoptedVoicesToJson(const std::vector<std::string>& adoptedVoices);
 
 // Reads settings.json and runs it through ParseSettings, logging each note. If the file
 // doesn't exist it is created with the defaults. A file that can't be parsed is left untouched.

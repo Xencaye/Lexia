@@ -90,6 +90,35 @@ std::vector<InstalledVoice> ListInstalledVoices(const std::filesystem::path& voi
 VoiceOutcome AddVoiceFiles(const std::filesystem::path& model, const std::filesystem::path& config,
                            const std::filesystem::path& destDir);
 
+// What AdoptRetiredVoices did.
+struct AdoptResult {
+    // One outcome per retired Voice that was tried: ok() = adopted (voiceName set), else the refusal
+    // (BadConfig, NotMedium, CannotWrite ...), for the caller's log.
+    std::vector<VoiceOutcome> outcomes;
+    // The retired Voice names that count as dealt with after this call: every Voice adopted, and every
+    // retired Voice skipped because a Voice of that name was already in the user's folder. A refused Voice
+    // is NOT in it, so it is tried again at the next start. Names in `alreadyHandled` that are still
+    // retired are not repeated here; the caller keeps the union (sorted, no duplicates) in settings.json.
+    std::vector<std::string> handled;
+};
+
+// An update keeps the user's Voices (B9). A Voice that an older Lexia shipped in `exeVoicesDir` and that
+// this version's voices.json no longer lists (e.g. ljspeech after 0.6) would otherwise be invisible: Lexia lists
+// the program folder's Voices only through voices.json. This copies each such `<name>.onnx` + `<name>.onnx.json`
+// into `userVoicesDir` (through AddVoiceFiles: checked config, temporary names, then put in place), so the
+// Voice becomes one of the user's own: listed, removable, with its controls and Presets (they are keyed by name).
+// Each retired Voice is handled once: the files stay in the program folder, so without a memory a Voice that
+// the person deletes on the Voices page would come back at the next start. `alreadyHandled` (settings.json
+// "adoptedVoices") lists the names done before; they are skipped, and the caller saves `handled` for the next time.
+// Skipped without a word: a Voice listed in voices.json (shipped, not retired); a name that is not plain
+// (SafeName / device names); a missing .onnx.json; anything that is not a plain file (a link or junction is
+// never followed); a name in `alreadyHandled`; a Voice of that name already in `userVoicesDir` (never
+// replaced; it counts as handled). If voices.json is missing or cannot be read nothing is adopted, because
+// shipped and retired Voices cannot be told apart. Nothing is ever deleted; never throws; empty paths or
+// missing folders do nothing. Copies ~60 MB per Voice, so call it once at start, not on a path that must stay quick.
+AdoptResult AdoptRetiredVoices(const std::filesystem::path& exeVoicesDir, const std::filesystem::path& userVoicesDir,
+                               const std::vector<std::string>& alreadyHandled);
+
 // Renames `from` to `to`, replacing `to`. A seam so that tests can make a rename fail; the default
 // is std::filesystem::rename.
 using RenameFn = std::function<void(const std::filesystem::path& from, const std::filesystem::path& to,
