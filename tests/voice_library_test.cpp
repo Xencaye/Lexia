@@ -79,13 +79,13 @@ TEST_CASE("CheckVoiceConfig: a Medium Voice for a Language Lexia reads is accept
     CHECK(en.ok());
     CHECK(en.languageCode == "en");
     CHECK(en.voiceName == "en_US-amy-medium");
-    const VoiceOutcome bg = CheckVoiceConfig("bg_BG-dimitar-medium", Config("bg_BG", "Bulgarian", "medium"));
+    const VoiceOutcome bg = CheckVoiceConfig("bg_BG-sample-medium", Config("bg_BG", "Bulgarian", "medium"));
     CHECK(bg.ok());
     CHECK(bg.languageCode == "bg");
 }
 
 TEST_CASE("CheckVoiceConfig: a config with no language object falls back to the Voice's name, then espeak's voice") {
-    const VoiceOutcome byName = CheckVoiceConfig("bg_BG-dimitar-medium", kNoLanguageConfig);
+    const VoiceOutcome byName = CheckVoiceConfig("bg_BG-sample-medium", kNoLanguageConfig);
     CHECK(byName.ok());
     CHECK(byName.languageCode == "bg");
     const VoiceOutcome byEspeak = CheckVoiceConfig("mine", "{\"audio\": {\"quality\": \"medium\"}, \"espeak\": {\"voice\": \"en-us\"}}");
@@ -425,8 +425,8 @@ TEST_CASE("ListInstalledVoices: the shipped Voices first, then the user's, each 
     WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");  // bg_BG-gone-medium has no file: not listed
     WriteText(user.path / "en_US-zoe-medium.onnx", "M");
     WriteText(user.path / "en_US-zoe-medium.onnx.json", Config("en_US", "English", "medium"));
-    WriteText(user.path / "bg_BG-dimitar-medium.onnx", "M");
-    WriteText(user.path / "bg_BG-dimitar-medium.onnx.json", kNoLanguageConfig);
+    WriteText(user.path / "bg_BG-sample-medium.onnx", "M");
+    WriteText(user.path / "bg_BG-sample-medium.onnx.json", kNoLanguageConfig);
     WriteText(user.path / "de_DE-t-medium.onnx", "M");  // not a Language Lexia reads
     WriteText(user.path / "de_DE-t-medium.onnx.json", Config("de_DE", "German", "medium"));
     WriteText(user.path / "en_US-nojson-medium.onnx", "M");  // no config
@@ -439,7 +439,7 @@ TEST_CASE("ListInstalledVoices: the shipped Voices first, then the user's, each 
     CHECK(voices[0].name == "en_GB-cori-medium");
     CHECK(voices[0].shipped);
     CHECK(voices[0].languageCode == "en");
-    CHECK(voices[1].name == "bg_BG-dimitar-medium");
+    CHECK(voices[1].name == "bg_BG-sample-medium");
     CHECK_FALSE(voices[1].shipped);
     CHECK(voices[1].languageCode == "bg");
     CHECK(voices[2].name == "en_US-zoe-medium");
@@ -457,14 +457,14 @@ TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, e
     const std::vector<InstalledVoice> list = {
         {"en_GB-cori-medium", "en", "a.onnx", true},
         {"en_GB-alba-medium", "en", "b.onnx", false},
-        {"bg_BG-dimitar-medium", "bg", "c.onnx", true},
+        {"bg_BG-sample-medium", "bg", "c.onnx", true},
     };
     REQUIRE(PickVoice(list, "en", "en_GB-alba-medium"));
     CHECK(PickVoice(list, "en", "en_GB-alba-medium")->name == "en_GB-alba-medium");
     CHECK(PickVoice(list, "en", "")->name == "en_GB-cori-medium");
     CHECK(PickVoice(list, "en", "not-installed")->name == "en_GB-cori-medium");
     // a Voice of another Language is not a choice for this one
-    CHECK(PickVoice(list, "en", "bg_BG-dimitar-medium")->name == "en_GB-cori-medium");
+    CHECK(PickVoice(list, "en", "bg_BG-sample-medium")->name == "en_GB-cori-medium");
     CHECK(PickVoice(list, "de", "") == nullptr);
     CHECK(PickVoice({}, "en", "") == nullptr);
 }

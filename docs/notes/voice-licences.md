@@ -3,11 +3,13 @@
 Update 2026-11-10 (B8): `rhasspy/piper-voices` commit `cf910fb` (2026-11-09) retrained several voices from the
 `rdh` (CC0) and `hifi_tts_92` bases. Lexia 0.7 ships `en_GB-cori-medium` (now from `hifi_tts_92`, dataset Hi-Fi
 TTS, CC BY 4.0, British phonemes) as the default and `en_US-mike-medium` (from `rdh`, CC0), and no longer ships
-`en_US-ljspeech-medium`. Dimitar is removed from `voices.json` (the owner does not plan to use it). The tables below describe the voices as they were on
-2026-10-25; `docs/third-party.md` has the current state.
+`en_US-ljspeech-medium`. The tables below describe the voices as they were on 2026-10-25; `docs/third-party.md`
+has the current state.
 
-Update 2026-10-28: Lexia offers English only for now (ADR-0007). The Bulgarian findings below are kept for a
-later return of the language.
+Update 2026-11-10: Lexia has no Bulgarian Voice; the owner will train one from their own voice (E6). The Bulgarian
+Voice studied here first is dropped and its findings are removed from this note.
+
+Update 2026-10-28: Lexia offers English only for now (ADR-0007).
 
 Date: 2026-10-25. Researcher, no code, repo not edited. Not legal advice: it reports what the primary sources say and where they are silent.
 
@@ -17,7 +19,6 @@ Lexia is GPL-3.0-or-later (ADR 0003: "each shipped voice's licence must allow re
 
 | Voice | Dataset licence (model card) | Model's own licence | Base / lineage | Verdict |
 | --- | --- | --- | --- | --- |
-| `bg_BG-dimitar-medium` | CC0 (OHF-Voice/voice-datasets) | None stated. Only the HF repo tag `license: mit` | Fine-tuned from `en_US-lessac-medium` | **Do not ship yet** (blocked until cleared). Clean fix below |
 | `en_US-lessac-medium` | Blizzard 2013 Lessac research licence: research only, excludes voice-synthesis products | None stated | From scratch on that dataset | **Do not ship** |
 | `en_US-kristin-medium` | Public domain (LibriVox) | None stated | From scratch (author's page) | **Recommended** |
 | `en_US-norman-medium` | Public domain (LibriVox) | None stated | From scratch | **Recommended** |
@@ -26,14 +27,13 @@ Lexia is GPL-3.0-or-later (ADR 0003: "each shipped voice's licence must allow re
 | `en_US-john-medium` | Public domain (LibriVox) | None stated | Fine-tuned from Kristin (itself clean) | Safe alternative (male) |
 | All other en_US / en_GB Medium voices | See section 3 | None stated | Mostly fine-tuned from lessac | Do not ship (lessac lineage and/or NC / SA dataset), except `bryce` (unknown base) |
 
-Open before anything ships: the two decisions in section 6.
+Open questions: section 6.
 
-## 2. Q1: `bg_BG-dimitar-medium` and lessac
+## 2. Q1: voices fine-tuned from lessac
 
 ### What the sources say
 
-- Dimitar MODEL_CARD, verbatim: dataset URL `https://github.com/OHF-Voice/voice-datasets`, "License: CC0", "Finetuned from U.S. English lessac voice (medium quality)". The card has no "model licence" line. Piper's VOICES.md says the card "contains important licensing information", so for this voice the card's only licensing information is the dataset licence.
-- The dataset is CC0. The repo README says "These datasets are licensed under CC0 (public domain). If you use them, please cite this repository!". `CITATION.cff` has `license: CC0-1.0`. Bulgarian entry: `bg_BG / dimitar`, added 2024-07-31, 115 MB zip. The README does not say who recorded it ("crowdsourced ... for Home Assistant's Year of Voice by Nabu Casa"). The voice was added to piper-voices on 2025-10-31 (HF commit "Add dimitar (bg)").
+- Piper's VOICES.md says each model card "contains important licensing information"; the cards give a dataset licence and a lineage, never a model licence.
 - Lessac's MODEL_CARD: dataset `https://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/`, licence link `.../license.html`, "Trained from scratch."
 - The CSTR dataset page says the data "is released under a license for non-commercial use only". The licence page (a click-through "Research Licence Agreement" between Voice Factory International and Lessac Technologies and the user) says:
   - "Research Purposes" means purposes "associated with research and exploration ... using, incorporating or based upon the Materials (in whole or in part) or any copies of the Materials", and "excludes ... developing, adapting, amending or otherwise using the Materials for any commercial purpose, including the development, marketing, commercialisation, sale or licencing of voice synthesis or speech recognition products or services".
@@ -48,29 +48,20 @@ Open before anything ships: the two decisions in section 6.
   - OHF-Voice/piper1-gpl issue #314 (opened 2026-09-28, still open, no replies) asks for the actual grant covering lessac-initialised Russian voices. No answer exists.
   - Repo metadata: `rhasspy/piper-voices` and `rhasspy/piper-checkpoints` are tagged `license: mit`. That is a repo-wide tag, not a per-voice grant.
 
-### Does fine-tuning carry the restriction into Dimitar?
+### Does fine-tuning carry the restriction into a lessac-derived voice?
 
-The sources do not say. Neither the licence text, the model card, nor the maintainers answer it. The maintainer calls it untested. I will not guess; the facts are:
+The sources do not say. Neither the licence text, the model cards, nor the maintainers answer it. The maintainer calls it untested. I will not guess; the facts are:
 
-1. Dimitar's weights were initialised from lessac weights. Whether that makes Dimitar "based upon the Materials" is a legal question nobody with authority has answered.
+1. A fine-tuned voice's weights were initialised from lessac weights. Whether that makes it "based upon the Materials" is a legal question nobody with authority has answered.
 2. If it does, the licence is "Research Purposes only", and the definition names "development ... of voice synthesis ... products" as commercial. A free GPL app is not a sale, but the definition is not limited to sales. The text is ambiguous for free software and no source resolves it.
 3. The grant is personal and non-transferable with no sublicence. Piper's author accepted that licence for his own use. No source shows a right to pass lessac-derived rights on to Lexia's users. The MIT tag on the HF repo cannot give away rights the trainer may not have held.
 
-### Can Lexia redistribute it inside a GPL-3 installer?
+### Can Lexia redistribute one inside a GPL-3 installer?
 
 - GPL side: no problem. A voice is a separate data file next to the exe, an "aggregate" under GPLv3 section 5; it does not need to be GPL, only redistributable. CC0 data is fine.
 - Redistribution side: not established, because of the lessac lineage above.
 
-**Verdict: do not ship `bg_BG-dimitar-medium` as it stands.** "Ship with notice" does not fix it, because a notice cannot supply permission that may be missing. The dataset half is clean. The unresolved half is the lessac initialisation.
-
-Ways to unblock, in order of cleanliness:
-
-1. **Retrain Dimitar from a clean base** and ship that. The data is CC0 (`bg_BG-dimitar.zip`, 115 MB). A clean base exists: `rhasspy/piper-checkpoints/_base_model`, MODEL_CARD "Trained from scratch on LibriTTS-R train-clean-360 with MRD and SDP", dataset CC BY 4.0 (OpenSLR 141). Needs Piper 1.5.0+ and a GPU run by the owner (training is a separate task). The published checkpoint `bg/bg_BG/dimitar/medium/epoch=5097-step=152516.ckpt` is lessac-derived, so do not continue from it. The maintainer says he is retraining voices this way but no Bulgarian entry has changed (the Dimitar card still says lessac).
-2. **Written statement from the Open Home Foundation / synesthesiam** (issue on OHF-Voice/piper1-gpl, or voice@openhomefoundation.org, the address given in `CITATION.cff` and the piper1-gpl README) that lessac-derived voices may be redistributed in free software. Issue #314 shows how slowly this goes.
-3. **Permission from the licensors** of the lessac data (Lessac Technologies Inc., 256 Highland Street, West Newton, MA 02465, www.lessactech.com; Voice Factory International). Cl. 9 of their licence tells licensees to refer such requests to them.
-4. **Accept the risk and ship with a notice.** Possible, but it is a legal call for the owner, not something the sources clear. If chosen, the notice must say plainly that the voice was fine-tuned from lessac (text in section 5).
-
-The same applies to the plan's "no model licence" remark: confirmed. The card gives none.
+**Verdict: do not ship a lessac-derived voice.** "Ship with notice" does not fix it, because a notice cannot supply permission that may be missing. A clean base exists for new training: `rhasspy/piper-checkpoints/_base_model`, MODEL_CARD "Trained from scratch on LibriTTS-R train-clean-360 with MRD and SDP", dataset CC BY 4.0 (OpenSLR 141); it needs Piper 1.5.0+ and a GPU run (the owner's own Bulgarian Voice, E6, can start from it).
 
 ## 3. Q2: every en_US / en_GB Medium voice in `voices.json`
 
@@ -150,22 +141,9 @@ by Keith Ito (https://keithito.com/LJ-Speech-Dataset/), which is in the public d
 attribution is required; credit given as a courtesy. Provided as is, without warranty.
 ```
 
-### bg_BG-dimitar-medium (only after it is cleared, section 2)
+### A voice trained from the Piper base model (the owner's own Bulgarian Voice, E6)
 
-The dataset asks to be cited ("If you use them, please cite this repository!"). The lineage must be stated honestly:
-
-```
-Piper voice "dimitar (medium)", Bulgarian
-Training data: Open Home Foundation Voice datasets, bg_BG/dimitar
-(https://github.com/OHF-Voice/voice-datasets), CC0 1.0. Cited as requested by the
-dataset: Open Home Foundation, "Open Home Foundation Voice" (Nabu Casa crowdsourced
-voice datasets).
-Model: rhasspy/piper-voices bg/bg_BG/dimitar/medium (model card gives no model licence).
-```
-
-If the clean-base retrain is shipped instead, replace the model line with: "Model: retrained by the Lexia author from the Piper base model (trained from scratch on LibriTTS-R, CC BY 4.0, https://www.openslr.org/141/), and add the LibriTTS-R credit: "Koizumi, Zen, Karita, Ding, Yatabe, Morioka, Bacchiani, Zhang, Han, Bapna, LibriTTS-R: A Restored Multi-Speaker Text-to-Speech Corpus, arXiv 2023." The OpenSLR page asks users to cite the dataset paper and the licence is CC BY 4.0, so this credit is needed. The licence link is https://creativecommons.org/licenses/by/4.0/ (standard CC text; not fetched).
-
-If the lessac-derived Dimitar is shipped despite section 2, add: "This model was fine-tuned from the Piper voice en_US-lessac-medium, trained on the Lessac Technologies / Voice Factory Blizzard Challenge 2013 data, which is licensed for research purposes. Its redistribution terms are not stated by the model's authors."
+Its notice names the base: "Model: trained by the Lexia author from the Piper base model (trained from scratch on LibriTTS-R, CC BY 4.0, https://www.openslr.org/141/)", with the LibriTTS-R credit: "Koizumi, Zen, Karita, Ding, Yatabe, Morioka, Bacchiani, Zhang, Han, Bapna, LibriTTS-R: A Restored Multi-Speaker Text-to-Speech Corpus, arXiv 2023." The OpenSLR page asks users to cite the dataset paper and the licence is CC BY 4.0, so this credit is needed. The licence link is https://creativecommons.org/licenses/by/4.0/ (standard CC text; not fetched).
 
 ### Piper itself and espeak-ng
 
@@ -173,31 +151,28 @@ Out of scope for B6 (engine notices), but Lexia's H2 notices should keep these s
 
 ## 6. Open questions and points where sources are silent or ambiguous
 
-1. **Does a lessac fine-tune inherit the Blizzard research restriction?** Silent. The licence never mentions trained models; the maintainer calls it legally untested. Blocks Dimitar. Decision for the owner: retrain from `_base_model` (cleanest), or ask OHF / the licensors in writing, or accept the risk.
+1. **Does a lessac fine-tune inherit the Blizzard research restriction?** Silent. The licence never mentions trained models; the maintainer calls it legally untested. Lexia ships no lessac-derived voice.
 2. **Is a free GPL app "commercial" under the Blizzard definition?** Ambiguous. "Development ... of voice synthesis ... products or services" is listed as commercial, and the clause is not limited to money.
 3. **No voice has a model licence line.** The only model-level statements are the HF repo tag `license: mit` and VOICES.md "we do not impose any additional restrictions".
 4. **`en_US-libritts_r-medium`:** the two model cards contradict each other (lessac fine-tune vs. from scratch). Unresolved.
 5. **`en_US-bryce-medium`:** base is "an unreleased voice"; lineage unknowable.
 6. **The "from scratch" claims** are self-declared by one volunteer, and LibriVox's public domain status is LibriVox's own claim, with a caveat for other countries.
-7. **Recorder of Dimitar** is not named, and nothing shows how the contributor released the recordings to CC0 (the repo only states it).
-8. **Maintainer reply date in HF discussion #94** shows "Aug 6" with no year.
-9. **Piper's VOICES.md "personal use and research only" line** is not defined further; I read it as a statement of intent.
-10. **The new LibriTTS-R base** exists (`piper-checkpoints/_base_model`) and other languages use it (`et_EE-news`, `ko_KR-kss`, `ja_JP-hi_fi_captain` and more); Bulgarian has not been re-trained from it. Bulgarian has no other Piper voice in `voices.json`, so there is no drop-in alternative.
-11. This note is research, not legal advice; an owner shipping to the public may want a lawyer's view on item 1.
+7. **Maintainer reply date in HF discussion #94** shows "Aug 6" with no year.
+8. **Piper's VOICES.md "personal use and research only" line** is not defined further; I read it as a statement of intent.
+9. **The new LibriTTS-R base** exists (`piper-checkpoints/_base_model`) and other languages use it (`et_EE-news`, `ko_KR-kss`, `ja_JP-hi_fi_captain` and more).
+10. This note is research, not legal advice; an owner shipping to the public may want a lawyer's view on item 1.
 
 ## 7. Sources
 
-- Dimitar model card: https://huggingface.co/rhasspy/piper-voices/raw/main/bg/bg_BG/dimitar/medium/MODEL_CARD
 - Lessac model card: https://huggingface.co/rhasspy/piper-voices/raw/main/en/en_US/lessac/medium/MODEL_CARD
 - All other model cards: `https://huggingface.co/rhasspy/piper-voices/raw/main/<lang>/<locale>/<voice>/medium/MODEL_CARD` (read for the 26 voices in section 3)
 - Voice index: https://huggingface.co/rhasspy/piper-voices/raw/main/voices.json
 - HF repo (licence tag mit; commit history): https://huggingface.co/rhasspy/piper-voices and https://huggingface.co/api/models/rhasspy/piper-voices/commits/main
 - Blizzard 2013 Lessac dataset page: https://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/
 - Blizzard 2013 Lessac licence: https://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/license.html
-- OHF voice datasets (README, CITATION.cff): https://github.com/OHF-Voice/voice-datasets (branch `master`)
 - Piper voices doc: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md
 - Piper training doc: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/TRAINING.md
-- Piper checkpoints (base model, Dimitar checkpoint): https://huggingface.co/datasets/rhasspy/piper-checkpoints/tree/main/_base_model and https://huggingface.co/datasets/rhasspy/piper-checkpoints/tree/main/bg/bg_BG/dimitar/medium
+- Piper checkpoints (base model): https://huggingface.co/datasets/rhasspy/piper-checkpoints/tree/main/_base_model
 - HF discussion #94 (lessac lineage, Polish voices): https://huggingface.co/rhasspy/piper-voices/discussions/94
 - Piper discussion #271 (voices licensing): https://github.com/rhasspy/piper/discussions/271
 - piper1-gpl issue #314: https://github.com/OHF-Voice/piper1-gpl/issues/314

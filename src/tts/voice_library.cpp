@@ -183,7 +183,7 @@ bool ParseVoiceConfig(const std::string& name, const std::string& configText, Vo
         c.languageCode = StringOf(*lang, "code");
         c.languageName = StringOf(*lang, "name_english");
     }
-    if (c.languageCode.empty()) {  // "bg_BG-dimitar-medium" -> "bg_BG"
+    if (c.languageCode.empty()) {  // "bg_BG-sample-medium" -> "bg_BG"
         const size_t dash = name.find('-');
         if (dash != std::string::npos && dash > 0) c.languageCode = name.substr(0, dash);
     }

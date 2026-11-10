@@ -62,7 +62,7 @@ VoiceModel SampleModel() {
     VoiceModel m;
     m.languageId = "eng";
     m.installed = {Installed("en_GB-cori-medium", "en", true), Installed("en_GB-alba-medium", "en"),
-                   Installed("bg_BG-dimitar-medium", "bg", true)};
+                   Installed("bg_BG-sample-medium", "bg", true)};
     return m;
 }
 

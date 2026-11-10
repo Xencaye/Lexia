@@ -56,7 +56,7 @@ VoiceOutcome CheckVoiceAccepted(const std::string& name, const std::string& lang
                                 const std::string& languageName, const std::string& quality);
 
 // The facts in a Piper config (".onnx.json"). The language is `language.code`, else the part of
-// the Voice's name before the first '-' ("bg_BG" in "bg_BG-dimitar-medium": some configs, the
+// the Voice's name before the first '-' ("bg_BG" in "bg_BG-sample-medium": some configs, the
 // Bulgarian one among them, have no "language" object), else `espeak.voice`. The quality is
 // `audio.quality`, else the last '-' part of the name.
 struct VoiceConfig {
