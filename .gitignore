@@ -19,3 +19,6 @@ release/
 
 # design hand-off video: too large for git (236 MB) and holds the owner's voice
 wireframe/*.mp4
+
+# Python caches (training scripts)
+__pycache__/

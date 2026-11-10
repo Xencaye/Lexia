@@ -1,0 +1,155 @@
+# Fine-tunes PaddleOCR's en_PP-OCRv3_rec (SVTR_LCNet) for Lexia (task L). Based on PaddleOCR v2.9.1
+# configs/rec/PP-OCRv3/en_PP-OCRv3_rec.yml. train.ps1 fills the paths with -o; the rest is fixed here.
+#
+# What must not change, so that src/ocr.cpp and ctc.* keep working with the exported model:
+#   - the architecture (Backbone / Neck / CTC head) and the dictionary: dict_en.txt is Lexia's models\dict_en.txt,
+#     the same 95 characters in the same order, plus the space (use_space_char) = 97 classes with the blank;
+#   - the input height 48 and the normalisation (RecResizeImg: x / 255 - 0.5) / 0.5, as Lexia's x / 127.5 - 1.
+# What differs from PaddleOCR's file, and why:
+#   - a low learning rate and 10 epochs: this is a fine-tune of the published weights, not a new model;
+#   - no RecAug: its distortions run in Python and made the loader 4x slower than the GPU; gen_lines.py already
+#     varies size, scale, colour, outline, blur, noise and JPEG loss;
+#   - batch 64 and AMP: batch 96 at width 480 filled the 10 GB of the RTX 3080;
+#   - width 480 and max_text_length 40: Lexia gives whole lines (any width), not words;
+#   - distributed false, num_workers 4, use_shared_memory false: one GPU on Windows, where shared-memory loader
+#     workers are unreliable;
+#   - eval on the synthetic pixel + normal check sets of gen_lines.py.
+
+Global:
+  debug: false
+  use_gpu: true
+  epoch_num: 10
+  log_smooth_window: 20
+  print_batch_step: 50
+  save_model_dir: ./output/lexia_rec_en
+  save_epoch_step: 1
+  eval_batch_step: [0, 2000]
+  cal_metric_during_train: true
+  pretrained_model:
+  checkpoints:
+  save_inference_dir:
+  use_visualdl: false
+  infer_img:
+  character_dict_path: ./dict_en.txt
+  max_text_length: &max_text_length 40
+  infer_mode: false
+  use_space_char: true
+  distributed: false
+  save_res_path: ./output/lexia_rec_en/predicts.txt
+  # Mixed precision (O1) on the RTX tensor cores: about 1.5x faster and less memory than fp32.
+  use_amp: true
+  amp_level: O1
+  scale_loss: 1024.0
+  use_dynamic_loss_scaling: true
+
+Optimizer:
+  name: Adam
+  beta1: 0.9
+  beta2: 0.999
+  lr:
+    name: Cosine
+    learning_rate: 0.0002
+    warmup_epoch: 1
+  regularizer:
+    name: L2
+    factor: 3.0e-05
+
+Architecture:
+  model_type: rec
+  algorithm: SVTR_LCNet
+  Transform:
+  Backbone:
+    name: MobileNetV1Enhance
+    scale: 0.5
+    last_conv_stride: [1, 2]
+    last_pool_type: avg
+    last_pool_kernel_size: [2, 2]
+  Head:
+    name: MultiHead
+    head_list:
+      - CTCHead:
+          Neck:
+            name: svtr
+            dims: 64
+            depth: 2
+            hidden_dims: 120
+            use_guide: True
+          Head:
+            fc_decay: 0.00001
+      - SARHead:
+          enc_dim: 512
+          max_text_length: *max_text_length
+
+Loss:
+  name: MultiLoss
+  loss_config_list:
+    - CTCLoss:
+    - SARLoss:
+
+PostProcess:
+  name: CTCLabelDecode
+
+Metric:
+  name: RecMetric
+  main_indicator: acc
+  ignore_space: False
+
+Train:
+  dataset:
+    name: SimpleDataSet
+    data_dir: ./data
+    ext_op_transform_idx: 1
+    label_file_list:
+    - ./data/train_list.txt
+    transforms:
+    - DecodeImage:
+        img_mode: BGR
+        channel_first: false
+    - RecConAug:
+        prob: 0.3
+        ext_data_num: 2
+        image_shape: [48, 480, 3]
+        max_text_length: *max_text_length
+    - MultiLabelEncode:
+    - RecResizeImg:
+        image_shape: [3, 48, 480]
+    - KeepKeys:
+        keep_keys:
+        - image
+        - label_ctc
+        - label_sar
+        - length
+        - valid_ratio
+  loader:
+    shuffle: true
+    batch_size_per_card: 64
+    drop_last: true
+    num_workers: 4
+    use_shared_memory: false
+
+Eval:
+  dataset:
+    name: SimpleDataSet
+    data_dir: ./data
+    label_file_list:
+    - ./data/val_list.txt
+    transforms:
+    - DecodeImage:
+        img_mode: BGR
+        channel_first: false
+    - MultiLabelEncode:
+    - RecResizeImg:
+        image_shape: [3, 48, 480]
+    - KeepKeys:
+        keep_keys:
+        - image
+        - label_ctc
+        - label_sar
+        - length
+        - valid_ratio
+  loader:
+    shuffle: false
+    drop_last: false
+    batch_size_per_card: 64
+    num_workers: 4
+    use_shared_memory: false
