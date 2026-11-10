@@ -171,6 +171,11 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
 
 - **Never take focus in the overlay.** It must stay `WS_EX_NOACTIVATE`: full-screen games
   minimise when they lose focus. Don't "fix" keyboard input going to the game by activating it.
+- **Updates keep the user's data** (owner, Nov 10). An update (Setup, the portable zip, or a newer Lexia's first
+  start) never deletes or resets settings.json values, the user's Voices, Presets or the chosen Voice unless there is
+  no other way; then the PR says why and the owner agrees first. A Voice that a new version stops shipping stays
+  usable as one of the user's own Voices, so its controls and Presets keep working. A setting that is no longer read
+  stays in the file. Never add `{app}\voices` or `%LOCALAPPDATA%\Lexia` to the installer's `[InstallDelete]`.
 - Keep `layout.*` free of Win32 and ONNX so it stays unit-testable.
 - Text is UTF-8 in `std::string` internally; convert to UTF-16 only at Win32 boundaries.
   Source files are UTF-8 (compiled with `/utf-8`).
@@ -225,7 +230,8 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   `v0.6.1`: the new Discord invite only), kept in `release\<v>\` (git-ignored).
 - **Now: towards Lexia 0.7** (owner, Nov 8: future changes go into 0.7); `vcpkg.json` says 0.7.0. Done for 0.7:
   B8, the shipped Voices `en_GB-cori-medium` (the default: the first English Voice in `voices.json`) and
-  `en_US-mike-medium` instead of `en_US-ljspeech-medium`. New work branches from `main`.
+  `en_US-mike-medium` instead of `en_US-ljspeech-medium`. Planned for 0.7: B9, an update keeps a Voice that Lexia no
+  longer ships (it becomes one of the user's own Voices). New work branches from `main`.
 - **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B8, games, the
   installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
 - **Later:** E1, E2, E6 (the owner trains a Bulgarian Voice from their own voice) and the Language UI (Lexia 0.8);
