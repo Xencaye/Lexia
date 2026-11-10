@@ -6,9 +6,12 @@
 #include <cstdlib>
 #include <iterator>
 
+#include "codepoint.h"
+
 // ----------------------------------------------------------- reading order ---
 // Top-to-bottom in rows, left-to-right inside a row. Two boxes belong to the same row
-// when they overlap vertically by at least half of the shorter one's height. Sorting by
+// when they overlap vertically by at least half of the shorter one's height and do not
+// share half of the narrower one's width (those are stacked, top one first). Sorting by
 // the raw top edge is fragile: the detector's boxes jitter by a pixel or two, which can
 // put a piece on the right *before* its neighbour on the left.
 template <typename T>  // T needs a Rect member called `box`
@@ -34,6 +37,24 @@ void SortReadingOrder(std::vector<T>& v) {
             const int minH = std::min<int>(anchor.bottom - anchor.top,
                                            v[j].box.bottom - v[j].box.top);
             if (minH > 0 && overlap * 2 >= minH) {
+                // Two centred lines of a bubble can overlap vertically by more than half (tight
+                // leading in big lettering) and the wider one may start further left; sorting them
+                // by left edge would read the lower line first. Boxes that also share most of
+                // their width are stacked, not side by side: the one with the higher top comes
+                // first, so this candidate waits for a row of its own.
+                bool stacked = false;
+                for (size_t m : row) {
+                    const Rect& r = v[m].box;
+                    const int shared = std::min<int>(r.right, v[j].box.right) -
+                                       std::max<int>(r.left, v[j].box.left);
+                    const int narrower = std::min<int>(r.right - r.left,
+                                                       v[j].box.right - v[j].box.left);
+                    if (narrower > 0 && shared * 2 >= narrower) {
+                        stacked = true;
+                        break;
+                    }
+                }
+                if (stacked) continue;
                 row.push_back(j);
                 taken[j] = 1;
             }
@@ -166,7 +187,133 @@ bool StartsLowercase(const std::string& s) {
     return false;
 }
 
+// Is this code point a lower-case letter of the scripts Lexia reads (the same set as
+// StartsLowercase: a-z, Latin-1 ß-ÿ without ÷, Cyrillic а-я and ѐ-џ)?
+bool IsLowercaseCodePoint(char32_t cp) {
+    return (cp >= U'a' && cp <= U'z') || (cp >= 0xDF && cp <= 0xFF && cp != 0xF7) ||
+           (cp >= 0x430 && cp <= 0x45F);
+}
+
+// Does the text hold any lower-case letter? Decodes with NextCodePoint, so malformed OCR bytes
+// cannot run past the end of the string; empty text has none.
+bool HasLowercase(const std::string& s) {
+    for (size_t i = 0; i < s.size();) {
+        if (IsLowercaseCodePoint(NextCodePoint(s, i))) return true;
+    }
+    return false;
+}
+
+// Does the text end a sentence (. ! ? : ; or an ellipsis, optionally followed by closing quotes
+// or brackets and spaces)? Then the next Line starts something new. Works on the bytes from the
+// end with a bound check at every step, so a short or malformed text is safe; empty text does not.
+bool EndsSentence(const std::string& s) {
+    size_t n = s.size();
+    auto endsWith = [&](const char* tail) {
+        const size_t len = std::char_traits<char>::length(tail);
+        return n >= len && s.compare(n - len, len, tail) == 0;
+    };
+    // Spaces, closing brackets and closing quotes (ASCII, U+2019, U+201D, U+00BB) are skipped.
+    while (n > 0) {
+        const char c = s[n - 1];
+        if (c == ' ' || c == '\t' || c == ')' || c == ']' || c == '}' || c == '"' || c == '\'') {
+            --n;
+        } else if (endsWith("\xE2\x80\x99") || endsWith("\xE2\x80\x9D")) {
+            n -= 3;
+        } else if (endsWith("\xC2\xBB")) {
+            n -= 2;
+        } else {
+            break;
+        }
+    }
+    if (n == 0) return false;
+    const char last = s[n - 1];
+    return last == '.' || last == '!' || last == '?' || last == ':' || last == ';' ||
+           endsWith("\xE2\x80\xA6");  // U+2026 ellipsis
+}
+
+// ---- Row fragments: constants, in line heights unless noted ----
+// The detector sometimes cuts one line of pixel-font or widely spaced text into word groups
+// that sit side by side. They are put back together when they are one row of similar text.
+const double kRowJoin = 1.2;       // the widest gap between two fragments of one row; a grid of
+                                   // items ("File 01 | File 02") is ~1.7 apart and must stay apart
+const double kRowOverlap = -1.0;   // fragments may overlap this much horizontally (skewed boxes)
+const double kRowHeightLo = 0.65;  // height ratio of neighbours: boxes of lower-case-only text are
+const double kRowHeightHi = 1.55;  //   shorter than ones with ascenders, so this is generous
+const double kRowCentre = 0.35;    // the vertical centres may differ by this much
+
+// Are `next` and the fragment `prev` (the last piece of a row so far, which `rowRight` is the right
+// edge of the whole row so far) pieces of one visual row?
+bool SameRow(const Rect& prev, int rowRight, const Rect& next) {
+    const int hp = prev.bottom - prev.top, hn = next.bottom - next.top;
+    if (hp <= 0 || hn <= 0) return false;
+    const double lh = (hp + hn) / 2.0;  // the two pieces' mean height: the Shot median would
+                                        // need a parameter and these two are what is compared
+    const double ratio = static_cast<double>(hn) / hp;
+    if (ratio < kRowHeightLo || ratio > kRowHeightHi) return false;
+    const double centreDiff = std::abs((prev.top + prev.bottom) - (next.top + next.bottom)) / 2.0;
+    if (centreDiff > kRowCentre * lh) return false;
+    const double gap = static_cast<double>(next.left) - rowRight;
+    return gap >= kRowOverlap * lh && gap <= kRowJoin * lh;
+}
+
+// ---- Tight centred stacks: constants, in line heights ----
+const double kStackGap = 0.5;     // the widest gap for a centred line to go on into the next
+const double kStackCentre = 0.3;  // the centres must match this well
+const double kStackEdge = 0.6;    // an edge that matches this well is "aligned", not centred
+// B1 limits the cue to all-caps pairs (comic bubbles, captions). B2 (false) allows any case, but
+// then two real Fixture cases merge: a centred list of mixed-case statistics (unraveled_01) and
+// a value that happens to be centred under another column's value (twd_02). Both get worse, so
+// B1 is kept; a mixed-case centred prompt is therefore still one Block per line.
+const bool kStackAllCapsOnly = true;
+
+// Does the short Line A, with the Line B below it, form a tight centred stack (a bubble, a caption,
+// a centred prompt) rather than two entries of a list? The tests: A does not end a sentence, the
+// gap is tight, the centres match, and the two lines are ragged (neither the left nor the right
+// edge matches), because equal-width or edge-aligned lines are the shape of a menu. Once the
+// group has two members a ragged pair has already shown that it is a centred stack, so an edge
+// that happens to match no longer splits it ("DOESN'T GIVE" over "ANY DETAILS"). `gap` >= 0.
+bool ContinuesCentredStack(const Rect& A, const std::string& textA, const Rect& B,
+                           const std::string& textB, double lh, int gap, size_t groupSize) {
+    if (gap > kStackGap * lh) return false;
+    if (EndsSentence(textA)) return false;
+    if (kStackAllCapsOnly && (HasLowercase(textA) || HasLowercase(textB))) return false;
+    const double centreDiff = std::abs((A.left + A.right) - (B.left + B.right)) / 2.0;
+    if (centreDiff > kStackCentre * lh) return false;
+    const bool edgeAligned = std::abs(A.left - B.left) <= kStackEdge * lh ||
+                             std::abs(A.right - B.right) <= kStackEdge * lh;
+    return !edgeAligned || groupSize >= 2;
+}
+
 }  // namespace
+
+// Puts the pieces of one visual row back together. `lines` is put in reading order first (rows top
+// to bottom, left to right), so the pieces of a row are neighbours; each piece that is one row with
+// the one before it (SameRow) is added to it. The merged Line has the union box, the texts joined
+// by one space, and the lowest confidence of its pieces (the weakest piece is the doubt about the
+// whole). Heights, centres and the gap are judged against the last piece, not the union, so a long
+// row does not drift. A piece is compared with its neighbour in the sorted order only: a different
+// row in between simply keeps the pieces apart.
+std::vector<TextLine> MergeRowFragments(std::vector<TextLine> lines) {
+    SortReadingOrder(lines);
+    std::vector<TextLine> out;
+    Rect last = {};  // the last piece added to out.back()
+    for (TextLine& l : lines) {
+        if (!out.empty() && SameRow(last, out.back().box.right, l.box)) {
+            TextLine& m = out.back();
+            m.box.left = std::min(m.box.left, l.box.left);
+            m.box.top = std::min(m.box.top, l.box.top);
+            m.box.right = std::max(m.box.right, l.box.right);
+            m.box.bottom = std::max(m.box.bottom, l.box.bottom);
+            m.text += ' ';
+            m.text += l.text;
+            m.conf = std::min(m.conf, l.conf);
+        } else {
+            out.push_back(l);
+        }
+        last = l.box;
+    }
+    return out;
+}
 
 // The OCR's Lines -> Blocks in Reading order. First the noise is dropped (low confidence, no letter or
 // digit, icon-sized one- or two-character Lines); then Lines that belong together by spacing and
@@ -189,7 +336,10 @@ std::vector<TextBlock> GroupBlocks(std::vector<TextLine> lines, const LayoutPara
                                    }),
                     lines.end());
     }
-    SortReadingOrder(lines);
+    // The typical height is taken from the detector's pieces, before they are merged, so the cut
+    // thresholds of XyCut stay what they were tuned with.
+    const int typicalHeight = lines.empty() ? 0 : MedianLineHeight(lines);
+    lines = MergeRowFragments(std::move(lines));  // also puts the Lines in reading order
 
     struct Group {
         std::vector<size_t> members;
@@ -233,7 +383,13 @@ std::vector<TextBlock> GroupBlocks(std::vector<TextLine> lines, const LayoutPara
         // stacked Lines are a menu or a list, one Block per entry, unless the next Line starts in
         // lower case (the sentence goes on: a narrow bubble, a centred subtitle). Overlapping
         // boxes (gap < 0) are tight leading in big lettering, which a list with padding never has.
-        if (gap >= 0 && wa < params.listLine * lh && !StartsLowercase(lineB.text)) return false;
+        // A tight centred stack of lines that does not end a sentence (a bubble, a caption) is the
+        // other cue that the text goes on.
+        if (gap >= 0 && wa < params.listLine * lh && !StartsLowercase(lineB.text) &&
+            !ContinuesCentredStack(A, lines[g.members.back()].text, B, lineB.text, lh, gap,
+                                   g.members.size())) {
+            return false;
+        }
 
         *gapOut = gap;
         return true;
@@ -285,7 +441,7 @@ std::vector<TextBlock> GroupBlocks(std::vector<TextLine> lines, const LayoutPara
         blocks.push_back(std::move(blk));
     }
     if (blocks.empty()) return blocks;
-    return XyCut(std::move(blocks), MedianLineHeight(lines), params.columnGap);
+    return XyCut(std::move(blocks), typicalHeight, params.columnGap);
 }
 
 // All Blocks' text as one line, joined by spaces (for the console).

@@ -33,6 +33,16 @@ Measured 2026-10-25 on commit `90a3213` (before any change to `layout.*`), 18 Fi
 Dist is the normalised edit distance of the joined Block text (0 = identical, case ignored);
 BlkErr is |produced Blocks - expected Blocks|. Both are in `tests/fixtures/baseline.json`.
 
+> **Note (2026-11-10), row fragments and tight centred stacks:** over the 17 Fixtures left in
+> `tests/fixtures/` the average went from Dist 0.1356 / BlkErr 1.76 to **Dist 0.1310 / BlkErr 1.29**
+> (`baseline.json` rewritten). lovebyte_01 (Dist 0.0889 -> 0.0455, BlkErr 2 -> 0) and lovebyte_02 (0.0659 -> 0.0184,
+> BlkErr 5 -> 1) improved because "Save" | "Files" and "Early" | "Access" | "Version" | "0.9.18" are one Block now;
+> oblivion_01 has two Blocks fewer (BlkErr 4 -> 2) but its Dist rose 0.2870 -> 0.3009, because the joined
+> "preloading:" and ": 2%" keep the OCR's stray colon. The other Fixtures are unchanged. A row join of 1.2 line
+> heights keeps the 1.7 lh grid of lovebyte_02 and the 3 lh gaps of twd_02 apart. The centred-stack cue is limited to
+> all-caps text: allowing any case merged a centred list of statistics (unraveled_01) and a value centred under
+> another column's value (twd_02), and both got worse.
+
 To re-run: build (`cmake --build build --config Release`), then
 `powershell -ExecutionPolicy Bypass -File scripts\score_layout.ps1`. It prints this table, the
 average, and exits 1 if any Fixture got worse than `baseline.json`. Add `-SaveBaseline` to

@@ -21,6 +21,13 @@ struct LayoutParams {
                                 // shorter stacked Lines are a list, one Block per entry
 };
 
+// Puts back together the pieces of one visual row that the detector cut apart (a pixel-font line
+// as "HAVE" "YOU" "ANSWERED"): neighbouring Lines of similar height and vertical centre whose
+// horizontal gap is at most 1.2 line heights become one Line (union box, texts joined by a space,
+// lowest confidence). Wider gaps (grid cells, label | value) stay apart. The result is in reading
+// order. GroupBlocks calls this before it groups; it is exposed for the tests.
+std::vector<TextLine> MergeRowFragments(std::vector<TextLine> lines);
+
 // Groups lines into blocks using spacing and alignment, in reading order.
 std::vector<TextBlock> GroupBlocks(std::vector<TextLine> lines,
                                    const LayoutParams& params = LayoutParams());

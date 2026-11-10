@@ -1,9 +1,9 @@
 {
   "fixtures": {
-    "lovebyte_01": { "distance": 0.088889, "blockCountError": 2 },
-    "lovebyte_02": { "distance": 0.065868, "blockCountError": 5 },
+    "lovebyte_01": { "distance": 0.045455, "blockCountError": 0 },
+    "lovebyte_02": { "distance": 0.018405, "blockCountError": 1 },
     "lovebyte_03": { "distance": 0.270916, "blockCountError": 5 },
-    "oblivion_01": { "distance": 0.286957, "blockCountError": 4 },
+    "oblivion_01": { "distance": 0.300885, "blockCountError": 2 },
     "seed-article": { "distance": 0, "blockCountError": 0 },
     "twd_01": { "distance": 0.125, "blockCountError": 0 },
     "twd_02": { "distance": 0.214286, "blockCountError": 4 },
