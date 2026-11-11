@@ -585,8 +585,9 @@ void App::EndKeyCapture() {
 }
 
 // The card's play button: speak what the selected Key or switch does, so a person who cannot read the card well
-// yet (Lexia may still be Off) hears it. The words are the card's own, from the string table (CardDescId:
-// window.keys.<action>Desc or window.switches.<name>Desc, one Block per line), in the Interface language; the
+// yet (Lexia may still be Off) hears it. The words are the card's own, from the string table: the title first
+// (CardTitleId), then the description (CardDescId: window.keys.<action>Desc or window.switches.<name>Desc, one
+// Block per line), in the Interface language; the
 // page sends only the card's id. It is a Reading of its own: it takes the place of what was being spoken. K11: the
 // button then shows "stop" (UiState::readingCard) until the Reading ends, and a press on it stops that Reading; the
 // press after that starts the card again from the beginning. The message stays `readKeyCard` for both: the App
@@ -604,15 +605,12 @@ void App::ReadKeyCard(const std::string& cardId) {
     const std::string id = CardDescId(cardId);
     const std::string text = strings::Text(settings_.interfaceLanguage, id);
     if (text == id) return;  // no such card: the table gave the id back, which must not be spoken
-    std::vector<std::string> blocks;
-    size_t start = 0;
-    while (start <= text.size()) {
-        const size_t end = text.find('\n', start);
-        const std::string line = Trim(text.substr(start, end == std::string::npos ? std::string::npos : end - start));
-        if (!line.empty()) blocks.push_back(line);
-        if (end == std::string::npos) break;
-        start = end + 1;
-    }
+    // The card's title is spoken first, then its description (CardReadingBlocks). A title the table does not
+    // know gives its id back, which must not be spoken: then only the description is read.
+    const std::string titleId = CardTitleId(cardId);
+    std::string title = strings::Text(settings_.interfaceLanguage, titleId);
+    if (title == titleId) title.clear();
+    const std::vector<std::string> blocks = CardReadingBlocks(title, text);
     // A reading started now replaces what was spoken (append = false), the card reading before it included.
     // Id 0 (nothing queued) leaves no card reading, so the button stays "read aloud".
     const uint64_t readingId = blocks.empty() ? 0 : speaker_.SpeakReading(blocks, /*append=*/false);

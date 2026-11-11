@@ -82,8 +82,8 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
 - [ ] **K10 Window buttons.** Drag the window by the empty area; minimise and close with the mouse, Tab + Enter,
   Alt+Space and Alt+F4; the shadow and the corners; 100 / 150 / 200 % and a move between monitors; Narrator reads both
   buttons.
-- [ ] **K11 Read / stop button.** Click the speaker on a card: speech starts and the icon changes; click again: it
-  stops; once more: it starts from the first sentence; a card that finishes shows the speaker again; another card shows
+- [ ] **K11 Read / stop button.** Click the speaker on a card: speech starts with the card's title, then its
+  description, and the icon changes; click again: it stops; once more: it starts again from the title; a card that finishes shows the speaker again; another card shows
   the speaker and a click replaces the reading; a Pick queued behind a card goes on when the card is stopped; Narrator
   reads "Stop reading ..."; no shaking while it shows stop; 150 % and dark.
 - [ ] **K12 Logo.** The exe icon in Explorer (large and small), the tray icon On and Off (16 and 32 px, on a dark and a
