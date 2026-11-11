@@ -43,6 +43,14 @@ On-screen wording follows the glossary.
 
 These are the by-hand checks of merged work. Each item is short; tick it here when it is done.
 
+- [ ] **R36–R45 (review fixes, Nov 11).** Run as admin on: start Lexia again from a normal shortcut (no second tray
+  icon; the running one opens its window); Setup with an elevated Lexia running offers to close it. Download or add
+  a Voice for a Language that had none and hear it at once. Quit while the catalogue loads with the network blocked
+  (Lexia ends in about a second). Pause a key card, let an Announcement play, stop the card, then pick text (it is
+  read). Read-along under "He met Mr. smith. Then left." and "Wait... what? Yes!". settings.json with a `//`
+  comment: change the Read key in the window, then edit the file (the key stays). Quit from the tray with the
+  Settings window open and Narrator on (no hang). The speed slider drags smoothly.
+
 - [ ] **L7 The game-font recogniser.** In Undertale: the instruction screen, the menu, dialogue and battle text read
   right aloud. A browser page and a video with subtitles read as well as before. In Unravel's menu, a lamp may be read
   as "3" (known). Agree the 22 font families added for round 2 (`docs/notes/training-fonts.md`, "round 2").
@@ -117,7 +125,22 @@ Help page shows its place until then.
 | R25 | `capture.cpp` | The DIB bits are read right after `BitBlt` without the `GdiFlush()` that the CreateDIBSection docs ask for. | `GdiFlush()` after `BitBlt` |
 | R33 | `main.cpp` | `SetProcessDpiAwarenessContext` is imported statically, so the `SetProcessDPIAware` fallback never runs (the exe does not load before Windows 10 1703). | Remove the fallback; the manifest declares PerMonitorV2 |
 
-R1–R23, R26–R32 and R34–R35 are fixed (Phase 0, A, C, D, E). Unverified, for the owner: GDI `BitBlt` returning
+R1–R23, R26–R32 and R34–R45 are fixed (Phase 0, A, C, D, E; R36–R45 from the whole-codebase review of Nov 11,
+fixed on `feat/L` at the owner's request, this once; later review fixes go on their version's branch):
+
+| # | Where | Finding | Fix |
+| --- | --- | --- | --- |
+| R36 | `instance.cpp` | A non-elevated launch could not open an elevated Lexia's mutex (access denied) and took itself for the first Lexia; the installer's check failed the same way. | DACL of the user and SYSTEM with a Medium label; access denied = another Lexia runs (`ClassifyMutexCreate`, tested) |
+| R37 | `voice_tab.cpp`, `speech.*` | After a Voice was added or downloaded, the Speaker kept its loaded Voices, also a remembered "no Voice", until a restart. | `Speaker::VoicesChanged` after an add or download |
+| R38 | `voice_tab.cpp`, `net/` | The catalogue fetch could not be cancelled, so Quit (and the Run as admin relaunch) could wait a minute on a bad network. | `FetchCancel` closes the request handle; `~VoiceTab` cancels both fetches. Residual: after `Cancel()` the fetch can make one more call with the closed handle value, which fails (very unlikely: a reused value makes the other download fail its MD5 check) |
+| R39 | `reading_queue.cpp` | `StopReading` during an Announcement cut it off and left the queue paused for the next Reading. | A playing Announcement is never cut off; the held pause ends with its Reading (4 tests) |
+| R40 | `voice_tab.cpp` | Every state push read both Voice folders and every Voice JSON on the UI thread (twice per slider step). | Cached list, read again after a change |
+| R41 | `app.cpp`, `settings.*` | A settings.json reload put back hotkeys, the Control bar and the Interface language whose save had failed. | `MergeReloadedSettings` for every field (6 tests) |
+| R42 | `read_along.cpp` | The read-along sentence split did not match espeak-ng ("Mr. smith", "e.g. a", "Wait... what?"). Checked against the real Piper: "Mr. Smith went home." was already right. | `EndsSentence` as espeak-ng (8 tests) |
+| R43 | `settings_window.cpp` | The destructor skipped `WM_DESTROY`, so the UI Automation provider was not detached in order. | `DestroyWindow` with the user data set, `destroying_` guard |
+| R44 | `CLAUDE.md` | The module map put `key_chord.*` in `native_ui/` and had no `key_edit.*`. | Own row |
+| R45 | `app.cpp` | One Home On / Off click pushed the state twice. | One push |
+ Unverified, for the owner: GDI `BitBlt` returning
 black for exclusive-fullscreen or HDR games; the detector using every core while a game runs (stutter?).
 
 ### E — Bulgarian (Lexia 0.8; on hold, ADR-0007)
