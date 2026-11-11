@@ -188,7 +188,7 @@ bool App::Init() {
     if (runKey) WriteRunAtStartup(true, settings_.startMinimised);
 
     // An update keeps the user's Voices (B9): a Voice that an older Lexia shipped and this one no longer
-    // does (ljspeech after 0.6) is copied from the program folder into the user's Voices folder, before
+    // does (e.g. Cori and Mike, shipped only by 0.7 test builds) is copied from the program folder into the user's Voices folder, before
     // anything lists or loads Voices (the Speaker below, the Voices page later). Runs here on the UI thread,
     // once per start: the first start after such an update copies ~60 MB per Voice. Each retired Voice is
     // handled once: its name goes into settings.json ("adoptedVoices"), so a Voice that the person deletes

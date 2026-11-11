@@ -6,7 +6,7 @@ records are in git history and in the PRs)
 Every term below is defined in `GLOSSARY.md`, and every decision with a trade-off is in `docs/adr/`.
 On-screen wording follows the glossary.
 
-## Status (Nov 8, 2026)
+## Status (Nov 12, 2026)
 
 - **Released:** Lexia 0.5.0 (Nov 5, tag `v0.5.0`) and **Lexia 0.6.0** (Nov 8, tag `v0.6.0`:
   `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, kept in `release\0.6.0\`). **Lexia 0.6.1** (Nov 8, tag `v0.6.1`,
@@ -25,7 +25,7 @@ On-screen wording follows the glossary.
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
 - **History reset (Nov 5):** `Xencaye/Lexia` restarted from one commit. PR and issue numbers from before the reset
-  (the old #1–#42) and the tag `v0.5.0` are in the private repo `Xencaye/Lexia-archive`. PR numbers #1–#12 in this
+  (the old #1–#42) and the tag `v0.5.0` are in the private repo `Xencaye/Lexia-archive`. PR numbers from #1 up in this
   plan are in the new repo.
 
 ## How we work
@@ -114,9 +114,10 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   a Low one: both are added, listed as "LJ Speech (High)" and "… (Low)", and speak. The Voice choice shows "LJ Speech
   (Medium)" and "Norman (Medium)"; hover the choice and each open row: the tooltip is the file name. The Download
   sheet shows short names (Medium only) with the file name on hover; the Delete sheet names the short name.
-- [ ] **B9 Update keeps old Voices.** Update a 0.6 install with ljspeech active, its Speed changed and a ljspeech Preset
-  saved: ljspeech is on the Voices page as your own Voice (Delete works), still speaks, keeps its Speed, and the Preset
-  loads into it. Then delete it, Quit and start Lexia again: it stays deleted.
+- [ ] **B9 Update keeps old Voices.** Update a 0.7 test build with Cori active, its Speed changed and a Cori Preset
+  saved (ljspeech ships again since B10, so a 0.6 install keeps it as a shipped Voice): Cori is on the Voices page as
+  your own Voice (Delete works), still speaks, keeps its Speed, and the Preset loads into it. Then delete it, Quit and
+  start Lexia again: it stays deleted. Also update a 0.6 install with ljspeech active: it stays active, with its Speed.
 
 ## Open tasks
 
@@ -148,7 +149,8 @@ fixed on `feat/L` at the owner's request, this once; later review fixes go on th
 | R43 | `settings_window.cpp` | The destructor skipped `WM_DESTROY`, so the UI Automation provider was not detached in order. | `DestroyWindow` with the user data set, `destroying_` guard |
 | R44 | `CLAUDE.md` | The module map put `key_chord.*` in `native_ui/` and had no `key_edit.*`. | Own row |
 | R45 | `app.cpp` | One Home On / Off click pushed the state twice. | One push |
- Unverified, for the owner: GDI `BitBlt` returning
+
+Unverified, for the owner: GDI `BitBlt` returning
 black for exclusive-fullscreen or HDR games; the detector using every core while a game runs (stutter?).
 
 ### E — Bulgarian (Lexia 0.8; on hold, ADR-0007)
@@ -178,7 +180,8 @@ come by the 1.0 release, 1.0 ships unsigned; nothing here blocks a release.
 - [ ] **H5.2 Eligibility (agent, then owner).** Every shipped part against `licenses/components/` (all OSI or
   public domain / CC BY data); ask SignPath whether public-domain and CC BY data files (the Voice, icons, pictures) are
   acceptable. Also: the uninstaller, no hidden system changes, privacy (ADR-0005).
-- [ ] **H5.3 Code signing policy (agent).** A "Code signing policy" section in `README.md` (the attribution line, the
+- [ ] **H5.3 Code signing policy (agent).** A "Code signing policy" section in a `README.md` at the repo root (there is
+  none yet; the package has `package/README.txt`) (the attribution line, the
   roles, the privacy statement), linked from the release notes.
 - [ ] **H5.4 Release workflow (agent).** `.github/workflows/release.yml` on a `v*` tag on `main` (and
   `workflow_dispatch` for a test run): `windows-latest`, **no caches** (SignPath's origin check), `fetch_deps.ps1`,
@@ -357,7 +360,8 @@ mixed with normal text so that other text does not get worse.
 by SHA-256 before Lexia loads it. The training side: every download (fonts, the PaddleOCR checkpoint, Python packages)
 pinned by URL and hash or version; the PaddleOCR checkpoint (`.pdparams`, a pickle format) only from PaddleOCR's own
 URL; font files are untrusted input to FreeType / Pillow, so they are parsed only in the training venv (on the owner's PC), each in its own folder, scripts run with `python -I`; nothing from the user's screen is used, only the Fixtures
-in the repo. `--dump-crops` writes only to the folder it is given and never logs recognised text.
+in the repo. (A `lexia_cli --dump-crops` was planned for L1 and not made; if it comes, it writes only to the folder it
+is given and never logs recognised text.)
 
 **Alternatives, not chosen now.** A word fix after recognition (a dictionary that turns "Cance1" into "Cancel") is
 cheaper but guesses, and breaks names and codes. A newer recogniser (PP-OCRv4 / v5 English) may read pixel fonts better

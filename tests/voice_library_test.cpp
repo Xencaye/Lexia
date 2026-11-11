@@ -548,7 +548,7 @@ TEST_CASE("RemoveVoice: the Voice is gone from ListInstalledVoices") {
 
 namespace {
 
-// A program folder as an update of 0.6 leaves it: voices.json lists only Cori; ljspeech is a leftover.
+// A program folder as an update leaves it (made-up data): voices.json lists only Cori; ljspeech is a leftover.
 void MakeOldProgramFolder(const fs::path& exe) {
     WriteText(exe / "voices.json", "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}]}");
     WriteText(exe / "en_GB-cori-medium.onnx", "CORI");

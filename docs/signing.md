@@ -17,8 +17,8 @@ With `-DLEXIA_SIGN=ON` the package step (`cmake/package.cmake`, running `lexia_s
 
 Signing happens after all files are copied and before `Lexia.zip` is made. Third-party DLLs (ONNX
 Runtime, OpenCV, the Visual C++ runtime ...) are never re-signed: they keep their vendors' signatures.
-The built `build\Release\lexia.exe` is not touched. The installer (task H4) must be built from the
-signed package folder, and its own `.exe` signed with the same `lexia_sign_files` function.
+The built `build\Release\lexia.exe` is not touched. The installer (task H4) is built after this step, from the
+signed package folder, so it installs the signed files; the setup file itself is not signed yet (H5 plans to sign it).
 
 Each file gets a SHA-256 file digest and an RFC 3161 timestamp (also SHA-256), so the signature
 stays valid after the certificate expires. The default timestamp server is

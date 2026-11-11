@@ -49,7 +49,7 @@ want every person to run as administrator all the time, as that is a risk for li
   file of the user who runs it, and never elevates.
 - The Run key value is unchanged (no switch). Start minimised decides after the relaunch too.
 - Later option: a Task Scheduler task with "highest privileges", started at logon, which gives an
-  elevated start without a UAC prompt. It needs the installer or an admin step once, so it waits
-  for an installer.
+  elevated start without a UAC prompt. It needs the installer or an admin step once; the installer (H4) could add it, but it is not
+  done.
 - Not needed: a manifest with `requireAdministrator`. It would ask for elevation of every start
   and of every person, and the setting would mean nothing.

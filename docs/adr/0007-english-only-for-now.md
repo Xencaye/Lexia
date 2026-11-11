@@ -23,6 +23,6 @@ not started (E1 Cyrillic Fixtures, E2 OCR quality) wait with it.
 - Since 2026-10-28 (D0 redesign), Lexia 0.5 shows no Language control at all: no Language selector
   (Home, Voice), no Language key in Settings, no Language button on the Control bar. The C++
   Language switch and its `switchLanguage` key setting stay. Language support is planned for
-  Lexia 0.8 (milestone M6 in the plan).
+  Lexia 0.8 (milestone M7 in the plan).
 - To offer a Language again: set its `offered` flag, put its models back in the package, give it a
   shipped Voice (`voices/voices.json`, licence checked, `docs/third-party.md`), and run its Fixtures.
