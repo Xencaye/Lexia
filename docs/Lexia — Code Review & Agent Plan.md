@@ -258,6 +258,12 @@ mixed with normal text so that other text does not get worse.
   nunber") and `unraveled_04` (a blurred lamp read as "3"); also "_" read as "..." and comic speed lines read as
   "I". Not shipped. **Round 3:** filmed look on 10 % of pixel lines (was 3 %), a tilted line kept whole in its crop,
   blurred lights in the no-text crops, comic hatching behind text, more user names with "_".
+  **Round 3 result (Nov 11, best epoch 10):** `undertale_02` right again, but average distance 0.138 and 3 Fixtures
+  worse (the pixel hatching of an icon read as "WW" in lovebyte_01/02). **Epochs on the Fixtures:** every epoch 2-10
+  of rounds 1-3 was scored; the best on the synthetic check lines is not the best on real screens. Best: **round 2,
+  epoch 5** (average distance 0.131 -> 0.110, Block-count error 1.29 -> 1.00, CER 0.87 % pixel / 0.47 % normal,
+  `undertale_05` all words right); only `unraveled_04` is worse (0.018 -> 0.045, beyond the 0.02 tolerance): a blurred
+  lamp that every fine-tuned epoch reads as "3". The owner decides: ship it, or a round 4.
 - [x] **L3 Export to ONNX (agent).** `export.ps1`: `tools/export_model.py` (CTC head only), `paddle2onnx` 1.3.1
   with opset 14 (paddle2onnx raises it from 11 for `hard_swish`; ONNX Runtime 1.20.1 runs it), then
   `check_onnx.py`: one input `[N, 3, 48, W]`, one output `[N, T, 97]`, each time step adds up to 1; the CER on the
