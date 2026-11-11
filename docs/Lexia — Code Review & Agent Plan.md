@@ -16,7 +16,8 @@ On-screen wording follows the glossary.
   broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
   Done for 0.7: B10, the Voices ljspeech (the default) and Norman instead of B8's Cori and Mike, and the Download
-  sheet's catalogue at commit `cf910fb`; B9, an update keeps a Voice that Lexia
+  sheet's catalogue at commit `cf910fb`; B11, a Voice the user adds from a file may be X-low, Low, Medium or High,
+  and the Voice lists show "LJ Speech (Medium)" with the file name as the tooltip; B9, an update keeps a Voice that Lexia
   no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
   stacks in the Layout; L, the English recogniser fine-tuned to read pixel game fonts (owner Nov 10; L0-L3, L5, L6
   done: round 2 epoch 5 ships as `ocr_models/rec_en.onnx`). Open in L: L4 (new pixel-font Fixtures) and L7 (owner).
@@ -109,6 +110,10 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   Voices (Delete works) and Cori still speaks. On a new install ljspeech is the default; pick Norman on the Voices page
   and Pick text ("library", "anonymized", "account"), also at Speed, Pitch and Volume changed. Open the Download sheet:
   the list loads and a download works.
+- [ ] **B11 Any quality, short names.** Add a High Voice from a file (for example `en_US-ljspeech-high`, 114 MB) and
+  a Low one: both are added, listed as "LJ Speech (High)" and "… (Low)", and speak. The Voice choice shows "LJ Speech
+  (Medium)" and "Norman (Medium)"; hover the choice and each open row: the tooltip is the file name. The Download
+  sheet shows short names (Medium only) with the file name on hover; the Delete sheet names the short name.
 - [ ] **B9 Update keeps old Voices.** Update a 0.6 install with ljspeech active, its Speed changed and a ljspeech Preset
   saved: ljspeech is on the Voices page as your own Voice (Delete works), still speaks, keeps its Speed, and the Preset
   loads into it. Then delete it, Quit and start Lexia again: it stays deleted.
@@ -375,6 +380,10 @@ can be scored with `lexia_cli` first if L does not reach its goal.
   `cf910fb`, the commit of `voices.json` (`docs/third-party.md`); B9 (0.7) an update keeps a Voice that Lexia no
   longer ships: Setup no longer empties `{app}\voices`, and `AdoptRetiredVoices` (`tts/voice_library.*`, called by
   `App::Init`) copies it into the user's Voices folder once (the names handled are kept in settings.json `adoptedVoices`, so deleting the Voice sticks; the rule "Updates keep the user's data").
+  B11 (0.7, owner Nov 11) the user's own Voices in any of Piper's qualities: `QualityRule` (`tts/voice_library.*`; the
+  catalogue and downloads stay Medium, a file or the user's folder is `AnyKnown`; an odd quality word is `UnknownQuality`),
+  and the Voice names on screen (`voice_names.*`: "LJ Speech (Medium)", "Jenny (Dioco) (Medium)"; the file name is
+  the tooltip of the Voice choice, its rows and the Download sheet's rows).
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
   quit key).
 - **D — Tray, Settings window, Control bar:** D0 / D1 (HTML pages in WebView2, replaced by K), D2 tray, D3–D6 window and
@@ -398,7 +407,8 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (the Voices ljspeech and Norman); B9 done
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (the Voices ljspeech and Norman); B11 done
+   (any quality from a file, short Voice names); B9 done
    (an update keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L:
    the fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
@@ -407,7 +417,8 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 ## Decisions
 
 - **Free and open source, GPL-3.0-or-later** (ADR-0003). Free, no paid version.
-- **Piper replaces SAPI** for all speech (ADR-0004); Medium-quality Voices only.
+- **Piper replaces SAPI** for all speech (ADR-0004); Lexia ships and downloads Medium Voices, and the
+  user may add their own in any of Piper's qualities (B11).
 - **The Overlay never takes focus; input from global hotkeys only** (ADR-0001). No low-level input hooks (anti-cheat).
 - **PaddleOCR stays** (ADR-0002).
 - **Network only when the user asks; the screen never leaves the PC** (ADR-0005).

@@ -292,6 +292,6 @@ std::string VoiceOutcomeToText(const VoiceOutcome& o) {
     if (o.ok()) return "added " + o.voiceName + " (" + o.languageName + ")\n";
     std::string text = ProblemId(o.problem);
     if (o.problem == VoiceProblem::UnsupportedLanguage) text += " (" + o.languageName + ")";
-    if (o.problem == VoiceProblem::NotMedium && !o.quality.empty()) text += " (" + o.quality + ")";
+    if ((o.problem == VoiceProblem::NotMedium || o.problem == VoiceProblem::UnknownQuality) && !o.quality.empty()) text += " (" + o.quality + ")";
     return text + ": " + o.detail + "\n";
 }

@@ -103,7 +103,9 @@ struct Rig {
 TEST_CASE("voices page: the Voice choice and the icon buttons send their messages") {
     Rig r;
     VoicesPage& p = r.Page_();
-    CHECK(p.VoiceSelect()->Items() == std::vector<std::string>{kCori, kAlba});
+    CHECK(p.VoiceSelect()->Items() == std::vector<std::string>{"Cori (Medium)", "Alba (Medium)"});  // short name + quality
+    CHECK(p.VoiceSelect()->ItemTooltips() == std::vector<std::string>{kCori, kAlba});        // the file name on hover
+    CHECK(p.VoiceSelect()->Tooltip() == kCori);                                              // the active Voice
     CHECK(p.VoiceSelect()->Selected() == 0);
     CHECK(p.VoiceSelect()->Enabled());
 
@@ -249,7 +251,7 @@ TEST_CASE("Delete voice: a modal sheet, the focus starts on Keep it, Delete send
     r.Click(*p.DeleteButton());
     REQUIRE(r.ui.screen.SheetCount() == 1);
     Sheet* s = r.Top();
-    CHECK(s->Access().name == "Delete en_GB-alba-medium?");
+    CHECK(s->Access().name == "Delete Alba (Medium)?");
     Widget* keep = Find(*s, "Keep it", Role::Button);
     Widget* del = Find(*s, "Delete", Role::Button);
     REQUIRE(keep);
@@ -312,9 +314,9 @@ TEST_CASE("Voice download: loading, then the list; Esc closes it and the focus g
     r.Events().CatalogueShown(Catalogue());
     r.ui.Frame();
     CHECK_FALSE(Find(*s, "Getting the list of voices"));
-    CHECK(Find(*s, "Download en_GB-jenny_dioco-medium", Role::Button));
-    CHECK(Find(*s, "Download en_US-amy-medium", Role::Button));
-    CHECK_FALSE(Find(*s, "Download en_GB-alba-medium", Role::Button));  // installed: a check, no button
+    CHECK(Find(*s, "Download Jenny (Dioco) (Medium)", Role::Button));
+    CHECK(Find(*s, "Download Amy (Medium)", Role::Button));
+    CHECK_FALSE(Find(*s, "Download Alba (Medium)", Role::Button));  // installed: a check, no button
     CHECK(r.ui.canvas.FindText("Installed"));
     CHECK(r.ui.canvas.FindText("63 MB"));
 
@@ -364,15 +366,15 @@ TEST_CASE("Voice download: one download at a time, progress moves the bar and re
     Sheet* s = r.Top();
 
     r.sent.clear();
-    r.Click(*Find(*s, "Download en_US-amy-medium", Role::Button));
+    r.Click(*Find(*s, "Download Amy (Medium)", Role::Button));
     REQUIRE(r.sent.size() == 1);
     CHECK(r.Last().type == PageMessageType::Download);
     CHECK(r.Last().name == "en_US-amy-medium");
 
     // The row shows Cancel and a bar; the other Voice's button is off (one at a time).
-    Widget* cancel = Find(*s, "Cancel download of en_US-amy-medium", Role::Button);
+    Widget* cancel = Find(*s, "Cancel download of Amy (Medium)", Role::Button);
     REQUIRE(cancel);
-    Widget* other = Find(*s, "Download en_GB-jenny_dioco-medium", Role::Button);
+    Widget* other = Find(*s, "Download Jenny (Dioco) (Medium)", Role::Button);
     REQUIRE(other);
     CHECK_FALSE(other->Enabled());
     r.Click(*other);
@@ -381,28 +383,28 @@ TEST_CASE("Voice download: one download at a time, progress moves the bar and re
     r.Events().DownloadProgress("en_US-amy-medium", 12 * kMiB, 63 * kMiB);
     r.ui.Frame();
     CHECK(r.ui.canvas.FindText("12 of 63 MB"));
-    CHECK(Find(*s, "Cancel download of en_US-amy-medium", Role::Button) == cancel);  // the same widget: no rebuild
+    CHECK(Find(*s, "Cancel download of Amy (Medium)", Role::Button) == cancel);  // the same widget: no rebuild
 
     // Cancel: asked once, the button says Cancelling and is off.
     r.sent.clear();
     r.Click(*cancel);
     REQUIRE(r.sent.size() == 1);
     CHECK(r.Last().type == PageMessageType::CancelDownload);
-    Widget* cancelling = Find(*s, "Cancel download of en_US-amy-medium", Role::Button);
+    Widget* cancelling = Find(*s, "Cancel download of Amy (Medium)", Role::Button);
     REQUIRE(cancelling);
     CHECK_FALSE(cancelling->Enabled());
     CHECK(r.ui.canvas.FindText("Cancelling"));
     r.Events().DownloadProgress("en_US-amy-medium", 14 * kMiB, 63 * kMiB);  // a late progress does not undo it
     r.ui.Frame();
-    CHECK_FALSE(Find(*s, "Cancel download of en_US-amy-medium", Role::Button)->Enabled());
+    CHECK_FALSE(Find(*s, "Cancel download of Amy (Medium)", Role::Button)->Enabled());
 
     // The cancel is answered: a plain note, no error, and Download is on again.
     r.Events().DownloadFailed("en_US-amy-medium", ProblemFacts{VoiceProblem::Cancelled, {}, {}});
     r.ui.Frame();
     CHECK(p.Downloads()->NoteNotice()->Visible());
     CHECK(p.Downloads()->NoteNotice()->Access().value == "The download is cancelled.");
-    CHECK(Find(*s, "Download en_US-amy-medium", Role::Button)->Enabled());
-    CHECK(Find(*s, "Download en_GB-jenny_dioco-medium", Role::Button)->Enabled());
+    CHECK(Find(*s, "Download Amy (Medium)", Role::Button)->Enabled());
+    CHECK(Find(*s, "Download Jenny (Dioco) (Medium)", Role::Button)->Enabled());
 }
 
 TEST_CASE("Voice download: a finished download is a check and a Done note; a failed one a notice and Try again") {
@@ -412,10 +414,10 @@ TEST_CASE("Voice download: a finished download is a check and a Done note; a fai
     r.ui.Frame();
     Sheet* s = r.Top();
 
-    r.Click(*Find(*s, "Download en_US-amy-medium", Role::Button));
+    r.Click(*Find(*s, "Download Amy (Medium)", Role::Button));
     r.Events().DownloadFailed("en_US-amy-medium", ProblemFacts{VoiceProblem::BadDownload, {}, {}});
     r.ui.Frame();
-    CHECK(Find(*s, "Try en_US-amy-medium again", Role::Button));
+    CHECK(Find(*s, "Try Amy (Medium) again", Role::Button));
     std::vector<Widget*> texts;
     Collect(*s, Role::Text, texts);
     bool sawError = false;
@@ -423,20 +425,20 @@ TEST_CASE("Voice download: a finished download is a check and a Done note; a fai
     CHECK(sawError);
 
     r.sent.clear();
-    r.Click(*Find(*s, "Try en_US-amy-medium again", Role::Button));
+    r.Click(*Find(*s, "Try Amy (Medium) again", Role::Button));
     REQUIRE(r.sent.size() == 1);
     CHECK(r.Last().type == PageMessageType::Download);
 
     r.Events().DownloadDone("en_US-amy-medium");
     r.ui.Frame();
-    CHECK_FALSE(Find(*s, "Download en_US-amy-medium", Role::Button));
-    CHECK_FALSE(Find(*s, "Try en_US-amy-medium again", Role::Button));
-    CHECK(Find(*s, "Download en_GB-jenny_dioco-medium", Role::Button)->Enabled());
+    CHECK_FALSE(Find(*s, "Download Amy (Medium)", Role::Button));
+    CHECK_FALSE(Find(*s, "Try Amy (Medium) again", Role::Button));
+    CHECK(Find(*s, "Download Jenny (Dioco) (Medium)", Role::Button)->Enabled());
     texts.clear();
     Collect(*s, Role::Text, texts);
     bool sawDone = false;
     for (Widget* n : texts)
-        sawDone = sawDone || n->Access().value == "en_US-amy-medium is installed. You can choose it on the voices page.";
+        sawDone = sawDone || n->Access().value == "Amy (Medium) is installed. You can choose it on the voices page.";
     CHECK(sawDone);
 }
 
@@ -455,13 +457,13 @@ TEST_CASE("Voice download: the scroll position and the focus are kept when the l
     REQUIRE(body->Offset() == doctest::Approx(120));
 
     // The focus is on a row's button; the click starts a download and the rows are built again.
-    Widget* get = Find(*s, "Download en_US-extra3-medium", Role::Button);
+    Widget* get = Find(*s, "Download Extra3 (Medium)", Role::Button);
     REQUIRE(get);
     r.ui.screen.SetFocus(get);
     r.ui.Key(Key::Enter);
     r.ui.Frame();
     CHECK(body->Offset() == doctest::Approx(120));
-    Widget* cancel = Find(*s, "Cancel download of en_US-extra3-medium", Role::Button);
+    Widget* cancel = Find(*s, "Cancel download of Extra3 (Medium)", Role::Button);
     REQUIRE(cancel);
     CHECK(r.ui.screen.Focused() == cancel);  // Download -> Cancel: the focus follows the Voice
 
@@ -485,7 +487,7 @@ TEST_CASE("Voice download: closing the sheet does not stop a download, and the s
     r.Click(*p.DownloadButton());
     r.Events().CatalogueShown(Catalogue());
     r.ui.Frame();
-    r.Click(*Find(*r.Top(), "Download en_US-amy-medium", Role::Button));
+    r.Click(*Find(*r.Top(), "Download Amy (Medium)", Role::Button));
     r.ui.Key(Key::Escape);
     CHECK(r.ui.screen.SheetCount() == 0);
     r.Events().DownloadProgress("en_US-amy-medium", 3 * kMiB, 63 * kMiB);  // still going; nothing to draw into
@@ -497,7 +499,7 @@ TEST_CASE("Voice download: closing the sheet does not stop a download, and the s
     r.Events().CatalogueShown(Catalogue());
     r.ui.Frame();
     REQUIRE(r.ui.screen.SheetCount() == 1);
-    CHECK(Find(*r.Top(), "Cancel download of en_US-amy-medium", Role::Button));
+    CHECK(Find(*r.Top(), "Cancel download of Amy (Medium)", Role::Button));
 }
 
 // ------------------------------------------------------------------------------- Result sheet ---
@@ -515,7 +517,7 @@ TEST_CASE("Result sheet: Voice added, with the Language's name and Close") {
     Collect(*s, Role::Text, texts);
     REQUIRE_FALSE(texts.empty());
     CHECK(texts.front()->Access().name == "Done");
-    CHECK(texts.front()->Access().value == "en_US-amy-medium is added. It speaks English. You can choose it on the voices page.");
+    CHECK(texts.front()->Access().value == "Amy (Medium) is added. It speaks English. You can choose it on the voices page.");
     CHECK(r.ui.screen.Focused() == Find(*s, "Close", Role::Button));
 }
 

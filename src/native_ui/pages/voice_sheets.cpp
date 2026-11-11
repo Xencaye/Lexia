@@ -5,6 +5,7 @@
 #include "native_ui/pages/layout.h"
 #include "native_ui/pages/voice_text.h"
 #include "strings/string_ids.h"
+#include "voice_names.h"
 
 namespace nui {
 
@@ -121,7 +122,7 @@ public:
 
 Sheet* OpenDeleteVoiceSheet(Screen& screen, const PageEnv& env, const std::string& voice) {
     auto sheet = std::make_unique<Sheet>();
-    sheet->SetTitle(strings::Format(env.interfaceLanguage, sid::kWindowDeleteVoiceTitle, {{"voice", voice}}));
+    sheet->SetTitle(strings::Format(env.interfaceLanguage, sid::kWindowDeleteVoiceTitle, {{"voice", VoiceLabelFromName(env.interfaceLanguage, voice)}}));
     // The body text of a sheet has the page's `line-height: 1.35` (21.6 for 16 px).
     Paragraph* text = sheet->AddBodyOf<Paragraph>(strings::Text(env.interfaceLanguage, sid::kWindowDeleteVoiceText));
     text->SetLineHeight(16 * kLineFactor);
@@ -410,7 +411,7 @@ void DownloadSheet::Rebuild() {
         if (library_.NoteKind() == VoiceLibraryState::Note::Done) {
             note_->SetKind(Notice::Kind::Ok);
             note_->SetLead(T(sid::kWindowResultDone));
-            note_->SetText(strings::Format(env_.interfaceLanguage, sid::kWindowDownloadDone, {{"voice", library_.NoteName()}}));
+            note_->SetText(strings::Format(env_.interfaceLanguage, sid::kWindowDownloadDone, {{"voice", VoiceLabelFromName(env_.interfaceLanguage, library_.NoteName())}}));
         } else {
             note_->SetKind(Notice::Kind::Plain);
             note_->SetLead(std::string());
@@ -452,9 +453,12 @@ void DownloadSheet::Rebuild() {
         for (const CatalogueEntry& v : library_.Voices()) {
             VoiceRow* row = body_->Add<VoiceRow>();
             row->first = first;
-            row->SetName(v.name);
+            // Shown as "LJ Speech (Medium)"; the file name is the tooltip of the name (owner, Nov 11).
+            const std::string shown = VoiceLabelFromName(env_.interfaceLanguage, v.name);
+            row->SetName(shown);
             if (!first) row->rule = row->Add<DottedRule>();
-            row->name = StyledLabel(*row, v.name, kNameFont, FontWeight::Bold);
+            row->name = StyledLabel(*row, shown, kNameFont, FontWeight::Bold);
+            row->name->SetTooltip(v.name);
             row->size = StyledLabel(*row, DownloadSizeText(env_.interfaceLanguage, v.sizeBytes), kSizeFont, FontWeight::Regular);
 
             const bool isRunning = running && running->name == v.name;
@@ -465,10 +469,10 @@ void DownloadSheet::Rebuild() {
                 const bool cancelling = running->cancelling;
                 row->button = AddRowButton(
                     *row, T(cancelling ? sid::kWindowDownloadCancelling : sid::kWindowDownloadCancel),
-                    strings::Format(env_.interfaceLanguage, sid::kWindowDownloadCancelFor, {{"voice", v.name}}), v.name,
+                    strings::Format(env_.interfaceLanguage, sid::kWindowDownloadCancelFor, {{"voice", shown}}), v.name,
                     cancelling, [this] { Cancel(); });
                 row->bar = row->Add<ProgressBar>();
-                row->bar->SetName(strings::Format(env_.interfaceLanguage, sid::kWindowDownloadProgressLabel, {{"voice", v.name}}));
+                row->bar->SetName(strings::Format(env_.interfaceLanguage, sid::kWindowDownloadProgressLabel, {{"voice", shown}}));
                 row->barText = StyledLabel(*row, std::string(), kNameFont, FontWeight::Bold);
                 progressRow_ = row;
                 bar_ = row->bar;
@@ -477,7 +481,7 @@ void DownloadSheet::Rebuild() {
                 const CatalogueEntry entry = v;
                 row->button = AddRowButton(
                     *row, T(sid::kWindowDownloadRetry),
-                    strings::Format(env_.interfaceLanguage, sid::kWindowDownloadRetryFor, {{"voice", v.name}}), v.name,
+                    strings::Format(env_.interfaceLanguage, sid::kWindowDownloadRetryFor, {{"voice", shown}}), v.name,
                     otherRuns, [this, entry] { StartDownload(entry); });
                 row->error = row->Add<Notice>();
                 row->error->SetKind(Notice::Kind::Bad);
@@ -490,7 +494,7 @@ void DownloadSheet::Rebuild() {
                 const CatalogueEntry entry = v;
                 row->button = AddRowButton(
                     *row, T(sid::kWindowDownloadGet),
-                    strings::Format(env_.interfaceLanguage, sid::kWindowDownloadGetFor, {{"voice", v.name}}), v.name,
+                    strings::Format(env_.interfaceLanguage, sid::kWindowDownloadGetFor, {{"voice", shown}}), v.name,
                     otherRuns, [this, entry] { StartDownload(entry); });
             }
             body_->AddItem(row, 0, true);

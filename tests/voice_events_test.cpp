@@ -61,7 +61,7 @@ TEST_CASE("ProblemText: every problem reads in every place and the facts are fil
                                 VoiceProblem::BadName,    VoiceProblem::MissingFile,         VoiceProblem::BadConfig,
                                 VoiceProblem::BadZip,     VoiceProblem::CannotWrite,         VoiceProblem::NotInCatalogue,
                                 VoiceProblem::Network,    VoiceProblem::BadDownload,         VoiceProblem::Cancelled,
-                                VoiceProblem::Busy};
+                                VoiceProblem::Busy,       VoiceProblem::UnknownQuality};
     for (VoiceProblem p : all) {
         for (ProblemWhere where : {ProblemWhere::Catalogue, ProblemWhere::Download, ProblemWhere::File}) {
             const std::string text = ProblemText("en", Facts(p, "German", "low"), where);

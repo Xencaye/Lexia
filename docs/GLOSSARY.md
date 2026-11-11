@@ -209,7 +209,8 @@ _Avoid_: system volume, main volume
 **Voice library**:
 The Voices Lexia can speak with: the ones that ship in `voices\` next to the exe and the ones the user
 downloaded or added, which live in `%LOCALAPPDATA%\Lexia\voices`. Each Voice is attached to the Language its
-config says it speaks. Only Medium Voices for a Language Lexia can read are accepted. Downloading happens
+config says it speaks. Only Voices for a Language Lexia can read are accepted: Lexia ships and downloads Medium Voices, and a Voice the user
+adds from a file may be in any of Piper's qualities (X-low, Low, Medium, High). Downloading happens
 only when the user asks (ADR-0005).
 _Avoid_: voice store, voice pack, voice manager
 

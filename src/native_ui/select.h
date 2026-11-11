@@ -23,6 +23,10 @@ public:
     Select();
     void SetItems(std::vector<std::string> items);
     const std::vector<std::string>& Items() const { return items_; }
+    // One tooltip per item, shown on its row of the open list (the Voice choice: the file name behind the
+    // short name). Fewer tips than items, or an empty one, give a row without a tooltip.
+    void SetItemTooltips(std::vector<std::string> tips) { itemTips_ = std::move(tips); }
+    const std::vector<std::string>& ItemTooltips() const { return itemTips_; }
     void SetSelected(int index);  // -1 = none
     int Selected() const { return selected_; }
     void SetOnChoose(std::function<void(int)> fn) { onChoose_ = std::move(fn); }
@@ -43,6 +47,7 @@ public:
 
 private:
     std::vector<std::string> items_;
+    std::vector<std::string> itemTips_;  // parallel to items_; may be shorter
     int selected_ = -1;
     bool open_ = false;
     std::function<void(int)> onChoose_;

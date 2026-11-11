@@ -1,6 +1,7 @@
 #include "native_ui/voice_library_state.h"
 
 #include "strings/string_ids.h"
+#include "voice_names.h"
 
 namespace nui {
 
@@ -13,7 +14,7 @@ ResultTexts DescribeResult(const std::string& lang, const ResultOutcome& o) {
         t.title = strings::Text(lang, id::kWindowAddFileAddedTitle);
         t.text = strings::Format(
             lang, id::kWindowAddFileAdded,
-            {{"voice", o.voice}, {"language", o.language.empty() ? std::string() : strings::LanguageName(lang, o.language)}});
+            {{"voice", VoiceLabelFromName(lang, o.voice)}, {"language", o.language.empty() ? std::string() : strings::LanguageName(lang, o.language)}});
         break;
     case ResultKind::VoiceRefused:
         t.again = true;  // the person may choose another file at once
@@ -22,7 +23,7 @@ ResultTexts DescribeResult(const std::string& lang, const ResultOutcome& o) {
         break;
     case ResultKind::DeleteFailed:
         t.title = strings::Text(lang, id::kWindowDeleteVoiceFailedTitle);
-        t.text = strings::Format(lang, id::kWindowDeleteVoiceFailed, {{"voice", o.voice}});
+        t.text = strings::Format(lang, id::kWindowDeleteVoiceFailed, {{"voice", VoiceLabelFromName(lang, o.voice)}});
         break;
     case ResultKind::PresetSaved:
         t.ok = true;
@@ -34,7 +35,7 @@ ResultTexts DescribeResult(const std::string& lang, const ResultOutcome& o) {
         t.title = strings::Text(lang, id::kWindowPresetLoadedTitle);
         // A Voice that is not the active one gets its controls saved, but the sound does not change yet.
         t.text = strings::Format(lang, o.voiceIsActive ? id::kWindowPresetLoaded : id::kWindowPresetLoadedOther,
-                                 {{"voice", o.voice}});
+                                 {{"voice", VoiceLabelFromName(lang, o.voice)}});
         break;
     case ResultKind::PresetFailed:
         t.title = strings::Text(lang, id::kWindowPresetFailedTitle);

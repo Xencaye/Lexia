@@ -107,11 +107,20 @@ bool ExtractEntry(ZipReader& z, mz_uint index, mz_uint64 size, const fs::path& t
 
 }  // namespace
 
+// A name the user chose ("my-voice") must not be read as a quality ("voice"): only Piper's four words count.
+std::string VoiceQualityFromName(const std::string& name) {
+    const size_t dash = name.rfind('-');
+    if (dash == std::string::npos) return {};
+    const std::string q = ToLowerAscii(name.substr(dash + 1));
+    return IsKnownVoiceQuality(q) ? q : std::string();
+}
+
 const char* ProblemId(VoiceProblem problem) {
     switch (problem) {
         case VoiceProblem::None: return "ok";
         case VoiceProblem::UnsupportedLanguage: return "unsupported-language";
         case VoiceProblem::NotMedium: return "not-medium";
+        case VoiceProblem::UnknownQuality: return "unknown-quality";
         case VoiceProblem::BadName: return "bad-name";
         case VoiceProblem::MissingFile: return "missing-file";
         case VoiceProblem::BadConfig: return "bad-config";
@@ -148,8 +157,13 @@ bool IsSafeRelativePath(const std::string& path) {
     return true;
 }
 
+// Piper's quality names, as its configs and the catalogue write them.
+bool IsKnownVoiceQuality(const std::string& quality) {
+    return quality == "x_low" || quality == "low" || quality == "medium" || quality == "high";
+}
+
 VoiceOutcome CheckVoiceAccepted(const std::string& name, const std::string& languageCode,
-                                const std::string& languageName, const std::string& quality) {
+                                const std::string& languageName, const std::string& quality, QualityRule rule) {
     if (VoiceOutcome bad = CheckName(name); !bad.ok()) return bad;
     const Language* lang = FindLanguageByCode(Family(languageCode));
     if (!lang) {
@@ -159,7 +173,16 @@ VoiceOutcome CheckVoiceAccepted(const std::string& name, const std::string& lang
         return o;
     }
     const std::string q = ToLowerAscii(quality);
-    if (q != "medium") {
+    if (rule == QualityRule::AnyKnown) {
+        // A file the user chose: any of Piper's qualities, or none stated. A word that is not a quality
+        // ("ultra") means the config is not what it claims to be, so it is refused by name.
+        if (!q.empty() && !IsKnownVoiceQuality(q)) {
+            VoiceOutcome o = Fail(VoiceProblem::UnknownQuality, name,
+                                  "the Voice's quality '" + q + "' is not one of x_low, low, medium or high");
+            o.quality = q;
+            return o;
+        }
+    } else if (q != "medium") {
         VoiceOutcome o = Fail(VoiceProblem::NotMedium, name,
                               q.empty() ? "the Voice's quality is not stated; only Medium Voices are accepted"
                                         : "the Voice's quality is " + q + "; only Medium Voices are accepted");
@@ -194,21 +217,18 @@ bool ParseVoiceConfig(const std::string& name, const std::string& configText, Vo
     if (c.languageCode.empty()) return false;
     const auto audio = doc.find("audio");
     if (audio != doc.end()) c.quality = ToLowerAscii(StringOf(*audio, "quality"));
-    if (c.quality.empty()) {
-        const size_t dash = name.rfind('-');
-        if (dash != std::string::npos) c.quality = ToLowerAscii(name.substr(dash + 1));
-    }
+    if (c.quality.empty()) c.quality = VoiceQualityFromName(name);  // only a real quality word, never part of a user's name
     *out = c;
     return true;
 }
 
-VoiceOutcome CheckVoiceConfig(const std::string& name, const std::string& configText) {
+VoiceOutcome CheckVoiceConfig(const std::string& name, const std::string& configText, QualityRule rule) {
     VoiceConfig c;
     if (!ParseVoiceConfig(name, configText, &c)) {
         return Fail(VoiceProblem::BadConfig, name,
                     "the .onnx.json is not a Piper Voice config (not JSON, or it names no language)");
     }
-    return CheckVoiceAccepted(name, c.languageCode, c.languageName, c.quality);
+    return CheckVoiceAccepted(name, c.languageCode, c.languageName, c.quality, rule);
 }
 
 std::vector<InstalledVoice> ListInstalledVoices(const fs::path& voicesDir, const fs::path& userDir) {
@@ -220,7 +240,7 @@ std::vector<InstalledVoice> ListInstalledVoices(const fs::path& voicesDir, const
             if (ReadFileToString(voicesDir / "voices.json", &text, kMaxConfigBytes)) {
                 for (const VoiceEntry& e : ParseVoiceList(text)) {
                     const fs::path model = voicesDir / fs::u8path(e.name + ".onnx");
-                    if (fs::is_regular_file(model, ec)) out.push_back({e.name, e.language, model, true});
+                    if (fs::is_regular_file(model, ec)) out.push_back({e.name, e.language, model, true, VoiceQualityFromName(e.name)});
                 }
             }
         }
@@ -232,8 +252,9 @@ std::vector<InstalledVoice> ListInstalledVoices(const fs::path& voicesDir, const
                 const bool shipped = std::any_of(out.begin(), out.end(), [&](const InstalledVoice& v) { return v.name == name; });
                 std::string config;
                 if (shipped || !ReadFileToString(fs::path(f.path()) += ".json", &config, kMaxConfigBytes)) continue;
-                const VoiceOutcome checked = CheckVoiceConfig(name, config);
-                if (checked.ok()) user.push_back({name, checked.languageCode, f.path(), false});
+                // The user's own folder: any of Piper's qualities (QualityRule::AnyKnown), as when the Voice was added.
+                const VoiceOutcome checked = CheckVoiceConfig(name, config, QualityRule::AnyKnown);
+                if (checked.ok()) user.push_back({name, checked.languageCode, f.path(), false, checked.quality});
             }
             std::sort(user.begin(), user.end(), [](const InstalledVoice& a, const InstalledVoice& b) { return a.name < b.name; });
             out.insert(out.end(), user.begin(), user.end());
@@ -309,7 +330,7 @@ VoiceOutcome AddVoiceFiles(const fs::path& model, const fs::path& config, const 
     }
     std::error_code ec;
     if (!fs::is_regular_file(model, ec)) return Fail(VoiceProblem::MissingFile, name, "cannot read " + modelFile);
-    const VoiceOutcome checked = CheckVoiceConfig(name, configText);
+    const VoiceOutcome checked = CheckVoiceConfig(name, configText, QualityRule::AnyKnown);  // the user's own file
     if (!checked.ok()) return checked;
 
     VoiceParts parts;
@@ -390,7 +411,7 @@ VoiceOutcome AddVoiceZip(const fs::path& zipFile, const fs::path& destDir) {
     if (!ReadFileToString(parts.config, &configText, kMaxConfigBytes)) {
         return Fail(VoiceProblem::CannotWrite, name, "cannot read back the config");
     }
-    const VoiceOutcome checked = CheckVoiceConfig(name, configText);
+    const VoiceOutcome checked = CheckVoiceConfig(name, configText, QualityRule::AnyKnown);  // the user's own file
     if (!checked.ok()) return checked;
     if (!ExtractEntry(z, model->index, model->size, parts.model)) {
         return Fail(VoiceProblem::BadZip, name, "cannot unpack the model (damaged zip, or the disk is full)");

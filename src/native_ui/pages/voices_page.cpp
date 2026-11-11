@@ -7,6 +7,8 @@
 #include "native_ui/pages/voice_text.h"
 #include "native_ui/screen.h"
 #include "strings/string_ids.h"
+#include "tts/voice_library.h"
+#include "voice_names.h"
 
 namespace nui {
 
@@ -200,18 +202,32 @@ void VoicesPage::SetState(const UiState& state) {
     installed_.clear();
     removable_.clear();
     active_.clear();
+    std::vector<std::string> qualities;  // parallel to installed_ (UiVoices::qualities)
     const auto it = state.voices.find(state.language);
     if (it != state.voices.end()) {
         installed_ = it->second.installed;
+        qualities = it->second.qualities;
         removable_ = it->second.removable;
         active_ = it->second.active;
     }
     const auto activeIt = std::find(installed_.begin(), installed_.end(), active_);
     hasVoice_ = !installed_.empty() && activeIt != installed_.end();
 
-    // The choice. The items are set again only when the list changed, so an open list is not disturbed.
-    if (voice_->Items() != installed_) voice_->SetItems(installed_);
+    // The choice shows each Voice by its short name and quality ("LJ Speech (Medium)", VoiceLabel); the file
+    // name is the row's tooltip, and the closed choice's tooltip is the active Voice's file name, so two Voices
+    // with the same short name can be told apart. The items stay in `installed_`'s order: a choice is an index
+    // into it. They are set again only when the list changed, so an open list is not disturbed.
+    std::vector<std::string> labels;
+    for (size_t i = 0; i < installed_.size(); ++i) {
+        const std::string quality = i < qualities.size() ? qualities[i] : VoiceQualityFromName(installed_[i]);
+        labels.push_back(VoiceLabel(env_.interfaceLanguage, installed_[i], quality));
+    }
+    if (voice_->Items() != labels || voice_->ItemTooltips() != installed_) {
+        voice_->SetItems(std::move(labels));
+        voice_->SetItemTooltips(installed_);
+    }
     voice_->SetSelected(hasVoice_ ? static_cast<int>(activeIt - installed_.begin()) : -1);
+    voice_->SetTooltip(hasVoice_ ? active_ : std::string());
     voice_->SetEnabled(!installed_.empty());
 
     // No Voice: a note takes the place of the short rule.

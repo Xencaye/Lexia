@@ -181,6 +181,8 @@ void Select::Open() {
     list->SetBounds({r.x, y, r.w, h});
     list->SetName(name_);  // the list is called what the select is called (a screen reader reads "Voice, list")
     list->LayoutRows();
+    // Each row's tooltip (SetItemTooltips): the rows are the list's children, in item order.
+    for (size_t i = 0; i < itemTips_.size() && i < list->Children().size(); ++i) list->Children()[i]->SetTooltip(itemTips_[i]);
     open_ = true;
     s->OpenPopup(std::move(list), this);
     Invalidate();
