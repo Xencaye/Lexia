@@ -128,6 +128,15 @@ bool operator==(const Hotkey& a, const Hotkey& b);
 bool operator==(const Settings& a, const Settings& b);
 inline bool operator!=(const Settings& a, const Settings& b) { return !(a == b); }
 
+// What a reload of settings.json puts in force (R41). `inForce` is what Lexia runs with, `lastFileRead` what
+// the file said the last time Lexia read it (or saved a value into it), `fresh` the output of ParseSettings on
+// the file now. Per value: if the file did not change it since `lastFileRead`, the in-force value stays (Lexia
+// may have changed it itself and been unable to save it, e.g. a file with // comments, which a rewrite would
+// drop); if the file did change it, the file wins. Control bar size, x and y and each hotkey count as separate
+// values. Pure: it never reads the file, so it cannot take a value that the parser refused (those are already
+// defaults in `fresh`). The caller still runs KeepToOffered on the result.
+Settings MergeReloadedSettings(const Settings& inForce, const Settings& lastFileRead, const Settings& fresh);
+
 // The text of a settings.json holding `s`: what LoadSettings writes when there is no file, and
 // what ParseSettings reads back.
 std::string SettingsToText(const Settings& s);

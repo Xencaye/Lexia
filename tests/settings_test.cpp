@@ -1110,3 +1110,110 @@ TEST_CASE("adoptedVoices: a bad value gives a note and an empty list") {
         CHECK(p.settings.adoptedVoices.empty());
     }
 }
+
+// ---- MergeReloadedSettings (R41): what a reload of settings.json applies ----
+
+TEST_CASE("MergeReloadedSettings: a value the file did not change keeps the in-force value") {
+    // Lexia's own save of every one of these failed: the file still says the old value.
+    Settings lastRead;
+    Settings inForce = lastRead;
+    inForce.read = {0, VK_F9, "F9"};
+    inForce.pause = {0, VK_F10, "F10"};
+    inForce.speech = {0, VK_F11, "F11"};
+    inForce.switchLanguage = {MOD_CONTROL | MOD_ALT, 'L', "Ctrl+Alt+L"};
+    inForce.interfaceLanguage = "bg";
+    inForce.controlBar.size = BarSize::Small;
+    inForce.controlBar.x = 40;
+    inForce.controlBar.y = 50;
+    inForce.speechRate = 3;
+    inForce.hoverColor = RGB(1, 2, 3);
+    inForce.pickedColor = RGB(4, 5, 6);
+
+    // An unrelated edit of the file (here: leftHanded).
+    Settings fresh = lastRead;
+    fresh.leftHanded = true;
+
+    const Settings next = MergeReloadedSettings(inForce, lastRead, fresh);
+    CHECK(next.read == inForce.read);
+    CHECK(next.pause == inForce.pause);
+    CHECK(next.speech == inForce.speech);
+    CHECK(next.switchLanguage == inForce.switchLanguage);
+    CHECK(next.interfaceLanguage == "bg");
+    CHECK(next.controlBar.size == BarSize::Small);
+    CHECK(next.controlBar.x == 40);
+    CHECK(next.controlBar.y == 50);
+    CHECK(next.speechRate == 3);
+    CHECK(next.hoverColor == RGB(1, 2, 3));
+    CHECK(next.pickedColor == RGB(4, 5, 6));
+    CHECK(next.leftHanded);  // the value the user did edit is applied
+}
+
+TEST_CASE("MergeReloadedSettings: a value the file changed wins over the in-force value") {
+    Settings lastRead;
+    Settings inForce = lastRead;
+    inForce.read = {0, VK_F9, "F9"};
+    inForce.controlBar.x = 40;
+
+    Settings fresh = lastRead;
+    fresh.read = {0, VK_F5, "F5"};  // the user edited the key in the file
+    fresh.controlBar.x = 90;
+    fresh.controlBar.y = 20;
+
+    const Settings next = MergeReloadedSettings(inForce, lastRead, fresh);
+    CHECK(next.read == fresh.read);
+    CHECK(next.controlBar.x == 90);
+    CHECK(next.controlBar.y == 20);
+}
+
+TEST_CASE("MergeReloadedSettings: the Control bar fields are merged one by one") {
+    Settings lastRead;
+    Settings inForce = lastRead;
+    inForce.controlBar.size = BarSize::Small;  // Lexia's save of the size failed
+    inForce.controlBar.x = 10;                 // and of x
+    Settings fresh = lastRead;
+    fresh.controlBar.y = 77;                   // the user edited only y
+
+    const Settings next = MergeReloadedSettings(inForce, lastRead, fresh);
+    CHECK(next.controlBar.size == BarSize::Small);
+    CHECK(next.controlBar.x == 10);
+    CHECK(next.controlBar.y == 77);
+}
+
+TEST_CASE("MergeReloadedSettings: the older rules still hold") {
+    Settings lastRead;
+    Settings inForce = lastRead;
+    inForce.enabled = true;
+    inForce.language = "bul";
+    inForce.speechVolume = 40;
+    inForce.voices["v"] = VoiceControls{};
+    inForce.adoptedVoices = {"a"};
+    Settings fresh = lastRead;
+    fresh.theme = "dark";
+    fresh.speechVolume = 70;  // changed in the file
+
+    const Settings next = MergeReloadedSettings(inForce, lastRead, fresh);
+    CHECK(next.enabled);
+    CHECK(next.language == "bul");
+    CHECK(next.voices == inForce.voices);
+    CHECK(next.adoptedVoices == inForce.adoptedVoices);
+    CHECK(next.theme == "dark");
+    CHECK(next.speechVolume == 70);
+}
+
+TEST_CASE("MergeReloadedSettings: a file that changes nothing gives the in-force settings") {
+    Settings lastRead;
+    Settings inForce = lastRead;
+    inForce.read = {0, VK_F9, "F9"};
+    CHECK(MergeReloadedSettings(inForce, lastRead, lastRead) == inForce);
+}
+
+TEST_CASE("MergeReloadedSettings: only values the parser produced are taken") {
+    // The new file is the output of ParseSettings, so a refused value is already its default; the merge
+    // never reads the file text itself and so cannot take a value that the parser refused.
+    Settings lastRead;
+    Settings inForce = lastRead;
+    const Parsed p = Parse(R"({"read": "NotAKey", "controlBar": {"x": "abc"}})");
+    const Settings next = MergeReloadedSettings(inForce, lastRead, p.settings);
+    CHECK(next.read == lastRead.read);
+    CHECK(next.controlBar.x == -1);
+}
