@@ -237,7 +237,7 @@ struct Speaker::Impl {
     std::condition_variable releaseDone;
     std::mutex activeVoicesMutex;  // guards activeVoices
     std::map<std::string, std::string> activeVoices;  // Language code -> Voice name
-    std::atomic<unsigned> voiceEpoch{0};  // +1 when activeVoices changes
+    std::atomic<unsigned> voiceEpoch{0};  // +1 when activeVoices changes or the Voice files changed (VoicesChanged)
     unsigned seenVoiceEpoch = 0;  // speech thread only
     std::mutex interfaceMutex;  // guards interfaceLanguage
     std::string interfaceLanguage = strings::DefaultInterfaceLanguage();
@@ -274,6 +274,10 @@ void Speaker::SetActiveVoices(std::map<std::string, std::string> byLanguageCode)
     }
     ++impl_->voiceEpoch;
 }
+
+// Same pattern as a changed choice of Voices: the speech thread owns `voices`, so only the epoch is bumped
+// here and RefreshVoices (speech thread) clears the map at the start of the next Block.
+void Speaker::VoicesChanged() { ++impl_->voiceEpoch; }
 
 void Speaker::ReleaseVoices() {
     if (!impl_->ready) return;  // no speech thread, nothing loaded

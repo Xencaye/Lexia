@@ -40,6 +40,12 @@ public:
     // espeak-ng down when any one Voice is freed). Callable from any thread.
     void SetActiveVoices(std::map<std::string, std::string> byLanguageCode);
 
+    // The Voice files changed (a Voice was added or downloaded, possibly one with the name of a Voice that is
+    // loaded, or the first Voice of a Language that had none). Every loaded Voice, and a remembered "no Voice",
+    // is dropped by the speech thread at the start of the next Block, so that Block loads the current files.
+    // Does not stop speech or wait. Callable from any thread.
+    void VoicesChanged();
+
     // Stops what is being said and waits (up to 3 s) until the speech thread has dropped every loaded
     // Voice, so that a Voice's files can be deleted: a loaded Voice keeps its model file open. Voices
     // load again at the next Block. UI thread.

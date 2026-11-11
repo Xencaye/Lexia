@@ -409,6 +409,7 @@ void VoiceTab::Download(const std::string& name) {
             downloadName_.clear();
             if (outcome.ok()) {
                 LogInfo("[voice] Downloaded the Voice ", name, ".");
+                speaker_.VoicesChanged();  // the next Block loads the current files (a Language may have had no Voice)
                 Tell([&](VoiceEventSink& e) { e.DownloadDone(name); });
                 host_.pushState();
             } else {
@@ -457,6 +458,7 @@ void VoiceTab::AddFile(const std::wstring& path) {
         PostUi([this, outcome] {
             if (outcome.ok()) {
                 LogInfo("[voice] Added the Voice ", outcome.voiceName, ".");
+                speaker_.VoicesChanged();  // a newer file of a loaded Voice, or the first Voice of a Language
                 Tell([&](VoiceEventSink& e) { e.VoiceAdded(AddedFactsOf(outcome)); });
                 host_.pushState();
             } else {
