@@ -253,6 +253,11 @@ mixed with normal text so that other text does not get worse.
   no text labelled " " (4 %; Lexia drops a line with no letter or digit), letter and word spacing, thick comic
   outlines, a filmed-screen look, cloud and shape backgrounds, Roman numerals, version lines and user names; 22 more
   font families (`docs/notes/training-fonts.md`).
+  **Round 2 result (Nov 11, best epoch 9):** CER 0.32 % pixel, 0.34 % normal; Fixture average distance 0.131 -> 0.121,
+  Block-count error 1.29 -> 1.00; 9 Fixtures better, 2 worse: `undertale_02` (filmed, tilted pixel text: "did.*
+  nunber") and `unraveled_04` (a blurred lamp read as "3"); also "_" read as "..." and comic speed lines read as
+  "I". Not shipped. **Round 3:** filmed look on 10 % of pixel lines (was 3 %), a tilted line kept whole in its crop,
+  blurred lights in the no-text crops, comic hatching behind text, more user names with "_".
 - [x] **L3 Export to ONNX (agent).** `export.ps1`: `tools/export_model.py` (CTC head only), `paddle2onnx` 1.3.1
   with opset 14 (paddle2onnx raises it from 11 for `hard_swish`; ONNX Runtime 1.20.1 runs it), then
   `check_onnx.py`: one input `[N, 3, 48, W]`, one output `[N, T, 97]`, each time step adds up to 1; the CER on the
