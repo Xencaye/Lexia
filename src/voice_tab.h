@@ -19,6 +19,7 @@
 #include <thread>
 #include <vector>
 
+#include "net/winhttp_fetch.h"
 #include "settings.h"
 #include "speech.h"
 #include "tts/voice_catalogue.h"
@@ -89,6 +90,7 @@ private:
     std::atomic<bool> catalogueRunning_{false};
     std::thread workThread_;                          // a download, or adding a file
     std::atomic<bool> workRunning_{false};
-    std::atomic<bool> cancel_{false};
+    FetchCancel workCancel_;                          // stops the download (even in a blocked receive); set by Cancel / ~VoiceTab
+    FetchCancel catalogueCancel_;                     // stops the catalogue fetch the same way
     std::string downloadName_;                        // UI thread; the Voice that downloads, "" = none
 };

@@ -89,7 +89,11 @@ VoiceTab::VoiceTab(Settings& settings, Settings& fileSettings, Speaker& speaker,
     : settings_(settings), fileSettings_(fileSettings), speaker_(speaker), host_(std::move(host)) {}
 
 VoiceTab::~VoiceTab() {
-    cancel_ = true;  // a running download stops at its next block of bytes
+    // A running download or catalogue fetch stops at once: the flag, and the closing of the WinHTTP request that a
+    // blocked connect or receive waits on (FetchCancel), so Quit never waits for the network timeouts.
+    // Cancel() is safe whether or not a fetch runs (it only closes a handle a running fetch has registered).
+    workCancel_.Cancel();
+    catalogueCancel_.Cancel();
     if (catalogueThread_.joinable()) catalogueThread_.join();
     if (workThread_.joinable()) workThread_.join();
 }
@@ -354,10 +358,22 @@ void VoiceTab::OpenCatalogue() {
     Join(catalogueThread_, catalogueRunning_);
     if (catalogueRunning_) return;  // the answer is on its way
     catalogueRunning_ = true;
+    catalogueCancel_.Reset();  // the previous thread has finished (Join above), so nothing uses it now
     catalogueThread_ = std::thread([this] {
         std::error_code ec;
         const std::filesystem::path temp = std::filesystem::temp_directory_path(ec);
-        const CatalogueResult result = FetchVoiceCatalogue(WinHttpFetch, temp);
+        // The catalogue fetch has no progress to refuse, so it is stopped by FetchCancel (the flag, and the
+        // closing of the request that a blocked connect or receive waits on).
+        const FetchFn fetch = [this](const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
+                                     const std::function<bool(uint64_t)>& onBytes, std::string* error) {
+            return WinHttpFetch(url, to, maxBytes, onBytes, error, &catalogueCancel_);
+        };
+        const CatalogueResult result = FetchVoiceCatalogue(fetch, temp);
+        if (catalogueCancel_.Cancelled()) {  // Quit (or the window ending): no answer is wanted
+            LogInfo("[voice] The Voice catalogue fetch was cancelled.");
+            catalogueRunning_ = false;
+            return;
+        }
         PostUi([this, result] {
             if (!result.error.ok()) {
                 LogWarn("[voice] The Voice catalogue could not be fetched: ", result.error.detail);
@@ -388,7 +404,7 @@ void VoiceTab::Download(const std::string& name) {
         Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, ProblemFacts{VoiceProblem::CannotWrite, {}, {}}); });
         return;
     }
-    cancel_ = false;
+    workCancel_.Reset();  // the previous worker has finished (Join above)
     downloadName_ = name;
     workRunning_ = true;
     workThread_ = std::thread([this, voice = *it, dest] {
@@ -402,9 +418,14 @@ void VoiceTab::Download(const std::string& name) {
                     if (downloadName_ == name) Tell([&](VoiceEventSink& e) { e.DownloadProgress(name, done, total); });
                 });
             }
-            return !cancel_.load();
+            return !workCancel_.Cancelled();
         };
-        const VoiceOutcome outcome = DownloadVoice(voice, WinHttpFetch, progress, dest);
+        // Cancel also closes the request a blocked connect or receive waits on, so it works at once.
+        const FetchFn fetch = [this](const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
+                                     const std::function<bool(uint64_t)>& onBytes, std::string* error) {
+            return WinHttpFetch(url, to, maxBytes, onBytes, error, &workCancel_);
+        };
+        const VoiceOutcome outcome = DownloadVoice(voice, fetch, progress, dest);
         PostUi([this, outcome, name = voice.name] {
             downloadName_.clear();
             if (outcome.ok()) {
@@ -424,7 +445,7 @@ void VoiceTab::Download(const std::string& name) {
 }
 
 void VoiceTab::CancelDownload(const std::string& name) {
-    if (workRunning_ && downloadName_ == name) cancel_ = true;
+    if (workRunning_ && downloadName_ == name) workCancel_.Cancel();
 }
 
 void VoiceTab::AddFromFile() {
@@ -450,7 +471,7 @@ void VoiceTab::AddFile(const std::wstring& path) {
         Tell([](VoiceEventSink& e) { e.VoiceRefused(ProblemFacts{VoiceProblem::CannotWrite, {}, {}}); });
         return;
     }
-    cancel_ = false;
+    workCancel_.Reset();
     downloadName_.clear();
     workRunning_ = true;
     workThread_ = std::thread([this, path, dest] {
