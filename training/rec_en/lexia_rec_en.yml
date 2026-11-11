@@ -9,6 +9,9 @@
 #   - a low learning rate and 10 epochs: this is a fine-tune of the published weights, not a new model;
 #   - no RecAug: its distortions run in Python and made the loader 4x slower than the GPU; gen_lines.py already
 #     varies size, scale, colour, outline, blur, noise and JPEG loss;
+#   - no RecConAug: it puts two lines side by side, each with its own margins, but joins their labels with no
+#     space, so the model learnt that a word gap is not a space (round 1 read "Version0.9.18", "EquinoxAngeldyne");
+#     gen_lines.py makes lines of several words itself;
 #   - batch 64 and AMP: batch 96 at width 480 filled the 10 GB of the RTX 3080;
 #   - width 480 and max_text_length 40: Lexia gives whole lines (any width), not words;
 #   - distributed false, num_workers 4, use_shared_memory false: one GPU on Windows, where shared-memory loader
@@ -98,18 +101,12 @@ Train:
   dataset:
     name: SimpleDataSet
     data_dir: ./data
-    ext_op_transform_idx: 1
     label_file_list:
     - ./data/train_list.txt
     transforms:
     - DecodeImage:
         img_mode: BGR
         channel_first: false
-    - RecConAug:
-        prob: 0.3
-        ext_data_num: 2
-        image_shape: [48, 480, 3]
-        max_text_length: *max_text_length
     - MultiLabelEncode:
     - RecResizeImg:
         image_shape: [3, 48, 480]

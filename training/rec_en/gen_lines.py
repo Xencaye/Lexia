@@ -11,7 +11,9 @@ What it keeps true:
   grows and INTER_AREA when it shrinks, the width rounded up to a multiple of 4 (src/ocr.cpp, Recognize). The model
   then learns the pixels Lexia really feeds it. Lines wider than MAX_W after that resize are made shorter.
 - Every label holds only characters of dict_en.txt (plus the space), at most MAX_LEN of them, no leading, trailing
-  or double spaces.
+  or double spaces; the one exception is the crops with no text (NEGATIVE_SHARE), whose label is a single space.
+- One space in a label for each word gap in the image, however wide the gap is (tracking, word_gap), and none
+  inside a word.
 - The same --seed gives the same lines: sample i draws from its own random.Random(seed * 1_000_003 + i), so the
   number of workers does not change the data.
 - Pixel fonts are drawn at their own pixel size without anti-aliasing and scaled up with nearest neighbour, as a
@@ -41,7 +43,11 @@ DICT_FILE = os.path.join(HERE, "dict_en.txt")
 H = 48          # Lexia's recogniser input height (src/ocr.cpp)
 MAX_W = 480     # widest training image; the config's image_shape uses the same width
 MAX_LEN = 40    # the config's max_text_length
-PIXEL_SHARE = 0.4
+PIXEL_SHARE = 0.4      # of the text lines
+# Training crops with no text, labelled with one space (render_negative). PaddleOCR drops an empty label, but keeps
+# " " (SimpleDataSet strips only the line end); Lexia drops a line with no letter or digit, so " " means "nothing".
+# Kept small: a model that answers " " too readily would also drop faint real text.
+NEGATIVE_SHARE = 0.04
 # Caps-only fonts whose small capitals differ too much from the capitals for caps_only() to see it.
 CAPS_FONTS = ("Cinzel",)
 
@@ -94,7 +100,14 @@ MENU = ["FIGHT", "ACT", "ITEM", "MERCY", "SPARE", "FLEE", "MAGIC", "DEFEND", "Sa
         "Windowed", "Volume", "Music", "Sound", "Border", "Difficulty", "Easy", "Normal", "Hard", "Yes", "No",
         "OK", "Retry", "Give up", "Pause", "Resume", "Level", "Score", "Time", "Lives", "Coins", "Gold", "Keys"]
 LETTER_TRAPS = ["l1I|", "Il1", "O0o", "0O", "S5", "Z2", "B8", "G6", "rn", "m", "vv", "w", "cl", "d", "ll", "Il",
-                "1l", "il", "Ill", "lll", "o0", "Q0", "U", "u", "V", "v", "Y", "y", "C", "c", "K", "k"]
+                "1l", "il", "Ill", "lll", "o0", "Q0", "U", "u", "V", "v", "Y", "y", "C", "c", "K", "k",
+                # Runs of the same letter: CTC needs a blank between two equal classes, and a pixel font's equal
+                # columns make one of them easy to lose ("Chapter III" read as "Chapter II" in round 1).
+                "II", "III", "IIII", "XIII", "VIII", "MM", "WW", "mm", "nn", "rr", "ss", "ee", "oo", "tt", "ff", "11",
+                "111", "000", "00", "...", "!!", "??"]
+ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XX"]
+NAME_PARTS = ["angel", "glitch", "pixel", "cream", "moon", "star", "core", "blue", "dark", "neo", "byte", "frog",
+              "OS", "cat", "fox", "sky", "nova", "ghost", "kiwi", "void", "rain", "echo", "lily", "max", "zero"]
 
 
 def word(r: random.Random, books) -> str:
@@ -115,7 +128,18 @@ def game_line(r, books):
     """Game-interface text: key prompts, menus, stats, versions, dialogue with stars."""
     k = lambda: r.choice(KEYS)
     w = lambda: r.choice(MENU)
-    t = r.randrange(14)
+    t = r.randrange(18)
+    if t == 14:  # chapter titles with Roman numerals: runs of I, V and X
+        return f"{r.choice(['Chapter', 'Part', 'Act', 'Book', 'Episode', 'CHAPTER', 'PART'])} {r.choice(ROMAN)}, {book_line(r, books, 20)}"
+    if t == 15:  # version lines as on title screens
+        return (f"{r.choice(['', 'Early Access ', 'Demo ', 'Beta '])}Version "
+                f"{r.randint(0, 3)}.{r.randint(0, 20)}.{r.randint(0, 40)}")
+    if t == 16:  # user names and file names of chat and desktop-style games (the only source of "_")
+        sep = r.choice(["_", "_", "-", ".", ""])
+        name = sep.join(r.choice(NAME_PARTS) for _ in range(r.randint(2, 3)))
+        return r.choice([name, f"{name}.exe", f"{name}{r.randint(0, 99)}", f"@{name}"])
+    if t == 17:  # dialogue with the speaker's name
+        return f"{r.choice(NAME_PARTS).title()}: {book_line(r, books, 28)}"
     if t == 0:
         return f"[{k()} or {k()}] - {w()}"
     if t == 1:
@@ -287,8 +311,54 @@ def colours(r):
     return fg, bg, outline
 
 
-def background(r, size, bg):
-    """A plain, gradient or noisy background of `size`."""
+def clouds(r, w, h, amp):
+    """A soft, cloud-like texture (-amp..amp): coarse noise blown up with cubic interpolation, as in painted or
+    photographed game backgrounds."""
+    rng = np.random.default_rng(r.randrange(1 << 30))
+    gw, gh = max(2, w // r.randint(8, 40)), max(2, h // r.randint(6, 30))
+    small = rng.uniform(-1, 1, (gh, gw, 3)).astype(np.float32)
+    if r.random() < 0.6:  # mostly brightness, not colour
+        small[:] = small[..., :1]
+    return cv2.resize(small, (w, h), interpolation=cv2.INTER_CUBIC) * amp
+
+
+def clutter(r, img, base, n, contrast):
+    """Draws n random shapes (circles, boxes, diagonal or thick strokes, crosses) on img, each in a colour at most
+    `contrast` away from `base`.
+
+    Thin vertical and thin horizontal strokes are never drawn: on their own they look like "l", "I", "|", "-" or
+    "_", and the model must not learn to see nothing (or something) where a real one stands.
+    """
+    h, w = img.shape[:2]
+    for _ in range(n):
+        col = tuple(float(np.clip(c + r.uniform(-contrast, contrast), 0, 255)) for c in base)
+        kind = r.randrange(5)
+        cx, cy = r.randrange(w), r.randrange(h)
+        s = max(2, int(h * r.uniform(0.15, 0.9)))
+        if kind == 0:
+            cv2.circle(img, (cx, cy), s // 2, col, -1 if r.random() < 0.6 else max(1, s // 8), cv2.LINE_AA)
+        elif kind == 1:
+            cv2.rectangle(img, (cx - s, cy - s // 2), (cx + s, cy + s // 2), col, -1 if r.random() < 0.5 else max(1, s // 8))
+        elif kind == 2:  # a diagonal stroke, 20 to 70 degrees
+            a = math.radians(r.uniform(20, 70)) * r.choice([1, -1])
+            dx, dy = int(math.cos(a) * s), int(math.sin(a) * s)
+            cv2.line(img, (cx - dx, cy - dy), (cx + dx, cy + dy), col, max(1, s // 6), cv2.LINE_AA)
+        elif kind == 3:  # a cross, as the "X" decorations of lovebyte-style screens
+            d = s // 2
+            t = max(1, s // 8)
+            cv2.line(img, (cx - d, cy - d), (cx + d, cy + d), col, t, cv2.LINE_AA)
+            cv2.line(img, (cx - d, cy + d), (cx + d, cy - d), col, t, cv2.LINE_AA)
+        else:  # a band thick enough not to read as a dash
+            t = max(3, int(h * r.uniform(0.3, 0.6)))
+            cv2.line(img, (0, cy), (w, cy), col, t)
+    return img
+
+
+def background(r, size, bg, fg=None):
+    """A plain, gradient, noisy, cloudy or cluttered background of `size`.
+
+    Clutter keeps away from the text colour `fg` (when given) so the text stays the clearest thing in the crop.
+    """
     w, h = size
     img = np.empty((h, w, 3), np.float32)
     img[:] = bg
@@ -296,17 +366,29 @@ def background(r, size, bg):
     if x < 0.2:  # vertical gradient
         d = np.linspace(-1, 1, h, dtype=np.float32)[:, None, None] * r.uniform(10, 50)
         img += d
-    elif x < 0.35:  # noise
+    elif x < 0.32:  # noise
         img += np.random.default_rng(r.randrange(1 << 30)).normal(0, r.uniform(3, 18), img.shape)
+    elif x < 0.47:  # clouds, as behind the title of a game
+        img += clouds(r, w, h, r.uniform(15, 60))
+    elif x < 0.57:  # faint shapes behind the text
+        lum_gap = abs(sum(bg) - sum(fg)) / 3 if fg is not None else 120
+        img = clutter(r, img, bg, r.randint(1, 4), min(70, lum_gap * 0.45))
     return np.clip(img, 0, 255).astype(np.uint8)
 
 
 def compose(r, mask: Image.Image, fg, bg, outline, effect) -> np.ndarray:
-    """Colours a 0/255 text mask onto a background, with an optional outline or shadow drawn from the mask."""
+    """Colours a 0/255 text mask onto a background, with an optional outline or shadow drawn from the mask.
+
+    "thick" is the comic and title style: an outline several pixels wide (about a sixth of the line's height, odd so
+    the filter is centred), as on the lettering of wha_01.
+    """
     m = np.asarray(mask, np.float32) / 255.0
-    img = background(r, mask.size, bg).astype(np.float32)
-    if effect == "outline":
-        o = np.asarray(mask.filter(ImageFilter.MaxFilter(3)), np.float32) / 255.0
+    img = background(r, mask.size, bg, fg).astype(np.float32)
+    if effect in ("outline", "thick"):
+        k = 3
+        if effect == "thick":
+            k = 2 * max(1, int(mask.size[1] * r.uniform(0.03, 0.08))) + 1
+        o = np.asarray(mask.filter(ImageFilter.MaxFilter(k)), np.float32) / 255.0
         img = img * (1 - o[..., None]) + np.array(outline, np.float32) * o[..., None]
     elif effect == "shadow":
         s = np.roll(np.roll(m, 1, 0), 1, 1)
@@ -315,17 +397,60 @@ def compose(r, mask: Image.Image, fg, bg, outline, effect) -> np.ndarray:
     return np.clip(img, 0, 255).astype(np.uint8)
 
 
-def text_mask(font, text, antialias: bool, pad: int):
-    """The text drawn white on black, `pad` pixels round its ink; None when nothing is drawn."""
-    left, top, right, bottom = font.getbbox(text)
+def text_mask(font, text, antialias: bool, pad: int, tracking: int = 0, word_gap: int = 0):
+    """The text drawn white on black, `pad` pixels round its ink; None when nothing is drawn.
+
+    `tracking` (pixels added after every character) and `word_gap` (added to every space) draw the text one
+    character at a time, for wide monospace UIs and spaced-out titles: the gaps are then wider than the font's own,
+    and the label still has one space per word gap and none inside a word ("Early Access Version" in round 1 came
+    out as "Early A Access Version0.9.18"). Kerning is lost in that mode, which such text has not got either.
+    """
+    if tracking == 0 and word_gap == 0:
+        left, top, right, bottom = font.getbbox(text)
+        xs = None
+    else:
+        xs, x = [], 0.0
+        for c in text:
+            xs.append(int(round(x)))
+            x += font.getlength(c) + tracking + (word_gap if c == " " else 0)
+        boxes = [(xs[i] + b[0], b[1], xs[i] + b[2], b[3])
+                 for i, c in enumerate(text) if c != " " for b in [font.getbbox(c)]]
+        if not boxes:
+            return None
+        left, top = min(b[0] for b in boxes), min(b[1] for b in boxes)
+        right, bottom = max(b[2] for b in boxes), max(b[3] for b in boxes)
     w, h = right - left + 2 * pad, bottom - top + 2 * pad
     if w <= 2 * pad or h <= 2 * pad or w > 6000:
         return None
     img = Image.new("L", (w, h), 0)
     d = ImageDraw.Draw(img)
     d.fontmode = "L" if antialias else "1"
-    d.text((pad - left, pad - top), text, fill=255, font=font)
+    if xs is None:
+        d.text((pad - left, pad - top), text, fill=255, font=font)
+    else:
+        for c, cx in zip(text, xs):
+            if c != " ":
+                d.text((pad - left + cx, pad - top), c, fill=255, font=font)
     return img
+
+
+def camera(r, img: np.ndarray) -> np.ndarray:
+    """A screen photographed or filmed with a phone (wha_01): a small tilt, detail lost to a lower resolution,
+    blur, sensor noise, a colour cast with less contrast, and strong JPEG loss."""
+    h, w = img.shape[:2]
+    if r.random() < 0.6:
+        m = cv2.getRotationMatrix2D((w / 2, h / 2), r.uniform(-3, 3), 1.0)
+        img = cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    f = r.uniform(0.4, 0.8)
+    small = cv2.resize(img, (max(1, int(w * f)), max(1, int(h * f))), interpolation=cv2.INTER_AREA)
+    img = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
+    img = cv2.GaussianBlur(img, (0, 0), r.uniform(0.4, 1.2)).astype(np.float32)
+    img += np.random.default_rng(r.randrange(1 << 30)).normal(0, r.uniform(2, 10), img.shape)
+    gain = np.array([r.uniform(0.7, 1.0) for _ in range(3)], np.float32)
+    img = img * gain + r.uniform(0, 50)
+    img = np.clip(img, 0, 255).astype(np.uint8)
+    ok, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, r.randint(35, 75)])
+    return cv2.imdecode(enc, cv2.IMREAD_COLOR) if ok else img
 
 
 def crop_like_detector(r, img: np.ndarray, ink_h: int) -> np.ndarray:
@@ -358,7 +483,12 @@ def render_pixel(r, path, text):
     font = ImageFont.truetype(path, size)
     if not font_has_all(font, text):
         return None
-    mask = text_mask(font, text, antialias=False, pad=max(4, size))
+    # Whole pixels at the font's own size: the extra gap stays on the pixel grid after the nearest-neighbour scale.
+    unit = max(1, size // max(1, native or 8))
+    tracking = unit * r.randint(1, 3) if r.random() < 0.25 else 0
+    word_gap = unit * r.randint(2, 8) if r.random() < 0.15 else 0
+    word_gap = max(word_gap, tracking)  # a word gap stays clearly wider than the gap between two letters
+    mask = text_mask(font, text, antialias=False, pad=max(4, size), tracking=tracking, word_gap=word_gap)
     if mask is None:
         return None
     ink_h = mask.size[1] - 2 * max(4, size)
@@ -369,6 +499,8 @@ def render_pixel(r, path, text):
     f = r.choice([1, 2, 2, 3, 3, 4]) if r.random() < 0.6 else r.uniform(1.3, 4.5)
     filt = cv2.INTER_NEAREST if r.random() < 0.85 else cv2.INTER_LINEAR
     img = cv2.resize(img, (max(1, int(img.shape[1] * f)), max(1, int(img.shape[0] * f))), interpolation=filt)
+    if r.random() < 0.03:  # a game filmed off a screen
+        img = camera(r, img)
     return crop_like_detector(r, img, int(ink_h * f))
 
 
@@ -385,13 +517,19 @@ def render_normal(r, path, text):
     if not font_has_all(font, text):
         return None
     pad = max(6, size // 2)
-    mask = text_mask(font, text, antialias=True, pad=pad)
+    # Spaced-out titles and wide monospace UIs: extra room after each character or at each space.
+    tracking = int(size * r.uniform(0.05, 0.4)) if r.random() < 0.2 else 0
+    word_gap = int(size * r.uniform(0.3, 1.5)) if r.random() < 0.15 else 0
+    word_gap = max(word_gap, tracking)  # a word gap stays clearly wider than the gap between two letters
+    mask = text_mask(font, text, antialias=True, pad=pad, tracking=tracking, word_gap=word_gap)
     if mask is None:
         return None
     ink_h = mask.size[1] - 2 * pad
     fg, bg, outline = colours(r)
-    effect = r.choices(["none", "outline", "shadow"], [0.8, 0.1, 0.1])[0]
+    effect = r.choices(["none", "outline", "thick", "shadow"], [0.7, 0.08, 0.12, 0.1])[0]
     img = compose(r, mask, fg, bg, outline, effect)
+    if r.random() < 0.07:  # a screen filmed with a phone: replaces the lighter blur and JPEG below
+        return crop_like_detector(r, camera(r, img), ink_h)
     if r.random() < 0.12:
         img = cv2.GaussianBlur(img, (3, 3), r.uniform(0.3, 0.9))
     if r.random() < 0.15:
@@ -399,6 +537,48 @@ def render_normal(r, path, text):
         if ok:
             img = cv2.imdecode(enc, cv2.IMREAD_COLOR)
     return crop_like_detector(r, img, ink_h)
+
+
+def pixel_sprite(r):
+    """A small mirror-symmetric pixel icon (as space-invader sprites and UI glyphs are), 0/1 values.
+
+    Dense enough (about half the cells) that it reads as a blob, not as a thin letter."""
+    n = r.randint(5, 9)
+    half = (n + 1) // 2
+    left = np.array([[1 if r.random() < 0.55 else 0 for _ in range(half)] for _ in range(n)], np.uint8)
+    return np.concatenate([left, left[:, : n // 2][:, ::-1]], axis=1)
+
+
+def render_negative(r):
+    """A crop with no text in it, labelled " " (see NEGATIVE_SHARE): a background with shapes, icons or nothing.
+
+    Lexia's detector also boxes icons, decorations and textures; a model that never saw such a crop reads letters
+    into it ("wwww", "w*", "z777777" in round 1). Lexia drops a line with no letter or digit (src/ocr.cpp), so the
+    model's answer " " removes the line. Sizes cover the detector's boxes: small icons to big picture areas.
+    """
+    h = int(r.uniform(12, 40) if r.random() < 0.6 else r.uniform(40, 170))
+    w = max(8, int(h * r.uniform(0.4, 5.0)))
+    fg, bg, _ = colours(r)
+    img = background(r, (w, h), bg).astype(np.float32)
+    x = r.random()
+    if x < 0.45:  # shapes in a clear colour
+        img = clutter(r, img, bg, r.randint(1, 5), 200)
+    elif x < 0.75:  # one to three pixel icons, scaled up with nearest neighbour
+        for _ in range(r.randint(1, 3)):
+            spr = pixel_sprite(r)
+            s = max(1, int(h * r.uniform(0.4, 0.9)) // spr.shape[0])
+            big = cv2.resize(spr, (spr.shape[1] * s, spr.shape[0] * s), interpolation=cv2.INTER_NEAREST)
+            bh, bw = big.shape
+            if bh >= h or bw >= w:
+                continue
+            y0, x0 = r.randrange(h - bh), r.randrange(w - bw)
+            region = img[y0:y0 + bh, x0:x0 + bw]
+            region[big > 0] = fg
+    # else: only the background (a texture, a gradient, a plain panel)
+    img = np.clip(img, 0, 255).astype(np.uint8)
+    if r.random() < 0.1:
+        img = camera(r, img)
+    return img
 
 
 # ------------------------------------------------------------------------------------------------- workers
@@ -420,7 +600,16 @@ def make_one(job):
     split, index, seed, out_dir, kind = job
     r = random.Random(seed * 1_000_003 + index)
     if kind is None:
-        kind = "pixel" if r.random() < PIXEL_SHARE else "normal"
+        x = r.random()
+        if x < NEGATIVE_SHARE:
+            kind = "negative"
+        else:
+            kind = "pixel" if r.random() < PIXEL_SHARE else "normal"
+    if kind == "negative":
+        img = lexia_resize(render_negative(r))[:, :MAX_W]
+        rel = f"{split}/{index:07d}.png"
+        cv2.imwrite(os.path.join(out_dir, rel), img[:, :, ::-1])
+        return rel, " ", kind
     for _ in range(8):
         text = sample_text(r, _STATE["books"])
         path = r.choice(_STATE[kind])
@@ -489,7 +678,9 @@ def main():
     write_list(os.path.join(out, "val_list.txt"), vp + vn)
     write_list(os.path.join(out, "train_list.txt"), tr)
     pix = sum(1 for row in tr if row[2] == "pixel")
-    print(f"done: {len(tr)} training lines ({pix} pixel, {len(tr) - pix} normal), {len(vp)} + {len(vn)} check lines")
+    neg = sum(1 for row in tr if row[2] == "negative")
+    print(f"done: {len(tr)} training lines ({pix} pixel, {len(tr) - pix - neg} normal, {neg} with no text), "
+          f"{len(vp)} + {len(vn)} check lines")
 
 
 if __name__ == "__main__":

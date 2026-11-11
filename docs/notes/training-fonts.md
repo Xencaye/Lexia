@@ -36,6 +36,10 @@ Rules (plan, task L0):
 | Ark Pixel 12 px (Latin) 2026.11.10 | TakWolf | SIL OFL 1.1 | github.com/TakWolf/ark-pixel-font | checked |
 | Pixel Code 2.2 (Regular, Bold) | Qwerasd | SIL OFL 1.1 | github.com/qwerasd205/PixelCode | checked (the release zip has no licence file: the `LICENSE` of the same tag is fetched and pinned) |
 | Spleen 2.2.0 (6x12 to 32x64) | Frederic Cambus | BSD-2-Clause | github.com/fcambus/spleen | checked |
+| Doto | Óliver Lalan | SIL OFL 1.1 | Google Fonts | checked 2026-11-11 (round 2: dot-matrix) |
+| Jacquard 12 | Sarah Cadigan-Fried | SIL OFL 1.1 | Google Fonts | checked 2026-11-11 (round 2: pixel blackletter of fantasy games) |
+| Rubik Pixels | NaN, Luke Prowse | SIL OFL 1.1 | Google Fonts | checked 2026-11-11 (round 2) |
+| Bitcount Single | Petr van Blokland | SIL OFL 1.1 | Google Fonts | checked 2026-11-11 (round 2) |
 
 ## Normal fonts (used, so that other text does not get worse)
 
@@ -45,6 +49,12 @@ Source Serif 4, Source Code Pro, Roboto (and Italic), Roboto Mono, Open Sans, La
 Inter, Fira Sans (Regular, Bold, Italic, Light), Fira Mono (Regular, Bold), IBM Plex Sans, IBM Plex Serif (Regular,
 Bold), IBM Plex Mono (Regular, Bold), Ubuntu (Regular, Bold, Italic, Medium), Merriweather, Montserrat, Oswald,
 Comic Neue (Regular, Bold), Bangers, Exo 2, Orbitron, Cinzel, Nunito.
+
+Added in round 2 (2026-11-11), for comic lettering, wide monospace UIs and game titles; all SIL OFL 1.1 except
+Luckiest Guy and Permanent Marker (Apache-2.0, checked against the `LICENSE.txt` beside them); all checked:
+Patrick Hand, Luckiest Guy, Permanent Marker, Kalam (Regular, Bold), Space Mono (Regular, Bold), Share Tech Mono,
+Courier Prime (Regular, Bold), Cousine (Regular, Bold), Chakra Petch (Regular, Bold), Rajdhani (Regular, Bold), Teko,
+Russo One, Audiowide, Bebas Neue, Anton, Lexend, PT Sans (Regular, Bold, Italic), Arimo (and Italic).
 
 ## Not used
 

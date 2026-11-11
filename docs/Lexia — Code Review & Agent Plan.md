@@ -205,8 +205,8 @@ mixed with normal text so that other text does not get worse.
 
 **Tasks.**
 
-- [x] **L0 Fonts and their licences (agent; owner to agree).** 48 font families are used: 21 pixel / bitmap and 27
-  normal, listed with author, source and licence in `docs/notes/training-fonts.md` and pinned by SHA-256 in
+- [x] **L0 Fonts and their licences (agent; owner to agree).** 70 font families are used: 25 pixel / bitmap and 45
+  normal (22 added on Nov 11 for round 2), listed with author, source and licence in `docs/notes/training-fonts.md` and pinned by SHA-256 in
   `training/rec_en/sources.lock.json`. `fetch_sources.py` uses a font only if the licence file *in its download*
   contains the expected licence (OFL, CC0, BSD-2, Ubuntu Font Licence); all passed. Undertale's own font
   ("8bitoperator JVE"; also the fan font "Determination Mono") is not used: its licence is unclear or non-commercial.
@@ -239,10 +239,20 @@ mixed with normal text so that other text does not get worse.
   every image once first (cold file opens on Windows made the first epoch 4x slower). Set-up (native
   Windows 11): Python 3.12, `paddlepaddle-gpu` 2.6.2 from PyPI (built for CUDA 11.8) with NVIDIA's CUDA 11.8 / cuDNN
   8.9 pip packages in the venv (no CUDA install; `common.ps1` puts their DLLs on PATH); `num_workers` 4,
-  `use_shared_memory: false`; PaddleOCR's RecAug removed (it made the loader 4x slower than the GPU). PaddlePaddle 3
+  `use_shared_memory: false`; PaddleOCR's RecAug removed (it made the loader 4x slower than the GPU), and
+  RecConAug too (it joins two lines' labels with no space, see round 1). PaddlePaddle 3
   was not used: its Windows package server answered 502 on Nov 10. A 3-minute trial (3000 lines, 3 epochs) already
   read "[Z or ENTER] - Confirm", "Cancel", "Fullscreen" and "lose" right on `undertale_05`, but 7 Fixtures got worse
   (small capitals read as lower case: the caps-only fonts above, fixed after the trial; spaces lost).
+  **Round 1 (Nov 10-11, 10 epochs, best epoch 8):** on the check lines the CER fell from 8.80 % to 0.33 % (pixel) and
+  from 1.61 % to 0.09 % (normal), and `undertale_05` read every word right (distance 0.150 -> 0.116), but 6 Fixtures
+  got worse (lovebyte_01-03, undertale_01, unraveled_03, wha_01): spaces lost ("Version0.9.18": `RecConAug` joins
+  two lines' labels with no space), letters read into icons and textures ("wwww", "w*": the model never saw a crop
+  with no text), letters added in wide-spaced monospace ("Early A Access") and comic lettering filmed off a screen
+  (wha_01), "III" read as "II". Not shipped. **Round 2:** `RecConAug` removed; `gen_lines.py` adds crops with
+  no text labelled " " (4 %; Lexia drops a line with no letter or digit), letter and word spacing, thick comic
+  outlines, a filmed-screen look, cloud and shape backgrounds, Roman numerals, version lines and user names; 22 more
+  font families (`docs/notes/training-fonts.md`).
 - [x] **L3 Export to ONNX (agent).** `export.ps1`: `tools/export_model.py` (CTC head only), `paddle2onnx` 1.3.1
   with opset 14 (paddle2onnx raises it from 11 for `hard_swish`; ONNX Runtime 1.20.1 runs it), then
   `check_onnx.py`: one input `[N, 3, 48, W]`, one output `[N, T, 97]`, each time step adds up to 1; the CER on the
