@@ -19,25 +19,34 @@ $out = Join-Path $Work 'output'
 $data = Join-Path $Work 'data'
 if (-not (Test-Path -LiteralPath (Join-Path $data 'train_list.txt'))) { throw "no training lines in ${data}: run setup.ps1" }
 
-# PaddleOCR reads the -o values as YAML: forward slashes keep the Windows paths plain.
-function Yp([string]$p) { return $p.Replace('\', '/') }
 $opts = @(
-    "Global.save_model_dir=$(Yp $out)",
-    "Global.save_res_path=$(Yp (Join-Path $out 'predicts.txt'))",
-    "Global.character_dict_path=$(Yp (Join-Path $Here 'dict_en.txt'))",
-    "Train.dataset.data_dir=$(Yp $data)",
-    "Train.dataset.label_file_list=['$(Yp (Join-Path $data 'train_list.txt'))']",
-    "Eval.dataset.data_dir=$(Yp $data)",
-    "Eval.dataset.label_file_list=['$(Yp (Join-Path $data 'val_list.txt'))']"
+    "Global.save_model_dir=$(ToYamlPath $out)",
+    "Global.save_res_path=$(ToYamlPath (Join-Path $out 'predicts.txt'))",
+    "Global.character_dict_path=$(ToYamlPath (Join-Path $Here 'dict_en.txt'))",
+    "Train.dataset.data_dir=$(ToYamlPath $data)",
+    "Train.dataset.label_file_list=['$(ToYamlPath (Join-Path $data 'train_list.txt'))']",
+    "Eval.dataset.data_dir=$(ToYamlPath $data)",
+    "Eval.dataset.label_file_list=['$(ToYamlPath (Join-Path $data 'val_list.txt'))']"
 )
 if ($Resume) {
-    $opts += "Global.checkpoints=$(Yp (Join-Path $out 'latest'))"
+    $opts += "Global.checkpoints=$(ToYamlPath (Join-Path $out 'latest'))"
 } else {
-    $opts += "Global.pretrained_model=$(Yp (Join-Path $Work 'pretrained\en_PP-OCRv3_rec_train\best_accuracy'))"
+    $opts += "Global.pretrained_model=$(ToYamlPath (Join-Path $Work 'pretrained\en_PP-OCRv3_rec_train\best_accuracy'))"
 }
 if ($Epochs -gt 0) { $opts += "Global.epoch_num=$Epochs" }
 if ($BatchSize -gt 0) { $opts += "Train.loader.batch_size_per_card=$BatchSize" }
 $opts += $Set
+
+# Record the commit the training scripts are at, for the model's metadata (export.ps1 reads it). "-dirty" when
+# training/rec_en has changes not committed: then the commit alone does not make this model again. -Resume keeps
+# the first run's record.
+New-Item -ItemType Directory $out -Force | Out-Null
+$stamp = Join-Path $out 'training_commit.txt'
+if (-not ($Resume -and (Test-Path -LiteralPath $stamp))) {
+    $commit = (git -C $Repo rev-parse --short HEAD).Trim()
+    if (git -C $Repo status --porcelain -- training/rec_en) { $commit += '-dirty' }
+    Set-Content -LiteralPath $stamp -Value $commit -Encoding ASCII
+}
 
 # Read every image once in parallel first: a cold first epoch is 4x slower (warm_files.py says why).
 Write-Host 'Reading the training images into the file cache ...'

@@ -17,8 +17,8 @@ param(
 )
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-function Yp([string]$p) { return $p.Replace('\', '/') }
 $runDir = Join-Path $Work $Run
+if (-not (Test-Path -LiteralPath $runDir -PathType Container)) { throw "no run folder $runDir" }
 $cliSrc = Join-Path $Repo 'build\cli\Release'
 if (-not (Test-Path -LiteralPath (Join-Path $cliSrc 'lexia_cli.exe'))) { throw "no lexia_cli in ${cliSrc}: build Release first" }
 
@@ -35,21 +35,8 @@ foreach ($e in $Epochs) {
     if (-not (Test-Path -LiteralPath "$ckpt.pdparams")) { Write-Host "epoch ${e}: no checkpoint"; continue }
     $inf = Join-Path $scores "inference_e$e"
     $onnx = Join-Path $scores "rec_en_e$e.onnx"
-    if (-not (Test-Path -LiteralPath $onnx)) {
-        Push-Location $PaddleOcr
-        try {
-            Invoke-Py tools/export_model.py -c (Join-Path $Here 'lexia_rec_en.yml') -o `
-                "Global.pretrained_model=$(Yp $ckpt)" "Global.save_inference_dir=$(Yp $inf)" `
-                "Global.character_dict_path=$(Yp (Join-Path $Here 'dict_en.txt'))" | Out-Null
-        } finally {
-            Pop-Location
-        }
-        $ErrorActionPreference = 'Continue'   # paddle2onnx logs to stderr; the exit code decides
-        & (Join-Path $Work 'venv\Scripts\paddle2onnx.exe') --model_dir $inf --model_filename inference.pdmodel `
-            --params_filename inference.pdiparams --save_file $onnx --opset_version 14 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "paddle2onnx failed for epoch $e" }
-        $ErrorActionPreference = 'Stop'
-    }
+    # An earlier run's export is reused: Export-RecOnnx writes the file only once it is complete.
+    if (-not (Test-Path -LiteralPath $onnx)) { Export-RecOnnx $ckpt $inf $onnx }
     Copy-Item -LiteralPath $onnx (Join-Path $cli 'models\rec_en.onnx') -Force
     # score_layout.ps1 exits 1 when a Fixture got worse: that is a result here, not a failure.
     $ErrorActionPreference = 'Continue'

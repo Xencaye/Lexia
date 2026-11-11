@@ -43,8 +43,9 @@ From the repo root in PowerShell:
   `scripts\fetch_deps.ps1`, run `fetch_deps.ps1`, `ctest` and `score_layout.ps1 -SaveBaseline`, and update
   `ocr_models/README.md` (plan, task L6).
 - `try_model.ps1 -Keep` leaves the new model in `models\`, to try Lexia itself with it (a Release build reads the
-  `models\` folder beside `lexia.exe` in the build: copy it there too). Put the old one back from
-  `<work>\rec_en.original.onnx`.
+  `models\` folder beside `lexia.exe` in the build: copy it there too). To put the shipped model back, run
+  `scripts\fetch_deps.ps1` (it copies `ocr_models\rec_en.onnx` again when the hash in `models\` is not the pinned
+  one). `<work>\rec_en.original.onnx` is PaddleOCR's own model, only for `check_onnx.py`: never put it in `models\`.
 
 ## What `check_onnx.py` checks
 

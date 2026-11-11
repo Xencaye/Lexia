@@ -21,6 +21,7 @@ NOTICE = ("Modified by the Lexia project (https://github.com/Xencaye/Lexia): Pad
 
 
 def main():
+    """Loads the model, sets the notice and Lexia's metadata keys (other keys stay), checks it and saves it in place."""
     ap = argparse.ArgumentParser()
     ap.add_argument("model")
     ap.add_argument("--commit", default="", help="the git commit the training scripts were at")

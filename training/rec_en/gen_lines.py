@@ -326,8 +326,9 @@ def clutter(r, img, base, n, contrast):
     """Draws n random shapes (circles, boxes, diagonal or thick strokes, crosses) on img, each in a colour at most
     `contrast` away from `base`.
 
-    Thin vertical and thin horizontal strokes are never drawn: on their own they look like "l", "I", "|", "-" or
-    "_", and the model must not learn to see nothing (or something) where a real one stands.
+    No lone thin vertical or horizontal stroke is drawn: on its own it looks like "l", "I", "|", "-" or "_", and the
+    model must not learn to see nothing (or something) where a real one stands. A hollow box has thin sides, but as
+    a closed frame round the text area (or cut by the crop) it reads as a panel edge, as in game menus.
     """
     h, w = img.shape[:2]
     for _ in range(n):
@@ -379,8 +380,8 @@ def background(r, size, bg, fg=None):
 def compose(r, mask: Image.Image, fg, bg, outline, effect) -> np.ndarray:
     """Colours a 0/255 text mask onto a background, with an optional outline or shadow drawn from the mask.
 
-    "thick" is the comic and title style: an outline several pixels wide (about a sixth of the line's height, odd so
-    the filter is centred), as on the lettering of wha_01.
+    "thick" is the comic and title style: an outline several pixels wide (the filter is 6 to 16 % of the mask's
+    height, padding included, and odd so it is centred), as on the lettering of wha_01.
     """
     m = np.asarray(mask, np.float32) / 255.0
     img = background(r, mask.size, bg, fg).astype(np.float32)

@@ -104,7 +104,7 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
   to compare with, the lines), `train.ps1`, `score_epochs.ps1` (each epoch's Fixture score: the epoch to ship is
   chosen there, not by the synthetic accuracy), `export.ps1 [-Checkpoint iter_epoch_N]` (ONNX, `stamp_onnx.py` (the
   Apache-2.0 "modified" notice in the model's metadata), `check_onnx.py`), `try_model.ps1` (the Fixture score with
-  the new model in `models\`, then the old one back). Work folder
+  the new model in `models\`, then the shipped `ocr_models\rec_en.onnx` back). Work folder
   `%USERPROFILE%\LexiaTrain` (outside the repo and OneDrive; nothing in it is committed). Steps in its `README.md`.
 - **`lexia_svgshot`** (`build\svgshot\Release`): `--px N in.svg out.png` draws one SVG at N x N px with Direct2D
   (`DrawSvgDocument`, the app's renderer) on a transparent background (straight alpha PNG). No resources, no shared

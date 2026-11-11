@@ -29,7 +29,9 @@ so `src/ocr.cpp` and `src/ctc.*` read it unchanged. The notice is also in the mo
 | Fixtures: average distance (`score_layout.ps1`) | 0.131 | 0.110 |
 | Fixtures: average Block-count error | 1.29 | 1.00 |
 
-Known regression: `unraveled_04` (0.018 -> 0.045): a blurred lamp is read as "3" (the owner accepted it, Nov 11).
+Known regressions: `unraveled_04` (0.018 -> 0.045, beyond the tolerance): a blurred lamp is read as "3" (the owner
+accepted it, Nov 11); `lovebyte_02` (0.018 -> 0.036, inside the tolerance): "Version n Q.9.18" where a line crosses
+the text, and an icon read as "e".
 
 ## Replacing it
 

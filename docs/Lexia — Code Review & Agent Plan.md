@@ -45,7 +45,7 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
 
 - [ ] **L7 The game-font recogniser.** In Undertale: the instruction screen, the menu, dialogue and battle text read
   right aloud. A browser page and a video with subtitles read as well as before. In Unravel's menu, a lamp may be read
-  as "3" (known).
+  as "3" (known). Agree the 22 font families added for round 2 (`docs/notes/training-fonts.md`, "round 2").
 
 - [ ] **K7 Settings window.** Every page and sheet against `wireframe/html-reference/` (layout) and the mockups
   `wireframe/<page>.png` / `<page>_dark.png` (colours); keys and mouse; dark mode; 150 % / 200 % and a move between
@@ -210,9 +210,11 @@ mixed with normal text so that other text does not get worse.
 **Tasks.**
 
 - [x] **L0 Fonts and their licences (agent; owner to agree).** 70 font families are used: 25 pixel / bitmap and 45
-  normal (22 added on Nov 11 for round 2), listed with author, source and licence in `docs/notes/training-fonts.md` and pinned by SHA-256 in
-  `training/rec_en/sources.lock.json`. `fetch_sources.py` uses a font only if the licence file *in its download*
-  contains the expected licence (OFL, CC0, BSD-2, Ubuntu Font Licence); all passed. Undertale's own font
+  normal (22 added on Nov 11 for round 2, after the owner asked for more font sets), listed with author, source and
+  licence in `docs/notes/training-fonts.md` and pinned by SHA-256 in `training/rec_en/sources.lock.json`.
+  `fetch_sources.py` uses a font only if the licence file *in its download* contains the expected licence (OFL, CC0,
+  BSD-2, Apache-2.0, Ubuntu Font Licence); all passed. The owner still agrees the 22 round 2 families (in the open
+  checks). Undertale's own font
   ("8bitoperator JVE"; also the fan font "Determination Mono") is not used: its licence is unclear or non-commercial.
   Pixel Operator (CC0, same author, the earlier "8-bit Operator") is close to it and is used instead. Fonts only on
   itch.io (monogram, m5x7, m6x11, Pixeloid) and Kenney's are not used for now: no download a script can pin.
@@ -289,9 +291,14 @@ mixed with normal text so that other text does not get worse.
   lovebyte_01 0.045 (0) -> 0.034 (0), lovebyte_02 0.018 (1) -> 0.036 (1), lovebyte_03 0.271 (5) -> 0.252 (2),
   oblivion_01 0.301 (2) -> 0.024 (1), twd_02 0.214 (4) -> 0.209 (4), undertale_05 0.150 (4) -> 0.115 (4),
   unraveled_04 0.018 (1) -> 0.045 (0), wha_01 0.078 (0) -> 0.020 (0); the other 9 unchanged. One exception, accepted
-  by the owner: `unraveled_04` is worse than the tolerance (a blurred lamp read as "3"). `undertale_05` reads
+  by the owner: `unraveled_04` is worse than the tolerance (a blurred lamp read as "3"). `lovebyte_02` is also worse
+  (0.018 -> 0.036), inside the tolerance ("Version 0.9.18" read as "Version n Q.9.18", where a line crosses the text,
+  and an icon read as "e"). `undertale_05` reads
   `[Z or ENTER]`, `Cancel`, `Fullscreen`, `you lose` right. Check lines: CER 12.76 % -> 0.87 % (pixel), 3.61 % ->
-  0.47 % (normal). New baseline saved: the model changed (average distance 0.131 -> 0.110). The new pixel Fixtures
+  0.47 % (normal). New baseline saved: the model changed (average distance 0.131 -> 0.110). L6 checks: a clean clone
+  of the branch with `fetch_deps.ps1 -SkipVoices` puts the model in `models\` with the pinned hash; the package's
+  `THIRD-PARTY-NOTICES.txt` names the modified `rec_en.onnx` and the training fonts; `export.ps1 -Checkpoint
+  iter_epoch_5 -Commit 5eae7a3` makes the committed file byte for byte. The full build ran in the working tree. The new pixel Fixtures
   wait for L4.
 - [x] **L6 Ship it (agent).** The model is committed to this repo as `ocr_models/rec_en.onnx` (about 9 MB, a plain git
   file: below GitHub's limits, no Git LFS), with `ocr_models/README.md` (where it comes from, the training commit, the
@@ -357,8 +364,8 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
 6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); B9 done (an update
-   keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L in progress
-   (pixel game fonts: the scripts are ready, the training is next).
+   keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L: the
+   fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
