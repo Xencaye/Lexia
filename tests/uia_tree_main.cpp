@@ -440,7 +440,7 @@ void Actions(Client& c, SettingsWindow& w) {
             if (ec) ec->get_CurrentExpandCollapseState(&st);
             Check(st == ExpandCollapseState_Expanded, "Actions: the Voice choice is expanded");
             std::vector<Node> open = TreeOf(c);
-            Check(Find(open, "en_GB-cori-medium", UIA_ListItemControlTypeId) != nullptr,
+            Check(Find(open, "en_US-ljspeech-medium", UIA_ListItemControlTypeId) != nullptr,
                   "Actions: the open list offers its rows");
             Check(ec && SUCCEEDED(ec->Collapse()), "Actions: Collapse succeeds");
             Sleep(200);

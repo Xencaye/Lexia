@@ -21,7 +21,7 @@ constexpr std::uintmax_t kMaxUnpackedBytes = 1024ull * 1024 * 1024;  // 1 GiB ov
 constexpr std::uintmax_t kMaxConfigBytes = 4ull * 1024 * 1024;       // a config is ~5 KB
 
 // A Voice name that is safe as a file name: letters, digits, "_", "-" and "." only, no "..", not
-// starting with ".", at most 120 characters ("en_GB-cori-medium").
+// starting with ".", at most 120 characters ("en_US-ljspeech-medium").
 bool SafeName(const std::string& name) {
     if (name.empty() || name.size() > 120 || name[0] == '.') return false;
     for (unsigned char c : name) {

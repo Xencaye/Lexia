@@ -12,9 +12,10 @@
 namespace fs = std::filesystem;
 
 // Pinned to one commit of rhasspy/piper-voices, so the catalogue and its file sizes and MD5s cannot
-// change under Lexia.
+// change under Lexia. The same commit as voices/voices.json (cf910fb, 2026-11-09): what the Download sheet
+// offers are the versions that docs/notes/voice-licences.md describes (many Voices retrained from clean bases).
 const char* const kVoiceRepoUrl =
-    "https://huggingface.co/rhasspy/piper-voices/resolve/5041a7a49ae5b3a0f30e6837769eb03fdbb231bd/";
+    "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/";
 
 namespace {
 
