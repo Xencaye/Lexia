@@ -66,8 +66,11 @@ std::vector<TextRange> SpokenStretchRanges(const std::string& blockText);
 // only sentences that have a word in them; past the end = the last one); `phonemesPerWord` holds
 // the spoken phonemes of each spoken word of the chunk, in order (each > 0).
 //
-// Sentences end at a word ending in . ! ? or an ellipsis (closing quotes and brackets may follow),
-// as Piper cuts its chunks. A text word is a run of non-space characters that has a letter or digit;
+// Sentences end where espeak-ng, and so Piper, ends them: at a word ending in ? or !, or in a full
+// stop that is followed by a closing quote or bracket, by a line break, by the end of the text or by
+// a word that does not start with a lower-case letter ("Mr. Smith" ends, "Mr. smith" and "e.g. a"
+// do not; there is no list of abbreviations). An ellipsis ("..." or U+2026) is a pause, not an end.
+// Details and the checks against Piper: EndsSentence in read_along.cpp. A text word is a run of non-space characters that has a letter or digit;
 // leading and trailing punctuation is not part of its range. Spoken words are matched to text
 // words 1:1 when the counts agree; otherwise by proportion (the share of the sentence's phonemes
 // before a spoken word against the share of its letters before a text word; a digit counts as three
