@@ -242,8 +242,10 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   made from `v0.6.0`: the corrected package `README.txt` only) and **Lexia 0.6.2** (2026-11-08, tag `v0.6.2`, made from
   `v0.6.1`: the new Discord invite only), kept in `release\<v>\` (git-ignored).
 - **Now: towards Lexia 0.7** (owner, Nov 8: future changes go into 0.7); `vcpkg.json` says 0.7.0. Done for 0.7:
-  B8, the shipped Voices `en_GB-cori-medium` (the default: the first English Voice in `voices.json`) and
-  `en_US-mike-medium` instead of `en_US-ljspeech-medium`; B9, an update keeps a Voice that Lexia no
+  B10 (replaces B8's Cori and Mike, which mispronounce common words such as "library"), the shipped Voices
+  `en_US-ljspeech-medium` (the default: the first English Voice in `voices.json`) and `en_US-norman-medium`, both
+  public domain and trained from scratch, and the Download sheet's catalogue at the same pinned commit (`cf910fb`)
+  as `voices.json`; B9, an update keeps a Voice that Lexia no
   longer ships (it becomes one of the user's own Voices; Lexia adopts it at start); A6, Layout: row fragments and
   tight centred stacks. **L (L0–L3, L5, L6 done; L4 and L7 open):** the English recogniser `rec_en.onnx` is
   fine-tuned on synthetic lines in pixel game fonts mixed with normal fonts (70 font families with an allowed
@@ -252,8 +254,9 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   shipped model is round 2, epoch 5, chosen on the Fixtures (average distance 0.131 -> 0.110, Block-count error
   1.29 -> 1.00; `unraveled_04` worse, accepted by the owner); it is `ocr_models/rec_en.onnx`, copied into `models\`
   by `fetch_deps.ps1`. Open: L4, new pixel-font Fixtures (the owner gives screenshots). New work branches from `main`.
-- **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B8, B9, A6, L7, R36–R45, games,
-  the installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
+- **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B9, B10, A6, L7, R36–R45,
+  games, the installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub
+  issue is open.
 - **Later:** E1, E2, E6 (the owner trains a Bulgarian Voice from their own voice) and the Language UI (Lexia 0.8);
   J, Linux on Ubuntu, and H5, free signing through SignPath Foundation (Lexia 1.0; 0.7 and 0.8 ship unsigned).
 - **History reset (2026-11-05):** `Xencaye/Lexia` restarted from one commit. The old history, its PRs and issues

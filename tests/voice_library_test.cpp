@@ -469,22 +469,22 @@ TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, e
     CHECK(PickVoice({}, "en", "") == nullptr);
 }
 
-// The default English Voice is the first one voices.json lists (Cori, then Mike). A settings.json from
-// Lexia 0.6 names en_US-ljspeech-medium as the active Voice; that Voice no longer ships, so the
-// first listed one speaks instead, with no migration step.
+// The default English Voice is the first one voices.json lists (ljspeech, then norman). A settings.json from a
+// 0.7 test build names en_GB-cori-medium as the active Voice; that Voice no longer ships, so the first listed one
+// speaks instead, with no migration step (AdoptRetiredVoices keeps its files as one of the user's own Voices).
 TEST_CASE("PickVoice: the first Voice in voices.json is the default, also for a Voice that no longer ships") {
     TempDir shipped;
     WriteText(shipped.path / "voices.json",
-              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}, "
-              "{\"language\": \"en\", \"name\": \"en_US-mike-medium\"}]}");
-    WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");
-    WriteText(shipped.path / "en_US-mike-medium.onnx", "M");
+              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-ljspeech-medium\"}, "
+              "{\"language\": \"en\", \"name\": \"en_US-norman-medium\"}]}");
+    WriteText(shipped.path / "en_US-ljspeech-medium.onnx", "M");
+    WriteText(shipped.path / "en_US-norman-medium.onnx", "M");
 
     const auto voices = ListInstalledVoices(shipped.path, {});
     REQUIRE(voices.size() == 2);
-    CHECK(PickVoice(voices, "en", "")->name == "en_GB-cori-medium");
-    CHECK(PickVoice(voices, "en", "en_US-ljspeech-medium")->name == "en_GB-cori-medium");
-    CHECK(PickVoice(voices, "en", "en_US-mike-medium")->name == "en_US-mike-medium");
+    CHECK(PickVoice(voices, "en", "")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(voices, "en", "en_GB-cori-medium")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(voices, "en", "en_US-norman-medium")->name == "en_US-norman-medium");
 }
 
 // ------------------------------------------------------------- RemoveVoice ---

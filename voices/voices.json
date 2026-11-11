@@ -3,19 +3,19 @@
   "voices": [
     {
       "language": "en",
-      "name": "en_GB-cori-medium",
-      "path": "en/en_GB/cori/medium",
+      "name": "en_US-ljspeech-medium",
+      "path": "en/en_US/ljspeech/medium",
       "ship": true,
-      "onnxSha256": "2E0A55E140DE672AA19B182602B407607BD2E6C35FC6020C0B1516053C02E995",
-      "jsonSha256": "F89B01C5E483C75CE9085FF89C79446C1A95A1CB4A362F629DAC3B5A4B5DDE75"
+      "onnxSha256": "6F52A751E2349ABE7A76735EB09DC1875298C77EA2342FFD2FEF79FF81B87F22",
+      "jsonSha256": "141D612CC0A95ED7EFC1CA936B845C2364967F2E9217C5DBFCF69FC4D6C65860"
     },
     {
       "language": "en",
-      "name": "en_US-mike-medium",
-      "path": "en/en_US/mike/medium",
+      "name": "en_US-norman-medium",
+      "path": "en/en_US/norman/medium",
       "ship": true,
-      "onnxSha256": "6876866E3DFADC7F044BC5E4FBAC16C47B5A1E79EAEC04E3BB0C2C6E9DA8A857",
-      "jsonSha256": "57893C9E492CC6650E2A91E26EC7AA3BF23C267C080649F7CFB6AA1843FCD6ED"
+      "onnxSha256": "B9739443232A80A59C7D18810DD856899BF16A7964725F5AB81EA49B1351CB71",
+      "jsonSha256": "6C2DB7F558A4A8DEB9FE822583C1C5105F6C4E834DD0F9DE8AD17A888EE9FE1D"
     }
   ]
 }

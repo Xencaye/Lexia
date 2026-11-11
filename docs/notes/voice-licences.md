@@ -1,5 +1,12 @@
 # Voice licences (B6)
 
+Update 2026-11-11 (B10): Lexia 0.7 ships `en_US-ljspeech-medium` (the default) and `en_US-norman-medium` instead of
+Cori and Mike, which mispronounce common words ("library", "anonymized", "account"; espeak-ng's phonemes are right).
+At `cf910fb` both are as in section 3 (trained from scratch, public domain). Tried and dropped by ear: Joe (`rdh`
+base, CC0) and Jenny (Dioco) (`hifi_tts_92` base; dataset licence: commercial use permitted, the voice must be called
+"Jenny" / "Jenny (Dioco)"): their `cf910fb` versions sound worse than their old `lessac` versions. The Download
+sheet's catalogue now reads `cf910fb` too (it read `5041a7a`).
+
 Update 2026-11-10 (B8): `rhasspy/piper-voices` commit `cf910fb` (2026-11-09) retrained several voices from the
 `rdh` (CC0) and `hifi_tts_92` bases. Lexia 0.7 ships `en_GB-cori-medium` (now from `hifi_tts_92`, dataset Hi-Fi
 TTS, CC BY 4.0, British phonemes) as the default and `en_US-mike-medium` (from `rdh`, CC0), and no longer ships

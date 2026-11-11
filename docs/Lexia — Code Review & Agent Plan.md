@@ -15,7 +15,8 @@ On-screen wording follows the glossary.
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
-  Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech; B9, an update keeps a Voice that Lexia
+  Done for 0.7: B10, the Voices ljspeech (the default) and Norman instead of B8's Cori and Mike, and the Download
+  sheet's catalogue at commit `cf910fb`; B9, an update keeps a Voice that Lexia
   no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
   stacks in the Layout; L, the English recogniser fine-tuned to read pixel game fonts (owner Nov 10; L0-L3, L5, L6
   done: round 2 epoch 5 ships as `ocr_models/rec_en.onnx`). Open in L: L4 (new pixel-font Fixtures) and L7 (owner).
@@ -104,8 +105,10 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   (title screen, settings, save slots) still read one entry per click. A mixed-case centred prompt is still one
   Block per line (known limit).
 - [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
-- [ ] **B8 Voices Cori and Mike.** Listen to Cori (the default) and Mike in Lexia, at Speed, Pitch and Volume
-  changed; pick Mike on the Voices page and Pick text.
+- [ ] **B10 Voices ljspeech and Norman.** Install over a 0.7 test build with Cori active: Cori and Mike are now your own
+  Voices (Delete works) and Cori still speaks. On a new install ljspeech is the default; pick Norman on the Voices page
+  and Pick text ("library", "anonymized", "account"), also at Speed, Pitch and Volume changed. Open the Download sheet:
+  the list loads and a download works.
 - [ ] **B9 Update keeps old Voices.** Update a 0.6 install with ljspeech active, its Speed changed and a ljspeech Preset
   saved: ljspeech is on the Voices page as your own Voice (Delete works), still speaks, keeps its Speed, and the Preset
   loads into it. Then delete it, Quit and start Lexia again: it stays deleted.
@@ -366,8 +369,10 @@ can be scored with `lexia_cli` first if L does not reach its goal.
   tight stacks go on into the next Line, stacked Lines are ordered top first (Dist 0.1356 → 0.1310, BlkErr 1.76 → 1.29).
 - **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
   Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`), B8 (0.7)
-  the shipped Voices `en_GB-cori-medium` (the default) and `en_US-mike-medium` instead of `en_US-ljspeech-medium`
-  (`rhasspy/piper-voices` commit `cf910fb`; `docs/third-party.md`); B9 (0.7) an update keeps a Voice that Lexia no
+  the Voices Cori and Mike (replaced by B10); B10 (0.7) the shipped Voices `en_US-ljspeech-medium` (the default) and
+  `en_US-norman-medium`, public domain and trained from scratch (the owner chose them by ear: Cori, Mike and the
+  clean Joe and Jenny mispronounce common words), and the Download sheet's catalogue moved from `5041a7a` to
+  `cf910fb`, the commit of `voices.json` (`docs/third-party.md`); B9 (0.7) an update keeps a Voice that Lexia no
   longer ships: Setup no longer empties `{app}\voices`, and `AdoptRetiredVoices` (`tts/voice_library.*`, called by
   `App::Init`) copies it into the user's Voices folder once (the names handled are kept in settings.json `adoptedVoices`, so deleting the Voice sticks; the rule "Updates keep the user's data").
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
@@ -393,9 +398,9 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B8 done (the Voices Cori and Mike); B9 done (an update
-   keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L: the
-   fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open).
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (the Voices ljspeech and Norman); B9 done
+   (an update keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L:
+   the fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
