@@ -455,8 +455,8 @@ TEST_CASE("ListInstalledVoices: missing folders give an empty list, not an error
 
 TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, else the first one") {
     const std::vector<InstalledVoice> list = {
-        {"en_GB-cori-medium", "en", "a.onnx", true},
-        {"en_GB-alba-medium", "en", "b.onnx", false},
+        {"en_GB-cori-medium", "en", "a.onnx", true, "medium"},
+        {"en_GB-alba-medium", "en", "b.onnx", false, "medium"},
         {"bg_BG-sample-medium", "bg", "c.onnx", true},
     };
     REQUIRE(PickVoice(list, "en", "en_GB-alba-medium"));
@@ -469,22 +469,22 @@ TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, e
     CHECK(PickVoice({}, "en", "") == nullptr);
 }
 
-// The default English Voice is the first one voices.json lists (Cori, then Mike). A settings.json from
-// Lexia 0.6 names en_US-ljspeech-medium as the active Voice; that Voice no longer ships, so the
-// first listed one speaks instead, with no migration step.
+// The default English Voice is the first one voices.json lists (ljspeech, then norman). A settings.json from a
+// 0.7 test build names en_GB-cori-medium as the active Voice; that Voice no longer ships, so the first listed one
+// speaks instead, with no migration step (AdoptRetiredVoices keeps its files as one of the user's own Voices).
 TEST_CASE("PickVoice: the first Voice in voices.json is the default, also for a Voice that no longer ships") {
     TempDir shipped;
     WriteText(shipped.path / "voices.json",
-              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}, "
-              "{\"language\": \"en\", \"name\": \"en_US-mike-medium\"}]}");
-    WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");
-    WriteText(shipped.path / "en_US-mike-medium.onnx", "M");
+              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-ljspeech-medium\"}, "
+              "{\"language\": \"en\", \"name\": \"en_US-norman-medium\"}]}");
+    WriteText(shipped.path / "en_US-ljspeech-medium.onnx", "M");
+    WriteText(shipped.path / "en_US-norman-medium.onnx", "M");
 
     const auto voices = ListInstalledVoices(shipped.path, {});
     REQUIRE(voices.size() == 2);
-    CHECK(PickVoice(voices, "en", "")->name == "en_GB-cori-medium");
-    CHECK(PickVoice(voices, "en", "en_US-ljspeech-medium")->name == "en_GB-cori-medium");
-    CHECK(PickVoice(voices, "en", "en_US-mike-medium")->name == "en_US-mike-medium");
+    CHECK(PickVoice(voices, "en", "")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(voices, "en", "en_GB-cori-medium")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(voices, "en", "en_US-norman-medium")->name == "en_US-norman-medium");
 }
 
 // ------------------------------------------------------------- RemoveVoice ---
@@ -603,8 +603,8 @@ TEST_CASE("AdoptRetiredVoices: a Voice of that name in the user's folder is neve
 TEST_CASE("AdoptRetiredVoices: a bad config, a missing config or an odd name is skipped") {
     TempDir exe, user;
     WriteText(exe.path / "voices.json", "{\"voices\": []}");
-    WriteText(exe.path / "en_US-low-low.onnx", "M");  // quality low: refused, and reported
-    WriteText(exe.path / "en_US-low-low.onnx.json", Config("en_US", "English", "low"));
+    WriteText(exe.path / "de_DE-x-medium.onnx", "M");  // a language Lexia does not read: refused, and reported
+    WriteText(exe.path / "de_DE-x-medium.onnx.json", Config("de_DE", "German", "medium"));
     WriteText(exe.path / "en_US-junk-medium.onnx", "M");  // not JSON: refused, and reported
     WriteText(exe.path / "en_US-junk-medium.onnx.json", "not json");
     WriteText(exe.path / "en_US-nojson-medium.onnx", "M");  // no config file: skipped
@@ -617,7 +617,7 @@ TEST_CASE("AdoptRetiredVoices: a bad config, a missing config or an odd name is 
     REQUIRE(results.size() == 2);
     for (const VoiceOutcome& o : results) CHECK_FALSE(o.ok());
     CHECK(ListInstalledVoices({}, user.path).empty());
-    CHECK_FALSE(fs::exists(user.path / "en_US-low-low.onnx"));
+    CHECK_FALSE(fs::exists(user.path / "de_DE-x-medium.onnx"));
     CHECK_FALSE(fs::exists(user.path / "en_US-junk-medium.onnx"));
     CHECK_FALSE(fs::exists(user.path / "en_US-nojson-medium.onnx"));
     CHECK_FALSE(fs::exists(user.path / "nul.onnx"));
@@ -665,10 +665,55 @@ TEST_CASE("AdoptRetiredVoices: a Voice the person deleted is not adopted again o
 TEST_CASE("AdoptRetiredVoices: a refused Voice is not handled, so it is tried again") {
     TempDir exe, user;
     WriteText(exe.path / "voices.json", "{\"voices\": []}");
-    WriteText(exe.path / "en_US-low-low.onnx", "M");
-    WriteText(exe.path / "en_US-low-low.onnx.json", Config("en_US", "English", "low"));  // refused: not Medium
+    WriteText(exe.path / "de_DE-x-medium.onnx", "M");
+    WriteText(exe.path / "de_DE-x-medium.onnx.json", Config("de_DE", "German", "medium"));  // refused: German
     const AdoptResult r = AdoptRetiredVoices(exe.path, user.path, {});
     REQUIRE(r.outcomes.size() == 1);
     CHECK_FALSE(r.outcomes[0].ok());
     CHECK(r.handled.empty());
+}
+
+// ------------------------------------------- Any quality for the user's own Voices (B11) ---
+
+TEST_CASE("CheckVoiceConfig AnyKnown: X-low, Low, Medium, High and no quality are accepted; another word is not") {
+    for (const char* q : {"x_low", "low", "medium", "high"}) {
+        const VoiceOutcome o = CheckVoiceConfig(std::string("en_US-amy-") + q, Config("en_US", "English", q), QualityRule::AnyKnown);
+        CHECK(o.ok());
+        CHECK(o.quality == q);
+    }
+    // No quality in the config and none in the name (a Voice the user trained and named): accepted, quality "".
+    const VoiceOutcome mine = CheckVoiceConfig("myvoice", "{\"language\": {\"code\": \"en_US\"}}", QualityRule::AnyKnown);
+    CHECK(mine.ok());
+    CHECK(mine.quality.empty());
+    // "my-voice": the last part of a user's name is not taken for a quality.
+    CHECK(CheckVoiceConfig("my-voice", "{\"language\": {\"code\": \"en_US\"}}", QualityRule::AnyKnown).ok());
+    const VoiceOutcome odd = CheckVoiceConfig("en_US-amy-ultra", Config("en_US", "English", "ultra"), QualityRule::AnyKnown);
+    CHECK(odd.problem == VoiceProblem::UnknownQuality);
+    CHECK(odd.quality == "ultra");
+    // The language still comes first.
+    CHECK(CheckVoiceConfig("de_DE-x-high", Config("de_DE", "German", "high"), QualityRule::AnyKnown).problem ==
+          VoiceProblem::UnsupportedLanguage);
+    // The catalogue's rule is unchanged: Medium only.
+    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).problem == VoiceProblem::NotMedium);
+}
+
+TEST_CASE("AddVoiceFiles: a High Voice from a file is added, and listed with its quality") {
+    TempDir src, user;
+    WriteText(src.path / "en_US-ljspeech-high.onnx", "MODEL");
+    WriteText(src.path / "en_US-ljspeech-high.onnx.json", Config("en_US", "English", "high"));
+    const VoiceOutcome o = AddVoiceFiles(src.path / "en_US-ljspeech-high.onnx", src.path / "en_US-ljspeech-high.onnx.json", user.path);
+    REQUIRE(o.ok());
+    const auto voices = ListInstalledVoices({}, user.path);
+    REQUIRE(voices.size() == 1);
+    CHECK(voices[0].name == "en_US-ljspeech-high");
+    CHECK(voices[0].quality == "high");
+}
+
+TEST_CASE("ListInstalledVoices: a shipped Voice's quality comes from its name") {
+    TempDir shipped;
+    WriteText(shipped.path / "voices.json", "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-norman-medium\"}]}");
+    WriteText(shipped.path / "en_US-norman-medium.onnx", "M");
+    const auto voices = ListInstalledVoices(shipped.path, {});
+    REQUIRE(voices.size() == 1);
+    CHECK(voices[0].quality == "medium");
 }

@@ -159,10 +159,107 @@ TEST_CASE("Read-along: quotes, brackets and commas stay out of a word; inner mar
 }
 
 TEST_CASE("Read-along: a sentence of marks only is not a sentence; a mark alone is not a word") {
-    const std::string text = "Wait ... what - now?";
-    // "..." ends the sentence, then "what - now?" is the second one; the lone "-" is not a word.
-    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1})) == Words{"Wait"});
-    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1})) == Words{"what", "now"});
+    const std::string text = "Wait ... what - now? Next.";
+    // espeak-ng takes "..." as a pause inside a sentence, not as its end (checked against Piper: this
+    // text is two chunks). The lone "-" is not a word.
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1, 1})) == Words{"Wait", "what", "now"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1})) == Words{"Next"});
+}
+
+// R42: where Piper (espeak-ng, readclause.c) cuts its chunks. The expectations below were checked
+// against the real Piper with the shipped Voice: the number of chunks it made is in each comment.
+TEST_CASE("Read-along: a full stop before a capital ends a sentence, also after Mr. / Dr. / initials") {
+    // 3 chunks: espeak-ng has no list of abbreviations, so "Mr." before a capital is a sentence end.
+    const std::string text = "Mr. Smith went home. He slept.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1})) == Words{"Mr"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1, 1})) == Words{"Smith", "went", "home"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 2, {1, 1})) == Words{"He", "slept"});
+
+    // 4 chunks.
+    const std::string initials = "A.B. went home. So did C. D. Smith.";
+    CHECK(Cuts(initials, SpokenWordRanges(initials, 0, {1, 1, 1})) == Words{"A.B", "went", "home"});
+    CHECK(Cuts(initials, SpokenWordRanges(initials, 1, {1, 1, 1})) == Words{"So", "did", "C"});
+    CHECK(Cuts(initials, SpokenWordRanges(initials, 2, {1})) == Words{"D"});
+    CHECK(Cuts(initials, SpokenWordRanges(initials, 3, {1})) == Words{"Smith"});
+}
+
+TEST_CASE("Read-along: a full stop before a lower-case word is not a sentence end") {
+    // 2 chunks: "Mr." and "e.g." before a lower-case word stay inside the sentence.
+    const std::string mr = "He met Mr. smith. Then left.";
+    CHECK(Cuts(mr, SpokenWordRanges(mr, 0, {1, 1, 1, 1})) == Words{"He", "met", "Mr", "smith"});
+    CHECK(Cuts(mr, SpokenWordRanges(mr, 1, {1, 1})) == Words{"Then", "left"});
+
+    // 2 chunks.
+    const std::string eg = "Use tools, e.g. a saw and i.e. a drill. Done.";
+    CHECK(Cuts(eg, SpokenWordRanges(eg, 0, {1, 1, 1, 1, 1, 1, 1, 1, 1})) ==
+          Words{"Use", "tools", "e.g", "a", "saw", "and", "i.e", "a", "drill"});
+    CHECK(Cuts(eg, SpokenWordRanges(eg, 1, {1})) == Words{"Done"});
+
+    // 2 chunks: "Etc." before "and" goes on, "more." before a capital ends.
+    const std::string etc = "Etc. and more. And so on.";
+    CHECK(Cuts(etc, SpokenWordRanges(etc, 0, {1, 1, 1})) == Words{"Etc", "and", "more"});
+    CHECK(Cuts(etc, SpokenWordRanges(etc, 1, {1, 1, 1})) == Words{"And", "so", "on"});
+
+    // 2 chunks: two dots count as one full stop; a lone lower-case letter after one goes on.
+    const std::string two = "Hello.  Two spaces. x";
+    CHECK(Cuts(two, SpokenWordRanges(two, 0, {1})) == Words{"Hello"});
+    CHECK(Cuts(two, SpokenWordRanges(two, 1, {1, 1, 1})) == Words{"Two", "spaces", "x"});
+}
+
+TEST_CASE("Read-along: a line break after a full stop ends the sentence even before a lower-case word") {
+    // 3 chunks.
+    const std::string text = "Line one.\nline two. Line three.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1})) == Words{"Line", "one"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1})) == Words{"line", "two"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 2, {1, 1})) == Words{"Line", "three"});
+}
+
+TEST_CASE("Read-along: ? and ! always end a sentence; an ellipsis does not, unless a ? or ! comes first") {
+    // 2 chunks: the ellipsis after "Wait" is a pause.
+    const std::string text = "Wait... what? Yes!";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1})) == Words{"Wait", "what"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1})) == Words{"Yes"});
+
+    // 3 chunks: "?..." ends at the "?".
+    const std::string question = "Really?... yes. Ok.";
+    CHECK(Cuts(question, SpokenWordRanges(question, 0, {1})) == Words{"Really"});
+    CHECK(Cuts(question, SpokenWordRanges(question, 1, {1})) == Words{"yes"});
+    CHECK(Cuts(question, SpokenWordRanges(question, 2, {1})) == Words{"Ok"});
+
+    // A question mark before a lower-case word still ends (only the full stop is doubtful).
+    const std::string lower = "Is it? yes. Ok.";
+    CHECK(Cuts(lower, SpokenWordRanges(lower, 1, {1})) == Words{"yes"});
+}
+
+TEST_CASE("Read-along: a full stop with a closing quote or bracket after it ends the sentence") {
+    // 2 chunks: with the quote between the stop and the space, espeak-ng never looks at the next word.
+    const std::string quote = "He said \"stop.\" then left.";
+    CHECK(Cuts(quote, SpokenWordRanges(quote, 0, {1, 1, 1})) == Words{"He", "said", "stop"});
+    CHECK(Cuts(quote, SpokenWordRanges(quote, 1, {1, 1})) == Words{"then", "left"});
+
+    // 3 chunks: "End.)".
+    const std::string bracket = "End.) Next one. Over.";
+    CHECK(Cuts(bracket, SpokenWordRanges(bracket, 0, {1})) == Words{"End"});
+    CHECK(Cuts(bracket, SpokenWordRanges(bracket, 1, {1, 1})) == Words{"Next", "one"});
+}
+
+TEST_CASE("Read-along: a decimal number and a stop inside a word are not sentence ends") {
+    // 2 chunks.
+    const std::string text = "It costs 3.5 dollars. Fine.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1, 1, 1})) == Words{"It", "costs", "3.5", "dollars"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1})) == Words{"Fine"});
+    // 2 chunks.
+    const std::string glued = "Mr.Smith went. Ok.";
+    CHECK(Cuts(glued, SpokenWordRanges(glued, 0, {1, 1})) == Words{"Mr.Smith", "went"});
+}
+
+TEST_CASE("Read-along: a number after a full stop starts a new sentence, as in espeak-ng") {
+    // 6 chunks in all: "fig." before "2)" ends a sentence, "(Yes.)" is one of its own.
+    const std::string text = "Now (see fig. 2) it ends. (Yes.) Then.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1, 1})) == Words{"Now", "see", "fig"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1, 1})) == Words{"2", "it", "ends"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 2, {1})) == Words{"Yes"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 3, {1})) == Words{"Then"});
 }
 
 TEST_CASE("Read-along: a number said as several words stays on its text word") {

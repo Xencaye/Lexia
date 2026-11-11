@@ -96,6 +96,7 @@ void FillVoiceState(UiState& state, const VoiceModel& m) {
         for (const InstalledVoice& i : m.installed) {
             if (i.languageCode == lang.code) {
                 v.installed.push_back(i.name);
+                v.qualities.push_back(i.quality);  // the list shows "LJ Speech (Medium)" (VoiceLabel)
                 if (!i.shipped) v.removable.push_back(i.name);
             }
         }

@@ -40,12 +40,51 @@ bool RequireModernTls(HINTERNET session) {
 
 }  // namespace
 
+void FetchCancel::Cancel() {
+    cancelled_ = true;
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (request_) {
+        // Aborts a call that is blocked on this handle in another thread; that call fails and the fetch
+        // sees `cancelled_`. request_ is cleared so that nobody closes the handle a second time.
+        WinHttpCloseHandle(request_);
+        request_ = nullptr;
+    }
+}
+
+// Ties the open request to a FetchCancel for the rest of the fetch. The destructor runs before the
+// request's own Handle (it is declared after it) and decides who closes the handle: if Cancel() already
+// did (request_ is null) the Handle is released so that it is not closed twice; else the Handle closes it.
+struct FetchRequestRegistration {
+    FetchCancel* cancel;
+    Handle& request;
+    FetchRequestRegistration(FetchCancel* c, Handle& r) : cancel(c), request(r) {
+        if (!cancel) return;
+        std::lock_guard<std::mutex> lk(cancel->mutex_);
+        cancel->request_ = request.get();
+    }
+    ~FetchRequestRegistration() {
+        if (!cancel) return;
+        std::lock_guard<std::mutex> lk(cancel->mutex_);
+        if (!cancel->request_) (void)request.release();
+        cancel->request_ = nullptr;
+    }
+};
+
 FetchResult WinHttpFetch(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
                          const std::function<bool(uint64_t)>& onBytes, std::string* error) {
+    return WinHttpFetchCancellable(url, to, maxBytes, onBytes, error, nullptr);
+}
+
+FetchResult WinHttpFetchCancellable(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
+                         const std::function<bool(uint64_t)>& onBytes, std::string* error, FetchCancel* cancel) {
+    // A failure after a Cancel() is the cancel, not a network problem.
+    const auto cancelled = [&] { return cancel && cancel->Cancelled(); };
     auto fail = [&](const std::string& why) {
+        if (cancelled()) return FetchResult::Cancelled;
         if (error) *error = why;
         return FetchResult::Failed;
     };
+    if (cancelled()) return FetchResult::Cancelled;
     if (url.rfind("https://", 0) != 0) return fail("only https:// addresses are fetched");
 
     // Split the address into host and path. A length of -1 asks WinHttpCrackUrl to find each part.
@@ -71,6 +110,10 @@ FetchResult WinHttpFetch(const std::string& url, const std::filesystem::path& to
     Handle request(WinHttpOpenRequest(connection.get(), L"GET", path.c_str(), nullptr, WINHTTP_NO_REFERER,
                                       WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE));
     if (!request) return fail(Win32Error("could not open the request"));
+    // From here Cancel() may close the request from another thread (it is the handle every blocking call
+    // below waits on: the connect and the name lookup happen inside SendRequest / ReceiveResponse).
+    FetchRequestRegistration registration(cancel, request);
+    if (cancelled()) return FetchResult::Cancelled;  // a Cancel() before the registration found nothing to close
     // Follow redirects (the files are served from a CDN) but never from HTTPS down to HTTP.
     DWORD policy = WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP;
     WinHttpSetOption(request.get(), WINHTTP_OPTION_REDIRECT_POLICY, &policy, sizeof(policy));

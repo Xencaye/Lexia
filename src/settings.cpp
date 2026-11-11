@@ -381,6 +381,42 @@ bool operator==(const Settings& a, const Settings& b) {
            a.controlBar.x == b.controlBar.x && a.controlBar.y == b.controlBar.y;
 }
 
+Settings MergeReloadedSettings(const Settings& inForce, const Settings& lastFileRead, const Settings& fresh) {
+    // Starts from the file; each value the file did not change since the last read goes back to what is in
+    // force. A value the file did change stays as the file says (the user edited it by hand).
+    Settings next = fresh;
+    // `keep` copies one member from inForce when the file left it as it was.
+    auto keep = [&](auto Settings::*member) {
+        if (fresh.*member == lastFileRead.*member) next.*member = inForce.*member;
+    };
+    keep(&Settings::language);
+    keep(&Settings::interfaceLanguage);
+    keep(&Settings::enabled);
+    keep(&Settings::theme);
+    keep(&Settings::runAtStartup);
+    keep(&Settings::startMinimised);
+    keep(&Settings::runAsAdmin);
+    keep(&Settings::leftHanded);
+    keep(&Settings::readAlong);
+    keep(&Settings::read);
+    keep(&Settings::pause);
+    keep(&Settings::speech);
+    keep(&Settings::switchLanguage);
+    keep(&Settings::speechRate);
+    keep(&Settings::speechVolume);
+    keep(&Settings::hoverColor);
+    keep(&Settings::pickedColor);
+    keep(&Settings::voices);
+    keep(&Settings::activeVoices);
+    keep(&Settings::adoptedVoices);
+    // The Control bar is saved field by field (size, x, y), so it is merged the same way.
+    if (fresh.controlBar.size == lastFileRead.controlBar.size) next.controlBar.size = inForce.controlBar.size;
+    if (fresh.controlBar.x == lastFileRead.controlBar.x) next.controlBar.x = inForce.controlBar.x;
+    if (fresh.controlBar.y == lastFileRead.controlBar.y) next.controlBar.y = inForce.controlBar.y;
+    // `layout` is only ever changed by editing the file, so the file's value is taken as it is.
+    return next;
+}
+
 std::vector<std::string> KeepToOffered(Settings& s) {
     std::vector<std::string> notes;
     const Language* lang = FindLanguage(s.language);

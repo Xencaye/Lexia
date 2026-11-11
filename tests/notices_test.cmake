@@ -34,7 +34,7 @@ foreach(f lexia.exe onnxruntime.dll onnxruntime_providers_shared.dll piper.dll o
         opencv_imgproc4.dll z.dll msvcp140.dll vcruntime140_1.dll)
     file(WRITE "${dest}/${f}" "")
 endforeach()
-set(voices en_GB-cori-medium en_US-mike-medium)
+set(voices en_US-ljspeech-medium en_US-norman-medium)
 if(CASE STREQUAL "voice-without-entry")
     list(APPEND voices xx_XX-nolicence-medium)
 elseif(CASE STREQUAL "unknown-dll")
@@ -48,7 +48,7 @@ lexia_generate_notices(
 
 file(READ "${dest}/THIRD-PARTY-NOTICES.txt" notices)
 foreach(expected "ONNX Runtime" "OpenCV" "JSON for Modern C++" "PaddleOCR" "Piper (libpiper" "eSpeak NG" "zlib"
-        "Piper Voice en_GB-cori-medium" "Piper Voice en_US-mike-medium" "--- Apache-2.0 ---" "--- MIT ---" "Permission is hereby granted")
+        "Piper Voice en_US-ljspeech-medium" "Piper Voice en_US-norman-medium" "--- Apache-2.0 ---" "--- MIT ---" "Permission is hereby granted")
     string(FIND "${notices}" "${expected}" found_at)
     if(found_at EQUAL -1)
         message(FATAL_ERROR "the notices lack '${expected}'")

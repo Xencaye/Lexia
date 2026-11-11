@@ -13,6 +13,12 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <vector>
+
+// The Blocks that the card's read button speaks, in order: the card's title first (as the card shows it), then
+// each non-empty line of its description, trimmed. Each is one Block, so Skip moves one line and the title is
+// heard on its own. An empty title is left out; empty strings give no Blocks (then nothing is queued).
+std::vector<std::string> CardReadingBlocks(const std::string& title, const std::string& description);
 
 class CardReading {
 public:

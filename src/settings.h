@@ -73,7 +73,7 @@ struct Settings {
     LayoutParams layout;  // how Lines are grouped into Blocks; only settings.json changes it
 
     // Each Voice's current controls, keyed by the Voice's name (the file name in voices.json without
-    // ".onnx", e.g. "en_GB-cori-medium"). A Voice with no entry speaks with the defaults.
+    // ".onnx", e.g. "en_US-ljspeech-medium"). A Voice with no entry speaks with the defaults.
     // settings.json: "voices": { "<name>": { "speed": 1, "pitch": 0, "volume": 1 } }
     // (An older file kept named Presets: { "preset": "<active>", "presets": { "<Preset>": {...} } };
     // reading it, the active Preset's controls become the current ones, with no note.)
@@ -81,7 +81,7 @@ struct Settings {
 
     // The Voice that speaks each Language, by Language id ("eng") -> Voice name. A Language with no
     // entry, or whose Voice is not installed, speaks with the first installed Voice for it (the
-    // shipped one). settings.json: "activeVoices": { "eng": "en_GB-cori-medium" }
+    // shipped one). settings.json: "activeVoices": { "eng": "en_US-ljspeech-medium" }
     std::map<std::string, std::string> activeVoices;
 
     // Retired Voices that Lexia has already dealt with (AdoptRetiredVoices): a Voice that an older
@@ -127,6 +127,15 @@ std::vector<std::string> KeepToOffered(Settings& s);
 bool operator==(const Hotkey& a, const Hotkey& b);
 bool operator==(const Settings& a, const Settings& b);
 inline bool operator!=(const Settings& a, const Settings& b) { return !(a == b); }
+
+// What a reload of settings.json puts in force (R41). `inForce` is what Lexia runs with, `lastFileRead` what
+// the file said the last time Lexia read it (or saved a value into it), `fresh` the output of ParseSettings on
+// the file now. Per value: if the file did not change it since `lastFileRead`, the in-force value stays (Lexia
+// may have changed it itself and been unable to save it, e.g. a file with // comments, which a rewrite would
+// drop); if the file did change it, the file wins. Control bar size, x and y and each hotkey count as separate
+// values. Pure: it never reads the file, so it cannot take a value that the parser refused (those are already
+// defaults in `fresh`). The caller still runs KeepToOffered on the result.
+Settings MergeReloadedSettings(const Settings& inForce, const Settings& lastFileRead, const Settings& fresh);
 
 // The text of a settings.json holding `s`: what LoadSettings writes when there is no file, and
 // what ParseSettings reads back.

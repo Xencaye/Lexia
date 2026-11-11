@@ -57,7 +57,11 @@ begin
 end;
 
 // Lexia holds the mutex while it runs (src/instance.cpp, Local\Lexia.SingleInstance). Inno Setup opens a name
-// without a prefix in the session's namespace, which is where Local\ is.
+// without a prefix in the session's namespace, which is where Local\ is. CheckForMutexes opens the mutex with
+// SYNCHRONIZE access. Lexia gives the mutex a DACL that names the current user (src/instance.cpp, R36), so Setup
+// run as that person, elevated or not, can open the mutex of an elevated Lexia (Run as admin). Without that
+// DACL the open fails with "access denied" for a non-elevated Setup, and Setup would think Lexia is not running.
+// No change in this script was needed. (A Lexia of 0.7 or older keeps its old DACL until it is restarted.)
 function {#P}LexiaIsRunning(): Boolean;
 begin
   Result := CheckForMutexes('{#MutexName}');

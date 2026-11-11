@@ -213,7 +213,7 @@ TEST_CASE("access: Voices offers the Voice choice, its buttons and three sliders
     r.Show(Page::Voices);
     Widget* voice = r.Find(T(strings::id::kWindowVoiceVoice), Role::ComboBox);
     REQUIRE(voice);
-    CHECK(voice->Access().value == kAlba);
+    CHECK(voice->Access().value == "Alba (Medium)");  // the short name and quality, not the file name
     CHECK(voice->Access().expanded == Tri::No);
     CHECK(r.Find(T(strings::id::kWindowVoiceDownload), Role::Button));
     CHECK(r.Find(T(strings::id::kWindowVoiceAddFromFile), Role::Button));
@@ -345,7 +345,8 @@ TEST_CASE("access: an open Select offers its list, and the highlighted row has t
     CHECK(FindAccessible(r.S(), voice->Id()) == voice);
     const std::vector<Widget*> rows = AccessChildren(r.S(), list);
     REQUIRE(rows.size() == 2);
-    CHECK(rows[0]->Access().name == kCori);
+    CHECK(rows[0]->Access().name == "Cori (Medium)");
+    CHECK(rows[0]->Tooltip() == kCori);  // the file name is the row's tooltip (UIA HelpText)
     CHECK(rows[1]->Access().selected);  // alba is the shown choice
     CHECK(AccessFocus(r.S()) == rows[1]);
     CHECK(AccessParent(r.S(), *rows[0]) == list);

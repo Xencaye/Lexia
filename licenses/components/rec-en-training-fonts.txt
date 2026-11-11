@@ -1,0 +1,35 @@
+Fonts used to train rec_en.onnx (credit only: no font is shipped)
+Used for: drawing the synthetic training lines that Lexia's English recogniser (rec_en.onnx,
+see the PaddleOCR entry) was fine-tuned on. The fonts are not part of Lexia and are not in the
+model; this list credits their authors. Each font was used under its own licence, checked in
+its download: SIL Open Font License 1.1 (OFL), CC0 1.0, BSD-2-Clause, Apache-2.0 or the Ubuntu
+Font Licence 1.0 (UFL). Sources and hashes: training/rec_en/sources.json and
+docs/notes/training-fonts.md in https://github.com/Xencaye/Lexia.
+
+Pixel and bitmap fonts:
+  Press Start 2P (CodeMan38, OFL); Silkscreen (Jason Kottke, OFL); VT323 (Peter Hull, OFL);
+  Pixelify Sans (Stefie Justprince, OFL); DotGothic16 (Fontworks, OFL); Tiny5 (Stefan Schmidt,
+  OFL); Jersey 10, 15, 20, 25, Micro 5, Jacquard 12 (Sarah Cadigan-Fried, OFL); Bytesized
+  (Baltdev, OFL); Handjet (Rosetta, OFL); Pixel Operator (Jayvee Enaguas, CC0 1.0); Departure
+  Mono (Helena Zhang, OFL); Fusion Pixel 8, 10, 12 px and Ark Pixel 12 px (TakWolf, OFL); Pixel
+  Code (Qwerasd, OFL); Spleen (Frederic Cambus, BSD-2-Clause); Doto (Óliver Lalan, OFL); Rubik
+  Pixels (NaN, Luke Prowse, OFL); Bitcount Single (Petr van Blokland, OFL).
+
+Other fonts:
+  Noto Sans, Noto Serif, Noto Sans Mono, Roboto, Roboto Mono (Google, OFL); Atkinson
+  Hyperlegible Next (Braille Institute, OFL); Source Sans 3, Source Serif 4, Source Code Pro
+  (Adobe, OFL); Open Sans, Arimo, Cousine (Steve Matteson, OFL); Lato (Lukasz Dziedzic, OFL);
+  Inter (Rasmus Andersson, OFL); Fira Sans, Fira Mono (Mozilla / Carrois, OFL); IBM Plex Sans,
+  Serif, Mono (IBM, OFL); Ubuntu (Dalton Maag, UFL); Merriweather (Sorkin Type, OFL);
+  Montserrat (Julieta Ulanovsky, OFL); Oswald, Bangers, Nunito, Anton (Vernon Adams, OFL);
+  Comic Neue (Craig Rozynski, OFL); Exo 2, Cinzel (Natanael Gama, OFL); Orbitron (Matt
+  McInerney, OFL); Patrick Hand (Patrick Wagesreiter, OFL); Luckiest Guy (Astigmatic,
+  Apache-2.0); Audiowide (Astigmatic, OFL); Permanent Marker (Font Diner, Apache-2.0); Kalam,
+  Rajdhani, Teko (Indian Type Foundry, OFL); Space Mono (Colophon Foundry, OFL); Share Tech
+  Mono (Carrois Apostrophe, OFL); Courier Prime (Alan Dague-Greene, OFL); Chakra Petch (Cadson
+  Demak, OFL); Russo One (Jovanny Lemonad, OFL); Bebas Neue (Ryoichi Tsunekawa, OFL); Lexend
+  (Bonnie Shaver-Troup, Thomas Jockin, Santiago Orozco, Héctor Gómez, Superunion, OFL); PT Sans
+  (ParaType, OFL).
+
+The text of the lines came from six public-domain Project Gutenberg books (eBooks #11, #35,
+#84, #120, #1342, #1661) and from templates of game text written by the Lexia project.

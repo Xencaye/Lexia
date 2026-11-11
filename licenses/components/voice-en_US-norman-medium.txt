@@ -1,0 +1,11 @@
+Piper Voice en_US-norman-medium (English, US, male)
+Licence: public domain (no licence is stated for the model itself; see below)
+Source: https://huggingface.co/rhasspy/piper-voices (en/en_US/norman/medium, commit cf910fb59f1d79ab3b625a63993a108751c6c25d)
+Used for: speaking English (voices\en_US-norman-medium.onnx and .onnx.json).
+
+Trained by Bryce Beattie (https://brycebeattie.com/files/tts/) with Piper, from scratch, for
+1200 epochs, on about 15.5 hours of recordings from LibriVox (https://librivox.org), whose
+recordings are public domain. The model card in rhasspy/piper-voices gives the dataset licence
+as "public domain" and states no separate licence for the model weights; Beattie's page lists
+the Voice as "License: public domain". No attribution is required. Credit is given as a courtesy.
+The Voice is provided as is, without warranty.

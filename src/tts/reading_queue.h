@@ -101,7 +101,8 @@ public:
     // Takes one Reading out of the queue (K11: the Settings page's card button stops its own Reading and
     // nothing else). If it is the one being spoken it is cut off (a pause ends too, like Stop) and the next
     // Reading starts at its first Block; if it is still waiting it is just dropped; an id that is not in the
-    // queue (played, stopped, never added, 0) changes nothing. An Announcement is left alone.
+    // queue (played, stopped, never added, 0) changes nothing. An Announcement is left alone: one that
+    // plays is not cut off, and a pause held over it for this Reading ends with the Reading.
     void StopReading(uint64_t id);
 
     // A Session starts: a playing queue is kept, a paused one is emptied like Stop.
@@ -161,8 +162,9 @@ private:
     // Drops the current Block and moves to the next one (nothing to drop if the queue is empty).
     // Caller holds m_.
     void AdvanceLocked();
-    // Cuts off whatever is being spoken. Caller holds m_.
-    void CutOffLocked();
+    // Cuts off the Reading's audio and, unless `keepPlayingAnnouncement` is set and an Announcement is
+    // playing, whatever the sink holds (and its pause). Caller holds m_.
+    void CutOffLocked(bool keepPlayingAnnouncement = false);
     // Tells the listener if Active() differs from what it was last told. Caller holds m_.
     void ReportActiveLocked();
 

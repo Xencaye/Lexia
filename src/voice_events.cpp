@@ -14,6 +14,7 @@ const char* ProblemTextId(const ProblemFacts& facts, ProblemWhere where) {
     case VoiceProblem::NotMedium:
         // An unknown quality has a sentence that does not name one.
         return facts.quality.empty() ? kWindowProblemNotMediumUnknown : kWindowProblemNotMedium;
+    case VoiceProblem::UnknownQuality: return kWindowProblemUnknownQuality;
     case VoiceProblem::UnsupportedLanguage: return kWindowProblemUnsupportedLanguage;
     case VoiceProblem::MissingFile: return kWindowProblemMissingFile;
     case VoiceProblem::BadConfig: return kWindowProblemBadConfig;

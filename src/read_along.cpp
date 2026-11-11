@@ -37,7 +37,18 @@ bool IsCloser(char32_t cp) {
     }
 }
 
-bool IsSentenceEnd(char32_t cp) { return cp == U'.' || cp == U'!' || cp == U'?' || cp == 0x2026; }
+// The marks that can end a sentence. An ellipsis is not one: espeak-ng takes "..." and U+2026 as a
+// pause inside the sentence (EndsSentence strips it before it looks at the last mark).
+bool IsSentenceEnd(char32_t cp) { return cp == U'.' || cp == U'!' || cp == U'?'; }
+
+// Is this a lower-case letter? An approximation of iswlower for what English text holds: ASCII,
+// Latin-1 and Cyrillic (the Languages Lexia has a table for). EndsSentence uses it for the word that
+// follows a full stop.
+bool IsLowerLetter(char32_t cp) {
+    if (cp >= U'a' && cp <= U'z') return true;
+    if (cp >= 0xDF && cp <= 0xFF) return cp != 0xF7;
+    return cp >= 0x430 && cp <= 0x45F;
+}
 
 // How long a text word is when spoken, in letters: a letter is about one phoneme, a digit about
 // three ("2024" is "twenty twenty-four": 15 phonemes for 4 characters). This only has to put the
@@ -91,12 +102,47 @@ TextRange TrimmedWord(const std::string& text, const Token& t) {
     return {first, last};
 }
 
-// Does this token end a sentence? (A full stop, ! ? or an ellipsis, then maybe closing quotes.)
-bool EndsSentence(const std::string& text, const Token& t) {
+// Does token `index` end a sentence? This must agree with how Piper cuts its chunks, because the
+// sentence index of a chunk picks the text words of the read-along. Piper asks espeak-ng
+// (readclause.c) for one clause at a time and starts a new chunk at a sentence terminator, so the
+// rule here is espeak-ng's, checked against the real Piper (the number of chunks):
+//  - ? and ! end a sentence (also before a lower-case word).
+//  - A full stop ends it when it is the last mark of the token and
+//      * a closing quote or bracket follows it ("stop." then): always, espeak-ng never looks further;
+//      * else the next word does not start with a lower-case letter, or a line break comes first, or
+//        there is no next word. So "Mr. Smith", "fig. 2" and "U.S. Army" end a sentence (espeak-ng has
+//        no list of abbreviations), while "Mr. smith", "e.g. a saw" and "etc. and" do not.
+//  - An ellipsis (three or more dots, or U+2026) is a pause, not an end: "Wait... what" is one
+//    sentence. A ? or ! before it still ends ("Really?..."), so only the ellipsis is dropped.
+//  - A full stop inside a token ("3.5", "A.B") never ends one; only the last mark counts.
+bool EndsSentence(const std::string& text, const std::vector<Token>& tokens, size_t index) {
+    const Token& t = tokens[index];
     std::vector<char32_t> cps;
     for (size_t i = t.start; i < t.end;) cps.push_back(NextCodePoint(text, i));
-    while (!cps.empty() && IsCloser(cps.back())) cps.pop_back();
-    return !cps.empty() && IsSentenceEnd(cps.back());
+    // Closing quotes and brackets after the mark; remember that there were some.
+    bool closed = false;
+    while (!cps.empty() && IsCloser(cps.back())) {
+        cps.pop_back();
+        closed = true;
+    }
+    // A trailing ellipsis is not a sentence mark: drop it and look at what comes before it.
+    if (!cps.empty() && cps.back() == 0x2026) {
+        while (!cps.empty() && cps.back() == 0x2026) cps.pop_back();
+    } else {
+        size_t dots = 0;
+        while (dots < cps.size() && cps[cps.size() - 1 - dots] == U'.') ++dots;
+        if (dots >= 3) cps.resize(cps.size() - dots);
+    }
+    if (cps.empty() || !IsSentenceEnd(cps.back())) return false;
+    if (cps.back() != U'.') return true;  // ? or !
+    if (closed) return true;
+    if (index + 1 >= tokens.size()) return true;  // the last word of the text
+    // A line break between the words ends it whatever the next word is (as in espeak-ng).
+    for (size_t i = t.end; i < tokens[index + 1].start; ++i) {
+        if (text[i] == '\n') return true;
+    }
+    size_t next = tokens[index + 1].start;
+    return !IsLowerLetter(NextCodePoint(text, next));
 }
 
 // The text words of each sentence of `text`. A sentence with no word in it ("...") is left out, as
@@ -104,10 +150,12 @@ bool EndsSentence(const std::string& text, const Token& t) {
 std::vector<std::vector<TextRange>> SentenceWords(const std::string& text) {
     std::vector<std::vector<TextRange>> sentences;
     std::vector<TextRange> current;
-    for (const Token& t : Tokens(text)) {
+    const std::vector<Token> tokens = Tokens(text);
+    for (size_t index = 0; index < tokens.size(); ++index) {
+        const Token& t = tokens[index];
         const TextRange word = TrimmedWord(text, t);
         if (!word.Empty()) current.push_back(word);
-        if (EndsSentence(text, t) && !current.empty()) {
+        if (EndsSentence(text, tokens, index) && !current.empty()) {
             sentences.push_back(std::move(current));
             current.clear();
         }

@@ -160,21 +160,10 @@ void App::OnSettingsFileChanged() {
     if (!ReloadSettings(s)) return;  // missing or not JSON: keep what is in force (logged)
     if (s == fileSettings_) return;
 
-    // A Language or On / Off that Lexia changed itself but could not save is not in the file; an
-    // unrelated edit must not put the old value back. Only a value the user changed is applied.
-    Settings next = s;
-    if (s.language == fileSettings_.language) next.language = settings_.language;
-    if (s.enabled == fileSettings_.enabled) next.enabled = settings_.enabled;
-    if (s.theme == fileSettings_.theme) next.theme = settings_.theme;
-    if (s.runAtStartup == fileSettings_.runAtStartup) next.runAtStartup = settings_.runAtStartup;
-    if (s.startMinimised == fileSettings_.startMinimised) next.startMinimised = settings_.startMinimised;
-    if (s.runAsAdmin == fileSettings_.runAsAdmin) next.runAsAdmin = settings_.runAsAdmin;
-    if (s.leftHanded == fileSettings_.leftHanded) next.leftHanded = settings_.leftHanded;
-    if (s.readAlong == fileSettings_.readAlong) next.readAlong = settings_.readAlong;
-    if (s.speechVolume == fileSettings_.speechVolume) next.speechVolume = settings_.speechVolume;
-    if (s.voices == fileSettings_.voices) next.voices = settings_.voices;
-    if (s.activeVoices == fileSettings_.activeVoices) next.activeVoices = settings_.activeVoices;
-    if (s.adoptedVoices == fileSettings_.adoptedVoices) next.adoptedVoices = settings_.adoptedVoices;
+    // A value that Lexia changed itself but could not save is not in the file; an unrelated edit must not
+    // put the old value back (hotkeys, Control bar and Interface language included, R41). Only a value the
+    // user changed in the file is applied; the rule is MergeReloadedSettings (pure, tested).
+    const Settings next = MergeReloadedSettings(settings_, fileSettings_, s);
     fileSettings_ = s;
     LogInfo("[settings] settings.json changed; applying it.");
     ApplySettings(next);
@@ -470,8 +459,14 @@ void App::HandlePageMessage(const PageMessage& m) {
     case PageMessageType::Ready:
         break;  // the native window has nothing to wait for: it gets the state right after Create
     case PageMessageType::SetOn:
-        SetOn(m.on);
-        PushState();  // also when nothing changed: the page shows only what the state says
+        // SetOn pushes the state itself when it changes anything, so push here only when it would change
+        // nothing (R45: one push per click). The page shows only what the state says, so even a click that
+        // changes nothing needs the state again.
+        if (m.on == settings_.enabled) {
+            PushState();
+        } else {
+            SetOn(m.on);
+        }
         break;
     case PageMessageType::SetTheme:
         if (m.theme != settings_.theme) {
@@ -590,8 +585,9 @@ void App::EndKeyCapture() {
 }
 
 // The card's play button: speak what the selected Key or switch does, so a person who cannot read the card well
-// yet (Lexia may still be Off) hears it. The words are the card's own, from the string table (CardDescId:
-// window.keys.<action>Desc or window.switches.<name>Desc, one Block per line), in the Interface language; the
+// yet (Lexia may still be Off) hears it. The words are the card's own, from the string table: the title first
+// (CardTitleId), then the description (CardDescId: window.keys.<action>Desc or window.switches.<name>Desc, one
+// Block per line), in the Interface language; the
 // page sends only the card's id. It is a Reading of its own: it takes the place of what was being spoken. K11: the
 // button then shows "stop" (UiState::readingCard) until the Reading ends, and a press on it stops that Reading; the
 // press after that starts the card again from the beginning. The message stays `readKeyCard` for both: the App
@@ -609,15 +605,12 @@ void App::ReadKeyCard(const std::string& cardId) {
     const std::string id = CardDescId(cardId);
     const std::string text = strings::Text(settings_.interfaceLanguage, id);
     if (text == id) return;  // no such card: the table gave the id back, which must not be spoken
-    std::vector<std::string> blocks;
-    size_t start = 0;
-    while (start <= text.size()) {
-        const size_t end = text.find('\n', start);
-        const std::string line = Trim(text.substr(start, end == std::string::npos ? std::string::npos : end - start));
-        if (!line.empty()) blocks.push_back(line);
-        if (end == std::string::npos) break;
-        start = end + 1;
-    }
+    // The card's title is spoken first, then its description (CardReadingBlocks). A title the table does not
+    // know gives its id back, which must not be spoken: then only the description is read.
+    const std::string titleId = CardTitleId(cardId);
+    std::string title = strings::Text(settings_.interfaceLanguage, titleId);
+    if (title == titleId) title.clear();
+    const std::vector<std::string> blocks = CardReadingBlocks(title, text);
     // A reading started now replaces what was spoken (append = false), the card reading before it included.
     // Id 0 (nothing queued) leaves no card reading, so the button stays "read aloud".
     const uint64_t readingId = blocks.empty() ? 0 : speaker_.SpeakReading(blocks, /*append=*/false);

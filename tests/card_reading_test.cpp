@@ -77,3 +77,21 @@ TEST_CASE("CardReading: Clear forgets the reading") {
     CHECK(r.Card().empty());
     CHECK(r.Id() == 0);
 }
+
+TEST_CASE("CardReadingBlocks: the title is read first, then each line of the description") {
+    const auto blocks = CardReadingBlocks("Read-along", "Draws a bar under the word.\n\n  The bar stays.  \n");
+    REQUIRE(blocks.size() == 3);
+    CHECK(blocks[0] == "Read-along");
+    CHECK(blocks[1] == "Draws a bar under the word.");
+    CHECK(blocks[2] == "The bar stays.");
+}
+
+TEST_CASE("CardReadingBlocks: an empty title is left out, and nothing gives no Blocks") {
+    const auto noTitle = CardReadingBlocks("  ", "What it does.");
+    REQUIRE(noTitle.size() == 1);
+    CHECK(noTitle[0] == "What it does.");
+    CHECK(CardReadingBlocks("", "").empty());
+    const auto titleOnly = CardReadingBlocks("Pause", "");
+    REQUIRE(titleOnly.size() == 1);
+    CHECK(titleOnly[0] == "Pause");
+}

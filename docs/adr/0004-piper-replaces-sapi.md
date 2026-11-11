@@ -17,4 +17,5 @@ Bulgarian voice, sounds the same on every PC, and lets Lexia play the audio itse
 ## Consequences
 
 - Lexia owns audio playback, so pausing a Reading for an Announcement and resuming it is Lexia's job.
-- About 60 MB per shipped medium-quality voice.
+- About 60 MB per shipped medium-quality voice. (Lexia ships and downloads Medium Voices; since B11, Nov 11, a Voice the user adds
+  from a file may also be X-low, Low or High.)

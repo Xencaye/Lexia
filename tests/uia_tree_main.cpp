@@ -311,7 +311,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
             if (value) {
                 BSTR b = nullptr;
                 value->get_CurrentValue(&b);
-                Check(Narrow(b) == "en_GB-alba-medium", "Voices: the shown choice is the user's Voice");
+                Check(Narrow(b) == "Alba (Medium)", "Voices: the shown choice is the user's Voice");  // short name + quality
                 SysFreeString(b);
             }
         }
@@ -440,7 +440,7 @@ void Actions(Client& c, SettingsWindow& w) {
             if (ec) ec->get_CurrentExpandCollapseState(&st);
             Check(st == ExpandCollapseState_Expanded, "Actions: the Voice choice is expanded");
             std::vector<Node> open = TreeOf(c);
-            Check(Find(open, "en_GB-cori-medium", UIA_ListItemControlTypeId) != nullptr,
+            Check(Find(open, "LJ Speech (Medium)", UIA_ListItemControlTypeId) != nullptr,
                   "Actions: the open list offers its rows");
             Check(ec && SUCCEEDED(ec->Collapse()), "Actions: Collapse succeeds");
             Sleep(200);
@@ -672,7 +672,7 @@ ComPtr<IUIAutomationElement> SheetAndModality(Client& c, SettingsWindow& w) {
     CheckIds("Sheet", tree);
     const Node* sheet = nullptr;
     for (const Node& n : tree) {
-        if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("en_GB-alba-medium") != std::string::npos) {
+        if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("Alba (Medium)") != std::string::npos) {
             sheet = &n;
         }
     }
@@ -716,7 +716,7 @@ ComPtr<IUIAutomationElement> SheetAndModality(Client& c, SettingsWindow& w) {
                 std::vector<Node> again = TreeOf(c);
                 sheetEl = nullptr;
                 for (const Node& n : again) {
-                    if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("en_GB-alba-medium") != std::string::npos) {
+                    if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("Alba (Medium)") != std::string::npos) {
                         sheetEl = n.el;
                     }
                 }

@@ -196,6 +196,12 @@
     X(WindowProblemThisLanguage, "window.problem.thisLanguage")  /* {language} when no name came */         \
     X(WindowProblemNotMedium, "window.problem.notMedium")  /* NotMedium; {quality}: lower case, e.g. low */ \
     X(WindowProblemNotMediumUnknown, "window.problem.notMediumUnknown")  /* NotMedium, quality not known */ \
+    X(WindowProblemUnknownQuality, "window.problem.unknownQuality")  /* UnknownQuality (a file); {quality}: the word in its config */ \
+    X(WindowVoiceLabel, "window.voice.label")  /* a Voice in the lists: {name} short name, {quality} the quality word */ \
+    X(WindowVoiceQualityXLow, "window.voice.quality.xLow")  /* Piper quality x_low */                     \
+    X(WindowVoiceQualityLow, "window.voice.quality.low")  /* Piper quality low */                          \
+    X(WindowVoiceQualityMedium, "window.voice.quality.medium")  /* Piper quality medium */                 \
+    X(WindowVoiceQualityHigh, "window.voice.quality.high")  /* Piper quality high */                       \
     X(WindowProblemBadName, "window.problem.badName")  /* BadName, for a file */                            \
     X(WindowProblemBadNameDownload, "window.problem.badNameDownload")  /* BadName, for a download */        \
     X(WindowProblemMissingFile, "window.problem.missingFile")  /* MissingFile */                            \

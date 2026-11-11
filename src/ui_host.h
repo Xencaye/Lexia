@@ -30,6 +30,7 @@ struct UiControl {
 
 struct UiVoices {
     std::vector<std::string> installed;
+    std::vector<std::string> qualities;  // parallel to `installed`: each Voice's quality, lower case ("" = not stated)
     std::string active;                  // "" = none
     std::vector<std::string> removable;  // the installed Voices the user added (not shipped): they can be deleted
 };

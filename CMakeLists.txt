@@ -144,6 +144,7 @@ add_library(lexia_core STATIC
     src/svg_recolour.cpp
     src/ui_host.cpp
     src/voice_events.cpp
+    src/voice_names.cpp
     src/settings.cpp
     src/tray_menu.cpp
     src/tts/md5.cpp
@@ -429,6 +430,7 @@ add_executable(lexia_tests
     tests/svg_recolour_test.cpp
     tests/ui_host_test.cpp
     tests/voice_events_test.cpp
+    tests/voice_names_test.cpp
     tests/voice_catalogue_test.cpp
     tests/voice_download_test.cpp
     tests/voice_library_test.cpp
