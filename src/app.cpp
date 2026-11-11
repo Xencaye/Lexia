@@ -459,8 +459,14 @@ void App::HandlePageMessage(const PageMessage& m) {
     case PageMessageType::Ready:
         break;  // the native window has nothing to wait for: it gets the state right after Create
     case PageMessageType::SetOn:
-        SetOn(m.on);
-        PushState();  // also when nothing changed: the page shows only what the state says
+        // SetOn pushes the state itself when it changes anything, so push here only when it would change
+        // nothing (R45: one push per click). The page shows only what the state says, so even a click that
+        // changes nothing needs the state again.
+        if (m.on == settings_.enabled) {
+            PushState();
+        } else {
+            SetOn(m.on);
+        }
         break;
     case PageMessageType::SetTheme:
         if (m.theme != settings_.theme) {
