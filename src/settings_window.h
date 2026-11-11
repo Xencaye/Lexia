@@ -61,5 +61,8 @@ private:
 
     Options options_;
     HWND hwnd_ = nullptr;
+    // True while the destructor destroys the window. The window's own teardown (WM_DESTROY: UI Automation
+    // detach, timers, tooltip, canvas) still runs, but no other message and no owner callback is handled.
+    bool destroying_ = false;
     std::unique_ptr<Impl> impl_;
 };

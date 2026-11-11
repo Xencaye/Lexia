@@ -148,7 +148,12 @@ SettingsWindow::SettingsWindow(Options options) : options_(std::move(options)), 
 
 SettingsWindow::~SettingsWindow() {
     if (hwnd_) {
-        SetWindowLongPtrW(hwnd_, GWLP_USERDATA, 0);  // no callback into a half-deleted object
+        // Destroyed exactly like a close by the user (R43): the user data stays set so that WM_DESTROY reaches
+        // OnMessage and runs the documented order (UI Automation Detach first, while the window still exists,
+        // then timers, tooltip, canvas). `destroying_` keeps every other message and the owner's callbacks
+        // out: the owner is in the middle of deleting us. All members are still alive here, because the
+        // destructor body runs before they are destroyed. Must run on the thread that made the window.
+        destroying_ = true;
         DestroyWindow(hwnd_);
         hwnd_ = nullptr;
     }
@@ -170,6 +175,12 @@ LRESULT CALLBACK SettingsWindow::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPAR
 
 LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
     Impl& im = *impl_;
+
+    // The destructor is destroying the window: only the teardown messages run (below); everything else, such as
+    // the activation and focus messages DestroyWindow sends, gets the default so that nothing calls the owner
+    // or paints while the object is going away. WM_GETOBJECT is answered by the default too: the UI
+    // Automation root is gone with WM_DESTROY.
+    if (destroying_ && msg != WM_DESTROY && msg != WM_NCDESTROY) return DefWindowProcW(hwnd_, msg, wp, lp);
 
     // After any event: ask for a repaint if the tree wants one, keep the frame timer going while something
     // moves, and show or hide the tooltip the tree asks for.
@@ -491,7 +502,8 @@ LRESULT SettingsWindow::OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         const HWND h = hwnd_;
         SetWindowLongPtrW(h, GWLP_USERDATA, 0);
         hwnd_ = nullptr;
-        if (options_.onDestroyed) options_.onDestroyed();  // last: the owner may drop us afterwards
+        // Last: the owner may drop us afterwards. Not when the owner itself is deleting us (the destructor).
+        if (!destroying_ && options_.onDestroyed) options_.onDestroyed();
         return r;
     }
     default:
