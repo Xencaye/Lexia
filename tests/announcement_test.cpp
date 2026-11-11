@@ -304,6 +304,82 @@ TEST_CASE("Announcements: Resume after an Announcement over a pause goes on from
     CHECK(f.sink.heard == Ints{11, 91, 11, 12, 13});
 }
 
+// R39: StopReading of the Reading an Announcement plays over. The Announcement is left alone (its
+// audio is the only thing in the sink), and the pause that the stopped Reading held ends with it.
+TEST_CASE("Announcements: StopReading over a paused Reading leaves the Announcement and does not keep the "
+          "next Reading silent") {
+    Fixture f;
+    const uint64_t a = f.queue.Add({"one"});
+    const uint64_t b = f.queue.Add({"two"});
+    f.Settle();
+    f.sink.Advance(0.4);
+    f.queue.Pause();
+    f.queue.Announce(f.Say(91));
+    f.Settle();  // the Announcement plays over the paused Reading
+    REQUIRE(f.sink.heard == Ints{11, 91});
+    f.queue.StopReading(a);
+    CHECK(f.sink.PendingSeconds() == doctest::Approx(1.0));  // the Announcement was not cut off
+    CHECK_FALSE(f.sink.paused);
+    CHECK_FALSE(f.queue.Paused());  // the pause belonged to Reading a
+    f.Hear();                       // the Announcement ends ...
+    CHECK_FALSE(f.queue.Paused());
+    CHECK(f.queue.HasReading(b));
+    f.Settle();                     // ... and Reading b is spoken, not held
+    CHECK(f.sink.heard == Ints{11, 91, 21});
+}
+
+TEST_CASE("Announcements: StopReading of the last Reading while an Announcement plays over its pause "
+          "leaves nothing paused") {
+    Fixture f;
+    const uint64_t a = f.queue.Add({"one"});
+    f.Settle();
+    f.queue.Pause();
+    f.queue.Announce(f.Say(91));
+    f.Settle();
+    f.queue.StopReading(a);
+    CHECK(f.queue.Active());  // the Announcement still plays
+    f.Hear();
+    CHECK_FALSE(f.queue.Active());
+    CHECK_FALSE(f.queue.Paused());  // F7 is not registered with the queue empty: nothing may be held
+    f.queue.Add({"two"});
+    f.Settle();
+    CHECK(f.sink.heard == Ints{11, 91, 21});
+}
+
+TEST_CASE("Announcements: StopReading over an unpaused Reading does not cut the Announcement off") {
+    Fixture f;
+    const uint64_t a = f.queue.Add({"one"});
+    f.queue.Add({"two"});
+    f.Settle();
+    f.queue.Announce(f.Say(91));
+    f.Settle();
+    f.sink.Advance(1.0);  // word 11 heard: the boundary
+    f.Settle();
+    REQUIRE(f.sink.heard == Ints{11, 91});
+    f.queue.StopReading(a);
+    CHECK(f.sink.PendingSeconds() == doctest::Approx(1.0));
+    f.Hear();
+    f.Settle();
+    CHECK(f.sink.heard == Ints{11, 91, 21});
+}
+
+TEST_CASE("Announcements: StopReading keeps the person's pause on the Announcement itself") {
+    Fixture f;
+    const uint64_t a = f.queue.Add({"one"});
+    f.Settle();
+    f.sink.Advance(1.0);
+    f.queue.Announce(f.Say(91));
+    f.Settle();  // the Announcement plays over the Reading's end
+    f.queue.Pause();  // ... and the person pauses the Announcement
+    REQUIRE(f.sink.paused);
+    f.queue.StopReading(a);
+    CHECK(f.sink.paused);  // still holding the Announcement
+    CHECK(f.queue.Paused());
+    f.queue.Resume();
+    f.Hear();
+    CHECK_FALSE(f.queue.Active());
+}
+
 TEST_CASE("Announcements: Pause while an Announcement waits makes it play at once") {
     Fixture f;
     f.queue.Add({"one"});

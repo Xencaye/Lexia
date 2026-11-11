@@ -120,8 +120,18 @@ void ReadingQueue::StopReading(uint64_t id) {
         if (queue_[i].id != id) continue;
         if (i == 0) {
             // The Reading being spoken: stop its audio, and let the next Reading begin at its first Block.
-            // CutOffLocked also ends a pause (as Stop does), so what comes next is not held by it.
-            CutOffLocked();
+            // Rules (header: "An Announcement is left alone"):
+            //  - An Announcement that plays is not cut off. While it plays the sink holds only its audio
+            //    (a playing Reading's own audio ran dry before it began, a paused Reading's was taken
+            //    back), so the sink must not be stopped: CutOffLocked(true) leaves it and its pause.
+            //  - A pause held over the Announcement (heldPause_) belonged to this Reading. It ends with
+            //    it; else EndAnnouncementLocked would pause a queue that no longer holds the Reading,
+            //    and the next Reading (or, with the queue empty, F7 that is not registered) would be
+            //    stuck. The person's pause on the Announcement itself (paused_) is not this Reading's
+            //    and stays.
+            //  - Otherwise CutOffLocked also ends a pause (as Stop does), so what comes next is not held.
+            CutOffLocked(/*keepPlayingAnnouncement=*/true);
+            heldPause_ = false;
             queue_.erase(queue_.begin());
             block_ = 0;
         } else {
@@ -199,14 +209,17 @@ void ReadingQueue::AdvanceLocked() {
     ReportActiveLocked();
 }
 
-void ReadingQueue::CutOffLocked() {
+void ReadingQueue::CutOffLocked(bool keepPlayingAnnouncement) {
     ++epoch_;
     speaking_ = false;
-    paused_ = false;
     buffer_.clear();
     bufferedSeconds_ = 0;
     sinkPieces_.clear();
     sinkPiecesSeconds_ = 0;
+    // A playing Announcement owns the sink (see StopReading): its audio and any pause the person put
+    // on it stay. Otherwise the sink holds only the Reading's audio, which goes with its pause.
+    if (keepPlayingAnnouncement && annState_ == AnnState::Playing) return;
+    paused_ = false;
     sink_.Stop();  // also clears the sink's pause
 }
 
