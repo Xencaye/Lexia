@@ -32,5 +32,5 @@ FetchResult WinHttpFetch(const std::string& url, const std::filesystem::path& to
                          const std::function<bool(uint64_t)>& onBytes, std::string* error);
 
 // The same, stoppable through `cancel` (may be nullptr). A fetch stopped this way returns Cancelled.
-FetchResult WinHttpFetch(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
+FetchResult WinHttpFetchCancellable(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
                          const std::function<bool(uint64_t)>& onBytes, std::string* error, FetchCancel* cancel);

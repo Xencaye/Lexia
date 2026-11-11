@@ -72,10 +72,10 @@ struct FetchRequestRegistration {
 
 FetchResult WinHttpFetch(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
                          const std::function<bool(uint64_t)>& onBytes, std::string* error) {
-    return WinHttpFetch(url, to, maxBytes, onBytes, error, nullptr);
+    return WinHttpFetchCancellable(url, to, maxBytes, onBytes, error, nullptr);
 }
 
-FetchResult WinHttpFetch(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
+FetchResult WinHttpFetchCancellable(const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
                          const std::function<bool(uint64_t)>& onBytes, std::string* error, FetchCancel* cancel) {
     // A failure after a Cancel() is the cancel, not a network problem.
     const auto cancelled = [&] { return cancel && cancel->Cancelled(); };

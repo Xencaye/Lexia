@@ -11,6 +11,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -55,7 +56,8 @@ public:
     void SettingsApplied();
 
 private:
-    VoiceModel Model() const;
+    VoiceModel Model() const;         // uses the cached Voice list (installed_)
+    void InvalidateInstalled();       // the Voice folders changed: read the list again at the next Model()
     std::string ActiveVoice() const;  // the current Language's active Voice's name, "" if none
     void SaveVoices();        // settings_.voices -> settings.json
     void SaveActiveVoices();  // settings_.activeVoices -> settings.json
@@ -83,6 +85,13 @@ private:
     Speaker& speaker_;
     Host host_;
     std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);  // closures posted to the UI thread hold a weak_ptr to it
+
+    // The installed-Voice list (UI thread only; Model() is const but fills it, hence mutable) and the times of the
+    // two Voice folders it was read at.
+    mutable std::vector<InstalledVoice> installed_;
+    mutable bool installedValid_ = false;
+    mutable std::filesystem::file_time_type shippedStamp_{};
+    mutable std::filesystem::file_time_type userStamp_{};
 
     std::vector<CatalogueVoice> catalogue_;           // the last catalogue that came
 

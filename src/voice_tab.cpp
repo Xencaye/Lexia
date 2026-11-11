@@ -100,10 +100,30 @@ VoiceTab::~VoiceTab() {
 
 // ------------------------------------------------------------------- state ---
 
+// The Voice list is read from disk (voices.json and every user .onnx.json are parsed), so it is cached and read
+// again only when it may have changed: after an add, a download or a delete (InvalidateInstalled), or when the
+// time of either Voice folder changed (a file added, removed or renamed there, also by hand or by
+// AdoptRetiredVoices). A change inside an existing file that leaves the folder's time alone is not seen until
+// the next of those; Lexia itself replaces files by rename, which does change it. UI thread only.
+void VoiceTab::InvalidateInstalled() { installedValid_ = false; }
+
 VoiceModel VoiceTab::Model() const {
     const VoiceFolders folders = DefaultVoiceFolders();
+    const auto stamp = [](const std::filesystem::path& dir) {
+        std::error_code ec;
+        const auto t = std::filesystem::last_write_time(dir, ec);  // a missing folder: the earliest time
+        return ec ? std::filesystem::file_time_type::min() : t;
+    };
+    const auto shippedStamp = stamp(folders.voices);
+    const auto userStamp = folders.userVoices.empty() ? std::filesystem::file_time_type::min() : stamp(folders.userVoices);
+    if (!installedValid_ || shippedStamp != shippedStamp_ || userStamp != userStamp_) {
+        installed_ = ListInstalledVoices(folders.voices, folders.userVoices);
+        shippedStamp_ = shippedStamp;
+        userStamp_ = userStamp;
+        installedValid_ = true;
+    }
     VoiceModel m;
-    m.installed = ListInstalledVoices(folders.voices, folders.userVoices);
+    m.installed = installed_;
     m.activeVoices = settings_.activeVoices;
     m.controls = settings_.voices;
     m.languageId = host_.languageId ? host_.languageId() : DefaultLanguage().id;
@@ -241,6 +261,7 @@ void VoiceTab::DeleteVoice(const std::string& voice) {
     speaker_.ReleaseVoices();
 
     const VoiceOutcome outcome = RemoveVoice(dir, voice);
+    InvalidateInstalled();  // gone, or half gone: read the list again either way
     if (!outcome.ok()) {
         LogWarn("[voice] The Voice ", voice, " could not be deleted (", ProblemId(outcome.problem), "): ", outcome.detail);
         settings_.activeVoices = before;
@@ -366,7 +387,7 @@ void VoiceTab::OpenCatalogue() {
         // closing of the request that a blocked connect or receive waits on).
         const FetchFn fetch = [this](const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
                                      const std::function<bool(uint64_t)>& onBytes, std::string* error) {
-            return WinHttpFetch(url, to, maxBytes, onBytes, error, &catalogueCancel_);
+            return WinHttpFetchCancellable(url, to, maxBytes, onBytes, error, &catalogueCancel_);
         };
         const CatalogueResult result = FetchVoiceCatalogue(fetch, temp);
         if (catalogueCancel_.Cancelled()) {  // Quit (or the window ending): no answer is wanted
@@ -423,13 +444,14 @@ void VoiceTab::Download(const std::string& name) {
         // Cancel also closes the request a blocked connect or receive waits on, so it works at once.
         const FetchFn fetch = [this](const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
                                      const std::function<bool(uint64_t)>& onBytes, std::string* error) {
-            return WinHttpFetch(url, to, maxBytes, onBytes, error, &workCancel_);
+            return WinHttpFetchCancellable(url, to, maxBytes, onBytes, error, &workCancel_);
         };
         const VoiceOutcome outcome = DownloadVoice(voice, fetch, progress, dest);
         PostUi([this, outcome, name = voice.name] {
             downloadName_.clear();
             if (outcome.ok()) {
                 LogInfo("[voice] Downloaded the Voice ", name, ".");
+                InvalidateInstalled();  // the Voice list on disk changed
                 speaker_.VoicesChanged();  // the next Block loads the current files (a Language may have had no Voice)
                 Tell([&](VoiceEventSink& e) { e.DownloadDone(name); });
                 host_.pushState();
@@ -479,6 +501,7 @@ void VoiceTab::AddFile(const std::wstring& path) {
         PostUi([this, outcome] {
             if (outcome.ok()) {
                 LogInfo("[voice] Added the Voice ", outcome.voiceName, ".");
+                InvalidateInstalled();  // the Voice list on disk changed
                 speaker_.VoicesChanged();  // a newer file of a loaded Voice, or the first Voice of a Language
                 Tell([&](VoiceEventSink& e) { e.VoiceAdded(AddedFactsOf(outcome)); });
                 host_.pushState();
