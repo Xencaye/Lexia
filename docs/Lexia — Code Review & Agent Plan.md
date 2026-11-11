@@ -229,7 +229,10 @@ mixed with normal text so that other text does not get worse.
   `sources.lock.json` and the seed, so the same data can be made again.
   - **Text:** six public-domain Project Gutenberg books, game-style strings from templates (key prompts such as
   `[X or SHIFT] - Menu`, `LV 3  HP 12 / 20`, `v1.08`, menus, all-caps lines) and look-alike traps (`l1I|`, `O0`,
-  `S5`, `Z2`). Only characters of `dict_en.txt`; at most 40 per line. The Fixture texts are never used.
+  `S5`, `Z2`). Only characters of `dict_en.txt`; at most 40 per line. No label equals a line of a Fixture's `expected.txt` (`gen_lines.py` refuses them, since
+  Nov 11; the shipped model was trained before that check, on templates shaped after the Undertale screen, so its
+  `undertale_05` gain is likely higher than on unseen games). "_" is kept in labels since Nov 11 (before, `clean()`
+  turned it into a space: the shipped model never saw "_" and reads it as "...").
   - **Pixel fonts (40 %):** drawn at the font's own pixel size (found from the outline grid) without anti-aliasing,
   outline or shadow sometimes, scaled up by a whole or any factor with nearest neighbour (sometimes linear), as a
   game on a big screen. **Normal fonts (60 %):** anti-aliased, 11–44 px, sometimes blurred or JPEG-damaged.
@@ -269,8 +272,12 @@ mixed with normal text so that other text does not get worse.
   of rounds 1-3 was scored; the best on the synthetic check lines is not the best on real screens. Best: **round 2,
   epoch 5** (average distance 0.131 -> 0.110, Block-count error 1.29 -> 1.00, CER 0.87 % pixel / 0.47 % normal,
   `undertale_05` all words right); only `unraveled_04` is worse (0.018 -> 0.045, beyond the 0.02 tolerance): a blurred
-  lamp that every fine-tuned epoch reads as "3". **The owner chose to ship it (Nov 11).** `gen_lines.py` is back at
-  its round 2 version, so the scripts make the shipped model's data; round 3 is in the history (`4e8678f`).
+  lamp that every fine-tuned epoch reads as "3". **The owner chose to ship it (Nov 11).** The shipped model's data
+  is made by the scripts at `5eae7a3` (the commit in the model's metadata); round 3 is in the history (`4e8678f`).
+  The code review of Nov 11 then fixed the generator for the next training ("_", the Fixture-line check, the
+  width rounding as `std::lround`, long lines shortened word by word) and the scripts (`score_epochs.ps1` sees a
+  failed score and never reuses another run's export, `export.ps1 -Run`, the training commit from the run folder,
+  `setup.ps1` / `fetch_sources.py` skip finished steps and keep a download cache).
   `score_epochs.ps1` scores each epoch on the Fixtures; `export.ps1 -Checkpoint iter_epoch_5` made the model.
 - [x] **L3 Export to ONNX (agent).** `export.ps1`: `tools/export_model.py` (CTC head only), `paddle2onnx` 1.3.1
   with opset 14 (paddle2onnx raises it from 11 for `hard_swish`; ONNX Runtime 1.20.1 runs it), then

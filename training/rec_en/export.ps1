@@ -2,18 +2,23 @@
 #
 #   .\training\rec_en\export.ps1                            # output\best_accuracy
 #   .\training\rec_en\export.ps1 -Checkpoint iter_epoch_5   # another checkpoint in output\ (score_epochs.ps1 finds it)
+#   .\training\rec_en\export.ps1 -Run output_round2 -Checkpoint iter_epoch_5   # a run kept in another folder
 #   .\training\rec_en\export.ps1 -Commit 5eae7a3            # name the training commit by hand (an older run)
 #
 # Steps: Export-RecOnnx (common.ps1: export_model.py, then paddle2onnx), stamp_onnx.py (the Apache-2.0 notice and the
 # commit the training ran at), check_onnx.py (shapes, and PaddleOCR's and the new model on the check lines).
 
 param(
+    [string]$Run = 'output',
     [string]$Checkpoint = 'best_accuracy',
     [string]$Commit = ''
 )
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-$out = Join-Path $Work 'output'
+# The checkpoint and its training_commit.txt are read from the same run folder, so a model is never stamped with
+# another run's commit.
+$out = Join-Path $Work $Run
+if (-not (Test-Path -LiteralPath $out -PathType Container)) { throw "no run folder $out" }
 $inf = Join-Path $Work 'inference'
 $onnx = Join-Path $Work 'rec_en.onnx'
 

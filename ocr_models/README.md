@@ -33,6 +33,10 @@ Known regressions: `unraveled_04` (0.018 -> 0.045, beyond the tolerance): a blur
 accepted it, Nov 11); `lovebyte_02` (0.018 -> 0.036, inside the tolerance): "Version n Q.9.18" where a line crosses
 the text, and an icon read as "e".
 
+Known limits of this model (fixed in the scripts on Nov 11, for the next training): it never saw "_" in training
+(it reads "angel_OS_blue" as "angel...OS... blue"), and its game-text templates were shaped after the Undertale
+screen, so the `undertale_05` gain is likely higher than on games it never saw.
+
 ## Replacing it
 
 A retrained model replaces this file in a new commit and the hash in `scripts\fetch_deps.ps1` in the same commit.

@@ -9,7 +9,8 @@ Reads <work>\sources\manifest.json (written by fetch_sources.py) and writes Padd
 What it keeps true:
 - Every image is already what Lexia gives the recogniser: the crop resized to height 48 with INTER_CUBIC when it
   grows and INTER_AREA when it shrinks, the width rounded up to a multiple of 4 (src/ocr.cpp, Recognize). The model
-  then learns the pixels Lexia really feeds it. Lines wider than MAX_W after that resize are made shorter.
+  then learns the pixels Lexia really feeds it (the width rounded half away from zero, as std::lround). A line wider
+  than MAX_W after that resize loses its last word until it fits, so long lines stay in the data.
 - Every label holds only characters of dict_en.txt (plus the space), at most MAX_LEN of them, no leading, trailing
   or double spaces; the one exception is the crops with no text (NEGATIVE_SHARE), whose label is a single space.
 - One space in a label for each word gap in the image, however wide the gap is (tracking, word_gap), and none
@@ -18,8 +19,9 @@ What it keeps true:
   number of workers does not change the data.
 - Pixel fonts are drawn at their own pixel size without anti-aliasing and scaled up with nearest neighbour, as a
   game does on a big screen; normal fonts are drawn anti-aliased at screen sizes.
-- The validation sets use other seeds than the training set and never contain the Fixture texts, so the check in
-  check_onnx.py measures reading, not memory.
+- The validation sets use other seeds than the training set, so the check in check_onnx.py measures reading, not
+  memory. No label in any set equals a line of a Fixture's expected.txt (load_fixture_lines), so the Fixture score
+  is not memory either; the game templates still use the words of game menus, so a Fixture line can be close.
 """
 
 import argparse
@@ -57,9 +59,10 @@ with open(DICT_FILE, encoding="utf-8") as _f:
     CHARS = set(line.rstrip("\r\n") for line in _f if line.rstrip("\r\n"))
 CHARS.add(" ")
 
-# Typographic characters in the books mapped to the plain ones of the dictionary.
+# Typographic characters in the books mapped to the plain ones of the dictionary. "_" is a dictionary character
+# and stays: the books' _italic_ markers are removed in load_books, not here, so user names keep theirs.
 REPLACE = {"‘": "'", "’": "'", "“": '"', "”": '"', "—": "-", "–": "-", "…": "...",
-           " ": " ", "_": " "}
+           " ": " "}
 
 
 def clean(text: str) -> str:
@@ -85,8 +88,26 @@ def load_books(paths):
             end = t.find("*** END")
         if end > 0:
             t = t[:end]
-        words.extend(clean(t.replace("\n", " ")).split(" "))
+        # Project Gutenberg marks italics as _word_: those underscores are markup, not text.
+        words.extend(clean(t.replace("\n", " ").replace("_", " ")).split(" "))
     return [w for w in words if w]
+
+
+def load_fixture_lines(fixtures_dir):
+    """Every line of the Fixtures' expected.txt files, case-folded, so make_one can refuse them as labels.
+
+    The Fixtures measure how Lexia reads screens it was not trained on (score_layout.ps1); a label equal to one of
+    their lines would make that score partly memory. The templates still use game words (Confirm, Cancel, HP), so a
+    Fixture line can be close to a label, never equal. Missing folder: no lines (a copy without tests).
+    """
+    lines = set()
+    if os.path.isdir(fixtures_dir):
+        for name in sorted(os.listdir(fixtures_dir)):
+            p = os.path.join(fixtures_dir, name, "expected.txt")
+            if os.path.isfile(p):
+                with open(p, encoding="utf-8", errors="replace") as f:
+                    lines.update(s.strip().casefold() for s in f if s.strip())
+    return lines
 
 
 KEYS = ["Z", "X", "C", "A", "S", "D", "Q", "E", "R", "F", "ENTER", "Enter", "SHIFT", "Shift", "CTRL", "Ctrl", "ESC",
@@ -470,7 +491,9 @@ def crop_like_detector(r, img: np.ndarray, ink_h: int) -> np.ndarray:
 def lexia_resize(img: np.ndarray):
     """src/ocr.cpp Recognize: height 48, width rounded up to a multiple of 4, cubic when growing, area when shrinking."""
     h, w = img.shape[:2]
-    W = int(round(H * w / h))
+    # std::lround rounds a half away from zero; Python's round() rounds it to even (24.5 -> 24, not 25), which
+    # would give some crops another width than Lexia gives them. The ratio is positive, so floor(x + 0.5) matches.
+    W = int(math.floor(H * w / h + 0.5))
     W = min(4096, max(16, (W + 3) // 4 * 4))
     interp = cv2.INTER_CUBIC if H > h else cv2.INTER_AREA
     return cv2.resize(img, (W, H), interpolation=interp)
@@ -587,12 +610,14 @@ def render_negative(r):
 _STATE = {}
 
 
-def _init(manifest_path, books):
+def _init(manifest_path, books, fixture_lines):
+    """Pool worker set-up: the font lists, the book words and the Fixture lines to refuse."""
     with open(manifest_path, encoding="utf-8") as f:
         m = json.load(f)
     _STATE["pixel"] = [p for fam in m["fonts"] if fam["kind"] == "pixel" for p in fam["files"]]
     _STATE["normal"] = [p for fam in m["fonts"] if fam["kind"] == "normal" for p in fam["files"]]
     _STATE["books"] = books
+    _STATE["fixtures"] = fixture_lines
     cv2.setNumThreads(1)
 
 
@@ -616,15 +641,24 @@ def make_one(job):
         path = r.choice(_STATE[kind])
         if caps_only(path):
             text = text.upper()  # the label says what the image shows
-        try:
-            img = render_pixel(r, path, text) if kind == "pixel" else render_normal(r, path, text)
-        except Exception:
-            img = None
-        if img is None or img.shape[0] < 4 or img.shape[1] < 4:
-            continue
-        img = lexia_resize(img)
-        if img.shape[1] > MAX_W:
-            # too long for the training width: shorten the text and try again
+        # Too wide for the training width: drop the last word and draw again in the same font, so long lines stay
+        # in the data (a new text would favour short ones). A Fixture line is never a label (load_fixture_lines).
+        while True:
+            if text.casefold() in _STATE["fixtures"]:
+                img = None
+                break
+            try:
+                img = render_pixel(r, path, text) if kind == "pixel" else render_normal(r, path, text)
+            except Exception:
+                img = None
+            if img is None or img.shape[0] < 4 or img.shape[1] < 4:
+                img = None
+                break
+            img = lexia_resize(img)
+            if img.shape[1] <= MAX_W or " " not in text:
+                break
+            text = text.rsplit(" ", 1)[0].rstrip()
+        if img is None or img.shape[1] > MAX_W:
             continue
         rel = f"{split}/{index:07d}.png"
         # PNG keeps the pixels exact; RGB on disk, read back as BGR by PaddleOCR like Lexia's screen BGR
@@ -667,9 +701,11 @@ def main():
         books = load_books(json.load(f)["texts"])
     out = os.path.abspath(args.out) if args.out else os.path.join(work, "data")
     os.makedirs(out, exist_ok=True)
-    print(f"{len(books)} book words; writing to {out} with {args.workers} workers", flush=True)
+    fixture_lines = load_fixture_lines(os.path.join(HERE, "..", "..", "tests", "fixtures"))
+    print(f"{len(books)} book words, {len(fixture_lines)} Fixture lines refused; writing to {out} with "
+          f"{args.workers} workers", flush=True)
 
-    with mp.Pool(args.workers, initializer=_init, initargs=(manifest, books)) as pool:
+    with mp.Pool(args.workers, initializer=_init, initargs=(manifest, books, fixture_lines)) as pool:
         # other seeds for the check sets, so no check image is a training image
         vp = run_split(pool, out, "val_pixel", args.val, args.seed + 101, "pixel")
         vn = run_split(pool, out, "val_normal", args.val, args.seed + 202, "normal")

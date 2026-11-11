@@ -34,16 +34,24 @@ foreach ($e in $Epochs) {
     $ckpt = Join-Path $runDir "iter_epoch_$e"
     if (-not (Test-Path -LiteralPath "$ckpt.pdparams")) { Write-Host "epoch ${e}: no checkpoint"; continue }
     $inf = Join-Path $scores "inference_e$e"
-    $onnx = Join-Path $scores "rec_en_e$e.onnx"
-    # An earlier run's export is reused: Export-RecOnnx writes the file only once it is complete.
+    # The export is named after its checkpoint's write time and size: a later training run into the same folder
+    # writes new checkpoints, so it never reuses an earlier run's export. Export-RecOnnx writes the file only once
+    # it is complete, so a file with this name is a finished export of exactly this checkpoint.
+    $src = Get-Item -LiteralPath "$ckpt.pdparams"
+    $onnx = Join-Path $scores "rec_en_e${e}_$($src.LastWriteTimeUtc.Ticks)_$($src.Length).onnx"
     if (-not (Test-Path -LiteralPath $onnx)) { Export-RecOnnx $ckpt $inf $onnx }
     Copy-Item -LiteralPath $onnx (Join-Path $cli 'models\rec_en.onnx') -Force
-    # score_layout.ps1 exits 1 when a Fixture got worse: that is a result here, not a failure.
+    # score_layout.ps1 exits 0 (nothing worse) or 1 (a Fixture got worse): both are results. Anything else (2: the
+    # CLI failed, for example on a broken model) means no score, and must not read as "worse: none".
     $ErrorActionPreference = 'Continue'
     $text = & (Join-Path $Repo 'scripts\score_layout.ps1') -Cli (Join-Path $cli 'lexia_cli.exe') *>&1 | Out-String -Width 250
+    $code = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
+    if ($code -ne 0 -and $code -ne 1) { Write-Host "epoch ${e}: NO SCORE (score_layout.ps1 exit $code)"; continue }
     $avg = ($text -split "`n" | Where-Object { $_ -match '^Average' }) -join ''
-    $worse = ($text -split "`n" | Where-Object { $_ -match '\bWORSE\b' -and $_ -notmatch '^FAILED' } |
+    # Case-sensitive (-cmatch): the table says WORSE; the summary lines ("OK: no Fixture is worse ...", "FAILED: ...
+    # worse than ...") must not count. PowerShell's -match ignores case.
+    $worse = ($text -split "`n" | Where-Object { $_ -cmatch '\bWORSE\b' -and $_ -notmatch '^(OK|FAILED)' } |
         ForEach-Object { ($_.Trim() -split '\s+')[0] }) -join ', '
     if (-not $worse) { $worse = 'none' }
     Write-Host "epoch ${e}: $($avg.Trim())  worse: $worse"

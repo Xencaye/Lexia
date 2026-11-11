@@ -27,25 +27,34 @@ function ToYamlPath([string]$p) { return $p.Replace('\', '/') }
 # "$Onnx.part" and renamed only when paddle2onnx succeeded, so an interrupted export never leaves a file that looks
 # finished (score_epochs.ps1 reuses finished ones).
 function Export-RecOnnx([string]$Checkpoint, [string]$InferenceDir, [string]$Onnx) {
+    # PaddleOCR's tools import ppocr from the repo root, so run from there. The output is kept and shown only on a
+    # failure (Invoke-Py throws when Python exits non-zero; the lines it printed are in $exportLog by then).
     Push-Location $PaddleOcr
+    $exportLog = @()
     try {
         Invoke-Py tools/export_model.py -c (Join-Path $Here 'lexia_rec_en.yml') -o `
             "Global.pretrained_model=$(ToYamlPath $Checkpoint)" `
             "Global.save_inference_dir=$(ToYamlPath $InferenceDir)" `
-            "Global.character_dict_path=$(ToYamlPath (Join-Path $Here 'dict_en.txt'))" | Out-Null
+            "Global.character_dict_path=$(ToYamlPath (Join-Path $Here 'dict_en.txt'))" |
+            ForEach-Object { $exportLog += $_ }
+    } catch {
+        $exportLog | Select-Object -Last 25 | ForEach-Object { Write-Host $_ }
+        throw
     } finally {
         Pop-Location
     }
     $part = "$Onnx.part"
     $ErrorActionPreference = 'Continue'   # paddle2onnx logs to stderr; the exit code decides
-    & (Join-Path $Work 'venv\Scripts\paddle2onnx.exe') --model_dir $InferenceDir --model_filename inference.pdmodel `
+    # Kept, not printed: shown only when the conversion fails, so the reason is not lost.
+    $log = & (Join-Path $Work 'venv\Scripts\paddle2onnx.exe') --model_dir $InferenceDir --model_filename inference.pdmodel `
         --params_filename inference.pdiparams --save_file $part --opset_version 14 --enable_onnx_checker True 2>&1 |
-        Out-Null
+        ForEach-Object { "$_" }
     $code = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     if ($code -ne 0) {
+        $log | Select-Object -Last 25 | ForEach-Object { Write-Host $_ }
         Remove-Item -LiteralPath $part -ErrorAction SilentlyContinue
-        throw "paddle2onnx failed for $Checkpoint"
+        throw "paddle2onnx failed for $Checkpoint (exit $code; its last lines are above)"
     }
     Move-Item -LiteralPath $part $Onnx -Force
 }

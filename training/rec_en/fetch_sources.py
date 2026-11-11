@@ -10,7 +10,8 @@ Rules this script keeps:
   not enough: docs/notes/training-fonts.md). For a Google Fonts family that is the OFL.txt (or UFL.txt) next to it.
 - Archives are unpacked member by member: a name with "..", an absolute path or a drive letter is refused, links are
   skipped, so an archive cannot write outside its own folder.
-- Everything goes under <work>\sources (outside the repo and OneDrive); nothing here is committed.
+- Everything goes under <work>\sources (outside the repo and OneDrive); nothing here is committed. Each good
+  download is kept in <work>\sources\cache under its SHA-256, so a second run downloads only what is new.
 Run it with `python -I` so that no file in the download folders can be imported.
 """
 
@@ -51,8 +52,25 @@ def download(url: str) -> bytes:
     return data
 
 
+# Folder of earlier downloads, named by their SHA-256 (set by main): a run after a failed or finished one reads a
+# pinned file from here instead of downloading it again.
+CACHE = None
+
+
 def checked(key: str, url: str, lock: dict, pin: bool) -> bytes:
-    """Downloads `url` and checks it against lock[key]; with --pin, records the hash of a new key instead."""
+    """Downloads `url` and checks it against lock[key]; with --pin, records the hash of a new key instead.
+
+    A pinned file already in CACHE under its hash is read from there, and used only if its bytes still have that
+    hash; anything else is downloaded. Each good download is kept in CACHE.
+    """
+    want = lock.get(key)
+    if CACHE and want:
+        cached = os.path.join(CACHE, want)
+        if os.path.isfile(cached):
+            with open(cached, "rb") as f:
+                data = f.read()
+            if sha256(data) == want:
+                return data
     data = download(url)
     got = sha256(data)
     want = lock.get(key)
@@ -63,6 +81,8 @@ def checked(key: str, url: str, lock: dict, pin: bool) -> bytes:
         print(f"  pinned {key} = {got}")
     elif want != got:
         raise SystemExit(f"{key}: SHA-256 mismatch for {url}\n  expected {want}\n  got      {got}")
+    if CACHE:
+        write(os.path.join(CACHE, got), data)
     return data
 
 
@@ -159,6 +179,8 @@ def main():
             lock = json.load(f)
 
     out = os.path.join(os.path.abspath(args.work), "sources")
+    global CACHE
+    CACHE = os.path.join(out, "cache")
     manifest = {"fonts": [], "texts": []}
     try:
         for font in src["fonts"]:

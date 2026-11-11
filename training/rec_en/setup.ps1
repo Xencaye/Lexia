@@ -27,10 +27,18 @@ if (-not (Test-Path -LiteralPath $Py)) {
     & py -3.12 -m venv (Join-Path $Work 'venv')
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.12 is needed: winget install Python.Python.3.12' }
 }
-Write-Host 'venv: installing requirements.txt'
-& $Py -I -m pip install -q --upgrade pip
-& $Py -I -m pip install -q -r (Join-Path $Here 'requirements.txt')
-if ($LASTEXITCODE -ne 0) { throw 'pip install failed' }
+# pip runs only when requirements.txt changed since the last good install (its hash is kept in the venv).
+$reqHash = (Get-FileHash -LiteralPath (Join-Path $Here 'requirements.txt') -Algorithm SHA256).Hash
+$reqStamp = Join-Path $Work 'venv\lexia-requirements.sha256'
+if (-not ((Test-Path -LiteralPath $reqStamp) -and (Get-Content -LiteralPath $reqStamp -TotalCount 1) -eq $reqHash)) {
+    Write-Host 'venv: installing requirements.txt'
+    & $Py -I -m pip install -q --upgrade pip
+    & $Py -I -m pip install -q -r (Join-Path $Here 'requirements.txt')
+    if ($LASTEXITCODE -ne 0) { throw 'pip install failed' }
+    Set-Content -LiteralPath $reqStamp -Value $reqHash -Encoding ASCII
+} else {
+    Write-Host 'venv: requirements.txt already installed'
+}
 . (Join-Path $PSScriptRoot 'common.ps1')   # again: the nvidia DLL folders exist now
 Invoke-Py -c "import paddle; paddle.utils.run_check()"
 
@@ -46,13 +54,15 @@ if ($head -ne $paddleOcrCommit) { throw "PaddleOCR is at $head, not the pinned $
 $tar = Join-Path $Work 'pretrained\en_PP-OCRv3_rec_train.tar'
 if (-not (Test-Path -LiteralPath (Join-Path $Work 'pretrained\en_PP-OCRv3_rec_train\best_accuracy.pdparams'))) {
     New-Item -ItemType Directory (Split-Path $tar) -Force | Out-Null
-    Write-Host 'checkpoint: downloading'
-    Invoke-WebRequest $ckptUrl -OutFile $tar -UseBasicParsing
-}
-if (Test-Path -LiteralPath $tar) {
-    # The .pdparams files are pickles: load them only when the archive is the pinned one.
+    if (-not (Test-Path -LiteralPath $tar)) {
+        Write-Host 'checkpoint: downloading'
+        Invoke-WebRequest $ckptUrl -OutFile $tar -UseBasicParsing
+    }
+    # The .pdparams files are pickles: unpack (and later load) them only when the archive is the pinned one.
     if ((Get-FileHash -LiteralPath $tar -Algorithm SHA256).Hash -ne $ckptSha) { Remove-Item -LiteralPath $tar; throw 'checkpoint: SHA-256 mismatch' }
     tar -xf $tar -C (Split-Path $tar)
+} else {
+    Write-Host 'checkpoint: present'
 }
 
 # --- PaddleOCR's own rec_en.onnx: what check_onnx.py measures a new model against ---

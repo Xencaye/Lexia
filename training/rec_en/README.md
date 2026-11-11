@@ -75,4 +75,5 @@ better. `try_model.ps1` then runs `scripts\score_layout.ps1`: no Fixture may be 
 All downloads are pinned (pip versions, the PaddleOCR commit, the checkpoint and every font and book by SHA-256);
 the checkpoint's `.pdparams` are pickles and are loaded only from the pinned archive. Python runs with `-I`, so no
 file in a download folder is imported. Archives are unpacked member by member, refusing `..`, absolute paths and
-links. Nothing from the user's screen is used: the Fixtures are only the test, never training data.
+links. Nothing from the user's screen is used: the Fixtures are only the test, never training data, and
+`gen_lines.py` refuses any label equal to a line of a Fixture's `expected.txt`.
