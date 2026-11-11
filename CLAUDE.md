@@ -42,7 +42,9 @@ LLVM's (`C:\Program Files\LLVM\bin`, must be on PATH).
 
 **Not in git** (fetch with `powershell -ExecutionPolicy Bypass -File scripts\fetch_deps.ps1`):
 - `onnxruntime\` — prebuilt ONNX Runtime zip (include\, lib\)
-- `models\` — det.onnx, rec_en.onnx, dict_en.txt, rec_cyrillic.onnx, dict_cyrillic.txt
+- `models\` — det.onnx, rec_en.onnx, dict_en.txt, rec_cyrillic.onnx, dict_cyrillic.txt. `rec_en.onnx` is Lexia's
+  fine-tune for game fonts (task L): it is in git as `ocr_models\rec_en.onnx` (`ocr_models/README.md`) and the script
+  copies it after a SHA-256 check; a retrained model changes the file and the hash in `fetch_deps.ps1` together
 - `voices\` — the Piper Voice files listed in `voices\voices.json` (all of them ship; Lexia has no Bulgarian Voice
   now)
 
@@ -98,8 +100,11 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
   draws it (shadow margin 32 px at 96 dpi), to compare with `wireframe\control_bar_*.png`.
 - **`training/rec_en/`** (Python, not built by CMake, not packaged): fine-tunes `rec_en.onnx` for pixel game fonts
   (task L). `setup.ps1` (venv with PaddlePaddle 2.6.2 GPU + CUDA 11.8 pip packages, PaddleOCR v2.9.1, the pretrained
-  checkpoint, fonts and books from `sources.json` checked against `sources.lock.json`, the lines), `train.ps1`,
-  `export.ps1` (ONNX + `check_onnx.py`), `try_model.ps1` (the Fixture score with the new model). Work folder
+  checkpoint, fonts and books from `sources.json` checked against `sources.lock.json`, PaddleOCR's own `rec_en.onnx`
+  to compare with, the lines), `train.ps1`, `score_epochs.ps1` (each epoch's Fixture score: the epoch to ship is
+  chosen there, not by the synthetic accuracy), `export.ps1 [-Checkpoint iter_epoch_N]` (ONNX, `stamp_onnx.py` (the
+  Apache-2.0 "modified" notice in the model's metadata), `check_onnx.py`), `try_model.ps1` (the Fixture score with
+  the new model in `models\`, then the old one back). Work folder
   `%USERPROFILE%\LexiaTrain` (outside the repo and OneDrive; nothing in it is committed). Steps in its `README.md`.
 - **`lexia_svgshot`** (`build\svgshot\Release`): `--px N in.svg out.png` draws one SVG at N x N px with Direct2D
   (`DrawSvgDocument`, the app's renderer) on a transparent background (straight alpha PNG). No resources, no shared
@@ -239,14 +244,15 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   B8, the shipped Voices `en_GB-cori-medium` (the default: the first English Voice in `voices.json`) and
   `en_US-mike-medium` instead of `en_US-ljspeech-medium`; B9, an update keeps a Voice that Lexia no
   longer ships (it becomes one of the user's own Voices; Lexia adopts it at start); A6, Layout: row fragments and
-  tight centred stacks. **In progress: L** (scripts ready, the owner runs the training): fine-tune the English
-  recogniser `rec_en.onnx` on synthetic lines in pixel game fonts mixed with normal fonts (only fonts with an allowed
-  licence, listed in `docs/notes/training-fonts.md`; the fonts and lines are not committed), on the owner's RTX 3080
-  under native Windows 11 (`training/rec_en/README.md`), export with the same input and output (`ocr.cpp`, `ctc.*`
-  unchanged); next: the model committed as `ocr_models/rec_en.onnx` and copied into `models\` by `fetch_deps.ps1`,
-  new pixel-font Fixtures; in 0.7. New work branches from `main`.
-- **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B8, B9, A6, games, the
-  installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
+  tight centred stacks. **L (L0–L3, L5, L6 done; L4 and L7 open):** the English recogniser `rec_en.onnx` is
+  fine-tuned on synthetic lines in pixel game fonts mixed with normal fonts (70 font families with an allowed
+  licence, `docs/notes/training-fonts.md`; fonts and lines not committed) on the owner's RTX 3080
+  (`training/rec_en/README.md`); same input and output (`ocr.cpp`, `ctc.*` unchanged). Three training rounds; the
+  shipped model is round 2, epoch 5, chosen on the Fixtures (average distance 0.131 -> 0.110, Block-count error
+  1.29 -> 1.00; `unraveled_04` worse, accepted by the owner); it is `ocr_models/rec_en.onnx`, copied into `models\`
+  by `fetch_deps.ps1`. Open: L4, new pixel-font Fixtures (the owner gives screenshots). New work branches from `main`.
+- **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B8, B9, A6, L7, games,
+  the installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
 - **Later:** E1, E2, E6 (the owner trains a Bulgarian Voice from their own voice) and the Language UI (Lexia 0.8);
   J, Linux on Ubuntu, and H5, free signing through SignPath Foundation (Lexia 1.0; 0.7 and 0.8 ship unsigned).
 - **History reset (2026-11-05):** `Xencaye/Lexia` restarted from one commit. The old history, its PRs and issues

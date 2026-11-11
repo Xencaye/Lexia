@@ -12,13 +12,15 @@ $ortVersion = '1.20.1'
 $ortUrl = "https://github.com/microsoft/onnxruntime/releases/download/v$ortVersion/onnxruntime-win-x64-$ortVersion.zip"
 $ortSha = '78D447051E48BD2E1E778BBA378BEC4ECE11191C9E538CF7B2C4A4565E8F5581'
 
-# OCR models (PaddleOCR PP-OCR, Apache-2.0, ONNX conversions), each pinned to a commit
+# OCR models (PaddleOCR PP-OCR, Apache-2.0, ONNX conversions), each pinned to a commit; rec_en.onnx is in the repo
 $rapid = 'https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173'
 # deepghs mirror is under its RDL licence, which defers to the original (PaddleOCR, Apache-2.0); keep PaddleOCR's notice in H2
 $deeps = 'https://huggingface.co/deepghs/paddleocr/resolve/e7bd63d9c674c96bd4fdab435af0efb383919c18'
 $models = @(
     @{ Name = 'det.onnx';           Url = "$rapid/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx";        Sha = 'D2A7720D45A54257208B1E13E36A8479894CB74155A5EFE29462512D42F49DA9' }
-    @{ Name = 'rec_en.onnx';        Url = "$deeps/rec/en_PP-OCRv3_rec/model.onnx";             Sha = '18FAE12E175A4E8616B57FB001ED51270EB81CE126C652D0F88E297A8DE53F49' }
+    # Lexia's own fine-tune of en_PP-OCRv3_rec for game fonts (task L): committed in ocr_models\, copied, not downloaded.
+    # A retrained model changes the file and this hash together (training\rec_en\README.md).
+    @{ Name = 'rec_en.onnx';        Local = 'ocr_models\rec_en.onnx';                          Sha = 'A9CDCF89764D08C8F52C47C542E814C89263F09FB01959DCE00A6C29F2F23360' }
     @{ Name = 'dict_en.txt';        Url = "$deeps/rec/en_PP-OCRv3_rec/dict.txt";               Sha = '5662DF9D2D03F0E8CA0D3B0649D6ACBAB904B6A14B3D3521463C71C37C668CE3' }
     @{ Name = 'rec_cyrillic.onnx';  Url = "$deeps/rec/cyrillic_PP-OCRv3_rec/model.onnx";       Sha = 'BEFB0C18A5648D44C6E7891EA10D8EE8EDD8EE98698E2B952C33474025273F31' }
     @{ Name = 'dict_cyrillic.txt';  Url = "$deeps/rec/cyrillic_PP-OCRv3_rec/dict.txt";         Sha = '369A82C6C8C479784A5D726448B83B1EAFB5FEF0A4129A5EAA3929625DDCD132' }
@@ -106,6 +108,15 @@ New-Item -ItemType Directory $modelsDir -Force | Out-Null
 foreach ($m in $models) {
     $dest = Join-Path $modelsDir $m.Name
     if (Test-Hash $dest $m.Sha) { Write-Host "$($m.Name): present"; continue }
+    if ($m.Local) {
+        # A file from the repository: the same hash check as a download, so a changed or half-checked-out file
+        # (an LFS pointer, a line-end conversion) never reaches models\.
+        $src = Join-Path $root $m.Local
+        if (-not (Test-Hash $src $m.Sha)) { throw "$($m.Name): $($m.Local) is missing or its SHA-256 is not the pinned one" }
+        Write-Host "$($m.Name): copying from $($m.Local)"
+        Copy-Item -LiteralPath $src $dest -Force
+        continue
+    }
     if (Test-Path $dest) { Write-Host "$($m.Name): wrong SHA-256, replacing" } else { Write-Host "$($m.Name): downloading" }
     Get-Verified $m.Name $m.Url $m.Sha $dest
 }

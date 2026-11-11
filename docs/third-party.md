@@ -12,7 +12,8 @@ A plain list of what Lexia builds on and ships, with licences. All are GPL-3-com
 | zlib | Zlib | Compression, used by OpenCV (z.dll is shipped) and libpng (via vcpkg) |
 | nlohmann-json | MIT | Reading `settings.json` and writing `lexia_cli`'s JSON output (via vcpkg) |
 | doctest | MIT | Unit tests only (`tests\`, via vcpkg); not shipped |
-| PaddleOCR PP-OCR models | Apache-2.0 | Text detection and recognition (`models\`), as ONNX conversions from SWHL/RapidOCR and deepghs/paddleocr (the latter under its RDL licence, which defers to the original PaddleOCR licence) |
+| PaddleOCR PP-OCR models | Apache-2.0 | Text detection and recognition (`models\`), as ONNX conversions from SWHL/RapidOCR and deepghs/paddleocr (the latter under its RDL licence, which defers to the original PaddleOCR licence). `rec_en.onnx` is **modified**: fine-tuned by the Lexia project for game fonts (task L), kept in `ocr_models\` (`ocr_models/README.md`), with the notice in the model's metadata and in `licenses/components/paddleocr-models.txt` |
+| Training fonts of `rec_en.onnx` | SIL OFL 1.1, CC0, BSD-2-Clause, Apache-2.0, Ubuntu Font Licence | Only to draw the synthetic training lines; no font is shipped or in the model. Credited in `licenses/components/rec-en-training-fonts.txt`; the list and the licence checks are in `docs/notes/training-fonts.md` |
 | SoundTouch 2.4.1 | LGPL-2.1-or-later | Shifts the pitch of synthesised speech without changing its length (Voice control Pitch, `src/tts/pitch_shift.cpp`). Via vcpkg (`soundtouch`), linked dynamically: `SoundTouch.dll` ships next to the exe, so a user can replace it with their own build as the LGPL asks. Source: https://codeberg.org/soundtouch/soundtouch |
 | miniz 3.1.2 | MIT | Reads the zip when the user adds a Voice from a zip in the Voice library (`src/tts/voice_library.cpp`). Via vcpkg (`miniz`); `miniz.dll` ships next to the exe |
 | Piper (libpiper, OHF-Voice/piper1-gpl v1.8.0) | GPL-3.0-or-later | Neural text to speech, in-process through Lexia's ONNX Runtime (`piper.dll`). Built from the pinned commit by `CMakeLists.txt` (`libpiper_external`); one line is patched for ONNX Runtime 1.20 (`cmake/patch_libpiper.cmake`). Bundles nlohmann/json (MIT) and uni-algo (Unlicense or MIT) as headers |
@@ -28,7 +29,7 @@ A plain list of what Lexia builds on and ships, with licences. All are GPL-3-com
 
 Voices the user downloads later (Voice library, task B5) come from the Hugging Face `rhasspy/piper-voices` catalogue, only when the user asks, and are not part of the package; each has its own licence, which is the user's to check. The Voices Lexia ships are the ones above.
 
-Pinned download URLs and hashes for ONNX Runtime, the models and the Voices are in `scripts\fetch_deps.ps1` and `voices\voices.json`.
+Pinned download URLs and hashes for ONNX Runtime, the models and the Voices are in `scripts\fetch_deps.ps1` and `voices\voices.json`; `rec_en.onnx` is copied from `ocr_models\` and checked against the hash in the same script.
 
 ## Voices
 

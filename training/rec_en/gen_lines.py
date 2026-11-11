@@ -124,12 +124,11 @@ def book_line(r, books, max_len):
     return s[:max_len]
 
 
-def game_line(r, books, t=None):
-    """Game-interface text: key prompts, menus, stats, versions, dialogue with stars. `t` picks one template."""
+def game_line(r, books):
+    """Game-interface text: key prompts, menus, stats, versions, dialogue with stars."""
     k = lambda: r.choice(KEYS)
     w = lambda: r.choice(MENU)
-    if t is None:
-        t = r.randrange(18)
+    t = r.randrange(18)
     if t == 14:  # chapter titles with Roman numerals: runs of I, V and X
         return f"{r.choice(['Chapter', 'Part', 'Act', 'Book', 'Episode', 'CHAPTER', 'PART'])} {r.choice(ROMAN)}, {book_line(r, books, 20)}"
     if t == 15:  # version lines as on title screens
@@ -188,9 +187,7 @@ def trap_line(r):
 def sample_text(r, books):
     """One label: 50 % book text, 25 % game text, 10 % look-alike traps, with case changes."""
     x = r.random()
-    if x < 0.03:  # extra user and file names: the main source of "_" (read as "..." in round 2)
-        s = game_line(r, books, 16)
-    elif x < 0.5:
+    if x < 0.5:
         s = book_line(r, books, r.randint(3, 34))
     elif x < 0.75:
         s = game_line(r, books)
@@ -376,15 +373,6 @@ def background(r, size, bg, fg=None):
     elif x < 0.57:  # faint shapes behind the text
         lum_gap = abs(sum(bg) - sum(fg)) / 3 if fg is not None else 120
         img = clutter(r, img, bg, r.randint(1, 4), min(70, lum_gap * 0.45))
-    elif x < 0.64:  # comic hatching and speed lines: thin parallel strokes behind and between the words (wha_01)
-        lum_gap = abs(sum(bg) - sum(fg)) / 3 if fg is not None else 120
-        a = math.radians(r.uniform(25, 65)) * r.choice([1, -1])
-        dx, dy = math.cos(a), math.sin(a)
-        step = max(3, int(h * r.uniform(0.08, 0.3)))
-        col = tuple(float(np.clip(c + r.choice([-1, 1]) * lum_gap * r.uniform(0.3, 0.6), 0, 255)) for c in bg)
-        for k in range(-h, w + h, step):
-            cv2.line(img, (int(k - dx * h * 2), int(-dy * h * 2)), (int(k + dx * h * 2), int(dy * h * 2)), col, 1,
-                     cv2.LINE_AA)
     return np.clip(img, 0, 255).astype(np.uint8)
 
 
@@ -446,35 +434,13 @@ def text_mask(font, text, antialias: bool, pad: int, tracking: int = 0, word_gap
     return img
 
 
-def camera(r, img: np.ndarray, box=None):
-    """A screen photographed or filmed with a phone (wha_01, undertale_01/02): a small tilt, detail lost to a lower
-    resolution, blur, sensor noise, a colour cast with less contrast, and strong JPEG loss.
-
-    `box` is the ink box (x0, y0, x1, y1). With a box the image is tilted on a canvas large enough for the whole
-    line and the box returned is the tilted ink's bounding box, as the detector's upright box round a tilted line
-    holds all of it (round 2 cut the ends off). Returns (image, box).
-    """
+def camera(r, img: np.ndarray) -> np.ndarray:
+    """A screen photographed or filmed with a phone (wha_01): a small tilt, detail lost to a lower resolution,
+    blur, sensor noise, a colour cast with less contrast, and strong JPEG loss."""
     h, w = img.shape[:2]
     if r.random() < 0.6:
-        angle = r.uniform(-3, 3)
-        cx, cy = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2) if box else (w / 2, h / 2)
-        m = cv2.getRotationMatrix2D((cx, cy), angle, 1.0)
-        if box:
-            # Grow the canvas so no corner of the image leaves it, then shift everything into it.
-            corners = np.array([[0, 0, 1], [w, 0, 1], [0, h, 1], [w, h, 1]], np.float64) @ m.T
-            ox, oy = -corners[:, 0].min(), -corners[:, 1].min()
-            m[0, 2] += ox
-            m[1, 2] += oy
-            w2 = int(math.ceil(corners[:, 0].max() + ox))
-            h2 = int(math.ceil(corners[:, 1].max() + oy))
-            ink = np.array([[box[0], box[1], 1], [box[2], box[1], 1], [box[0], box[3], 1], [box[2], box[3], 1]],
-                           np.float64) @ m.T
-            box = (int(ink[:, 0].min()), int(ink[:, 1].min()), int(math.ceil(ink[:, 0].max())),
-                   int(math.ceil(ink[:, 1].max())))
-            img = cv2.warpAffine(img, m, (w2, h2), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
-            h, w = img.shape[:2]
-        else:
-            img = cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+        m = cv2.getRotationMatrix2D((w / 2, h / 2), r.uniform(-3, 3), 1.0)
+        img = cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
     f = r.uniform(0.4, 0.8)
     small = cv2.resize(img, (max(1, int(w * f)), max(1, int(h * f))), interpolation=cv2.INTER_AREA)
     img = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
@@ -484,28 +450,19 @@ def camera(r, img: np.ndarray, box=None):
     img = img * gain + r.uniform(0, 50)
     img = np.clip(img, 0, 255).astype(np.uint8)
     ok, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, r.randint(35, 75)])
-    return (cv2.imdecode(enc, cv2.IMREAD_COLOR) if ok else img), box
+    return cv2.imdecode(enc, cv2.IMREAD_COLOR) if ok else img
 
 
-def ink_box(img: np.ndarray, ink_h: int):
-    """The ink box (x0, y0, x1, y1) of an image whose mask was drawn with the same pad on every side."""
+def crop_like_detector(r, img: np.ndarray, ink_h: int) -> np.ndarray:
+    """Cuts round the ink with the loose, uneven margins of the detector's boxes."""
+    # The ink box is known: the mask was drawn with the same pad on every side.
     h, w = img.shape[:2]
     pad = (h - ink_h) // 2
-    return pad, pad, w - pad, h - pad
-
-
-def crop_like_detector(r, img: np.ndarray, box, line_h: int) -> np.ndarray:
-    """Cuts round the ink box with the loose, uneven margins of the detector's boxes.
-
-    The margins are shares of the line's own height `line_h` (not of the box, which a tilted line makes taller).
-    """
-    h, w = img.shape[:2]
-    x0, y0, x1, y1 = box
     # The detector expands its boxes (unclip), so Lexia's crops have room round the ink, not always the same.
-    top = max(0, y0 - int(line_h * r.uniform(0.1, 0.45)))
-    bottom = min(h, y1 + int(line_h * r.uniform(0.1, 0.45)))
-    left = max(0, x0 - int(line_h * r.uniform(0.1, 0.6)))
-    right = min(w, x1 + int(line_h * r.uniform(0.1, 0.6)))
+    top = max(0, pad - int(ink_h * r.uniform(0.1, 0.45)))
+    bottom = min(h, h - pad + int(ink_h * r.uniform(0.1, 0.45)))
+    left = max(0, pad - int(ink_h * r.uniform(0.1, 0.6)))
+    right = min(w, w - pad + int(ink_h * r.uniform(0.1, 0.6)))
     return img[top:bottom, left:right]
 
 
@@ -542,11 +499,9 @@ def render_pixel(r, path, text):
     f = r.choice([1, 2, 2, 3, 3, 4]) if r.random() < 0.6 else r.uniform(1.3, 4.5)
     filt = cv2.INTER_NEAREST if r.random() < 0.85 else cv2.INTER_LINEAR
     img = cv2.resize(img, (max(1, int(img.shape[1] * f)), max(1, int(img.shape[0] * f))), interpolation=filt)
-    line_h = int(ink_h * f)
-    box = ink_box(img, line_h)
-    if r.random() < 0.10:  # a game filmed off a screen (several Undertale Fixtures are phone videos)
-        img, box = camera(r, img, box)
-    return crop_like_detector(r, img, box, line_h)
+    if r.random() < 0.03:  # a game filmed off a screen
+        img = camera(r, img)
+    return crop_like_detector(r, img, int(ink_h * f))
 
 
 def render_normal(r, path, text):
@@ -573,17 +528,15 @@ def render_normal(r, path, text):
     fg, bg, outline = colours(r)
     effect = r.choices(["none", "outline", "thick", "shadow"], [0.7, 0.08, 0.12, 0.1])[0]
     img = compose(r, mask, fg, bg, outline, effect)
-    box = ink_box(img, ink_h)
     if r.random() < 0.07:  # a screen filmed with a phone: replaces the lighter blur and JPEG below
-        img, box = camera(r, img, box)
-        return crop_like_detector(r, img, box, ink_h)
+        return crop_like_detector(r, camera(r, img), ink_h)
     if r.random() < 0.12:
         img = cv2.GaussianBlur(img, (3, 3), r.uniform(0.3, 0.9))
     if r.random() < 0.15:
         ok, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, r.randint(55, 92)])
         if ok:
             img = cv2.imdecode(enc, cv2.IMREAD_COLOR)
-    return crop_like_detector(r, img, box, ink_h)
+    return crop_like_detector(r, img, ink_h)
 
 
 def pixel_sprite(r):
@@ -621,16 +574,10 @@ def render_negative(r):
             y0, x0 = r.randrange(h - bh), r.randrange(w - bw)
             region = img[y0:y0 + bh, x0:x0 + bw]
             region[big > 0] = fg
-    elif x < 0.9:  # out-of-focus lights (bokeh): big bright blobs, heavily blurred ("3" in unraveled_04, round 2)
-        for _ in range(r.randint(1, 3)):
-            col = tuple(float(c) for c in r.choice([(255, 255, 255), (255, 220, 150), fg]))
-            cv2.ellipse(img, (r.randrange(w), r.randrange(h)), (int(w * r.uniform(0.1, 0.4)), int(h * r.uniform(0.1, 0.4))),
-                        r.uniform(0, 180), 0, 360, col, -1)
-        img = cv2.GaussianBlur(img, (0, 0), max(1.0, min(w, h) * r.uniform(0.05, 0.2)))
     # else: only the background (a texture, a gradient, a plain panel)
     img = np.clip(img, 0, 255).astype(np.uint8)
     if r.random() < 0.1:
-        img, _ = camera(r, img)
+        img = camera(r, img)
     return img
 
 

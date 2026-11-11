@@ -7,7 +7,7 @@
 #   .\training\rec_en\setup.ps1 -TrainLines 2000   # a small trial
 #
 # Network use: pip (PyPI), github.com (PaddleOCR, fonts), paddleocr.bj.bcebos.com (the checkpoint), gutenberg.org
-# (texts). Only when this script is run; Lexia itself is not involved (ADR-0005).
+# (texts), huggingface.co (PaddleOCR's rec_en.onnx, the model a new one is compared with). Only when this script is run; Lexia itself is not involved (ADR-0005).
 
 param(
     [int]$TrainLines = 400000,
@@ -53,6 +53,21 @@ if (Test-Path -LiteralPath $tar) {
     # The .pdparams files are pickles: load them only when the archive is the pinned one.
     if ((Get-FileHash -LiteralPath $tar -Algorithm SHA256).Hash -ne $ckptSha) { Remove-Item -LiteralPath $tar; throw 'checkpoint: SHA-256 mismatch' }
     tar -xf $tar -C (Split-Path $tar)
+}
+
+# --- PaddleOCR's own rec_en.onnx: what check_onnx.py measures a new model against ---
+# The ONNX conversion Lexia shipped before task L (deepghs/paddleocr, pinned commit and SHA-256). models\ now holds
+# Lexia's fine-tuned model, so the starting point is kept here.
+$origUrl = 'https://huggingface.co/deepghs/paddleocr/resolve/e7bd63d9c674c96bd4fdab435af0efb383919c18/rec/en_PP-OCRv3_rec/model.onnx'
+$origSha = '18FAE12E175A4E8616B57FB001ED51270EB81CE126C652D0F88E297A8DE53F49'
+$orig = Join-Path $Work 'rec_en.original.onnx'
+if (-not ((Test-Path -LiteralPath $orig) -and (Get-FileHash -LiteralPath $orig -Algorithm SHA256).Hash -eq $origSha)) {
+    Write-Host 'rec_en.original.onnx: downloading'
+    Invoke-WebRequest $origUrl -OutFile "$orig.part" -UseBasicParsing
+    if ((Get-FileHash -LiteralPath "$orig.part" -Algorithm SHA256).Hash -ne $origSha) {
+        Remove-Item -LiteralPath "$orig.part"; throw 'rec_en.original.onnx: SHA-256 mismatch'
+    }
+    Move-Item -LiteralPath "$orig.part" $orig -Force
 }
 
 if ($SkipData) { Write-Host 'Done (no data).'; exit 0 }

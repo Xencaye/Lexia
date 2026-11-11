@@ -17,8 +17,8 @@ On-screen wording follows the glossary.
 - **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
   Done for 0.7: B8, the Voices Cori (the default) and Mike instead of ljspeech; B9, an update keeps a Voice that Lexia
   no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
-  stacks in the Layout. **In progress: L**, the English recogniser fine-tuned to read pixel game fonts (in 0.7, owner
-  Nov 10): L0, L1, L3 done (fonts, data generator, export and check scripts); L2, the training, is the owner's run.
+  stacks in the Layout; L, the English recogniser fine-tuned to read pixel game fonts (owner Nov 10; L0-L3, L5, L6
+  done: round 2 epoch 5 ships as `ocr_models/rec_en.onnx`). Open in L: L4 (new pixel-font Fixtures) and L7 (owner).
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -42,6 +42,10 @@ On-screen wording follows the glossary.
 ## The owner's open checks
 
 These are the by-hand checks of merged work. Each item is short; tick it here when it is done.
+
+- [ ] **L7 The game-font recogniser.** In Undertale: the instruction screen, the menu, dialogue and battle text read
+  right aloud. A browser page and a video with subtitles read as well as before. In Unravel's menu, a lamp may be read
+  as "3" (known).
 
 - [ ] **K7 Settings window.** Every page and sheet against `wireframe/html-reference/` (layout) and the mockups
   `wireframe/<page>.png` / `<page>_dark.png` (colours); keys and mouse; dark mode; 150 % / 200 % and a move between
@@ -180,7 +184,7 @@ The rules stay: the Overlay never takes focus (ADR-0001), network only on reques
 - [ ] **J7 Package.** A `.deb` (maybe Flatpak or AppImage, decided in J0) with the models, Voices and notices.
 - [ ] **J8 Your check.** A browser, a video with subtitles and a game on your Ubuntu PC.
 
-### L — The English recogniser reads pixel game fonts (Lexia 0.7; scripts ready, training next)
+### L — The English recogniser reads pixel game fonts (Lexia 0.7; the model ships, L4 and L7 open)
 
 Owner, Nov 10: L goes into 0.7; training runs on the owner's RTX 3080; the trained model is committed to this repo;
 the training data is not committed, only the list of fonts it was made from (`docs/notes/training-fonts.md`).
@@ -232,7 +236,7 @@ mixed with normal text so that other text does not get worse.
   400 000 training lines and 2 × 2000 check lines (pixel / normal, other seeds) in about 25 minutes.
   - Not done: the real Fixture crops as a check set (`lexia_cli --dump-crops`); `try_model.ps1` scores the
   Fixtures directly instead.
-- [ ] **L2 Fine-tune (owner runs it: `training/rec_en/README.md`).** PaddleOCR v2.9.1 (Apache-2.0) `tools/train.py`
+- [x] **L2 Fine-tune (`training/rec_en/README.md`; run by the agent on the owner's PC, Nov 10-11).** PaddleOCR v2.9.1 (Apache-2.0) `tools/train.py`
   with `lexia_rec_en.yml`: from the pretrained `en_PP-OCRv3_rec` training checkpoint (pinned SHA-256), Adam with
   learning rate 0.0002 (1/5 of the original), cosine, 1 warm-up epoch, 10 epochs, batch 64, width 480, mixed
   precision (AMP O1). About 220 lines/s, so about 5 hours on the owner's RTX 3080 (6.4 GB used); `warm_files.py` reads
@@ -263,7 +267,9 @@ mixed with normal text so that other text does not get worse.
   of rounds 1-3 was scored; the best on the synthetic check lines is not the best on real screens. Best: **round 2,
   epoch 5** (average distance 0.131 -> 0.110, Block-count error 1.29 -> 1.00, CER 0.87 % pixel / 0.47 % normal,
   `undertale_05` all words right); only `unraveled_04` is worse (0.018 -> 0.045, beyond the 0.02 tolerance): a blurred
-  lamp that every fine-tuned epoch reads as "3". The owner decides: ship it, or a round 4.
+  lamp that every fine-tuned epoch reads as "3". **The owner chose to ship it (Nov 11).** `gen_lines.py` is back at
+  its round 2 version, so the scripts make the shipped model's data; round 3 is in the history (`4e8678f`).
+  `score_epochs.ps1` scores each epoch on the Fixtures; `export.ps1 -Checkpoint iter_epoch_5` made the model.
 - [x] **L3 Export to ONNX (agent).** `export.ps1`: `tools/export_model.py` (CTC head only), `paddle2onnx` 1.3.1
   with opset 14 (paddle2onnx raises it from 11 for `hard_swish`; ONNX Runtime 1.20.1 runs it), then
   `check_onnx.py`: one input `[N, 3, 48, W]`, one output `[N, T, 97]`, each time step adds up to 1; the CER on the
@@ -274,12 +280,20 @@ mixed with normal text so that other text does not get worse.
   the Undertale instruction screen cut to the instruction box only (`undertale_06`), the Undertale menu and battle text,
   Deltarune, and 3–5 other pixel-font games the owner plays. Add them to `tests/fixtures/baseline.json` with the old
   model's score *before* the model changes, so the gain shows.
-- [ ] **L5 The check (agent).** With the new model in `models\`: `ctest` and `.\scripts\score_layout.ps1` pass (no
+- [x] **L5 The check (agent).** With the new model in `models\`: `ctest` and `.\scripts\score_layout.ps1` pass (no
   Fixture worse than the tolerance, the Block count not worse anywhere). `undertale_05` and the new pixel Fixtures read
   `[Z or ENTER]`, `Cancel`, `Fullscreen`, `you` right. On the check set: the character error rate on normal fonts does
   not rise by more than 0.5 points; on pixel fonts it falls. Report every Fixture before and after in the PR; then
   `score_layout.ps1 -SaveBaseline` with the reason.
-- [ ] **L6 Ship it (agent).** The model is committed to this repo as `ocr_models/rec_en.onnx` (about 9 MB, a plain git
+  **Result (Nov 11):** `ctest` passes (914 tests). Every Fixture before -> after (distance, Block-count error):
+  lovebyte_01 0.045 (0) -> 0.034 (0), lovebyte_02 0.018 (1) -> 0.036 (1), lovebyte_03 0.271 (5) -> 0.252 (2),
+  oblivion_01 0.301 (2) -> 0.024 (1), twd_02 0.214 (4) -> 0.209 (4), undertale_05 0.150 (4) -> 0.115 (4),
+  unraveled_04 0.018 (1) -> 0.045 (0), wha_01 0.078 (0) -> 0.020 (0); the other 9 unchanged. One exception, accepted
+  by the owner: `unraveled_04` is worse than the tolerance (a blurred lamp read as "3"). `undertale_05` reads
+  `[Z or ENTER]`, `Cancel`, `Fullscreen`, `you lose` right. Check lines: CER 12.76 % -> 0.87 % (pixel), 3.61 % ->
+  0.47 % (normal). New baseline saved: the model changed (average distance 0.131 -> 0.110). The new pixel Fixtures
+  wait for L4.
+- [x] **L6 Ship it (agent).** The model is committed to this repo as `ocr_models/rec_en.onnx` (about 9 MB, a plain git
   file: below GitHub's limits, no Git LFS), with `ocr_models/README.md` (where it comes from, the training commit, the
   font list, the scores). `models/` stays git-ignored and made by `scripts/fetch_deps.ps1`: the script copies
   `ocr_models/rec_en.onnx` into `models\` (checked against a SHA-256 written in the script, as now) instead of

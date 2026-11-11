@@ -1,0 +1,2 @@
+# The fine-tuned English recogniser is a binary file: no line-end changes, no diff.
+ocr_models/*.onnx binary

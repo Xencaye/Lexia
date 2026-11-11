@@ -1,10 +1,11 @@
 # Turns the best checkpoint into <work>\rec_en.onnx with the input and output Lexia expects, then checks it.
 #
 #   .\training\rec_en\export.ps1                         # output\best_accuracy
-#   .\training\rec_en\export.ps1 -Checkpoint latest      # another checkpoint in output\
+#   .\training\rec_en\export.ps1 -Checkpoint iter_epoch_5   # another checkpoint in output\ (score_epochs.ps1 finds it)
 #
 # Steps: PaddleOCR's export_model.py (an inference model with the CTC head only; the SAR head is for training),
-# paddle2onnx (opset 14: hard_swish needs it; ONNX Runtime 1.20 runs it; input x [N, 3, 48, W]), check_onnx.py (shapes, and the old and new model on the check lines).
+# paddle2onnx (opset 14: hard_swish needs it; ONNX Runtime 1.20 runs it; input x [N, 3, 48, W]), stamp_onnx.py (the
+# Apache-2.0 notice), check_onnx.py (shapes, and PaddleOCR's and the new model on the check lines).
 
 param([string]$Checkpoint = 'best_accuracy')
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -31,6 +32,11 @@ $ErrorActionPreference = 'Continue'   # paddle2onnx logs to stderr; the exit cod
 if ($LASTEXITCODE -ne 0) { throw 'paddle2onnx failed' }
 $ErrorActionPreference = 'Stop'
 
-Invoke-Py (Join-Path $Here 'check_onnx.py') --new $onnx --old (Join-Path $Repo 'models\rec_en.onnx') --data (Join-Path $Work 'data')
+# The Apache-2.0 "modified" notice and the training commit go into the model's metadata (stamp_onnx.py says why).
+$commit = (git -C $Repo rev-parse --short HEAD).Trim()
+Invoke-Py (Join-Path $Here 'stamp_onnx.py') $onnx --commit $commit
+
+# Measured against PaddleOCR's own model (setup.ps1 keeps it), not models\, which holds Lexia's earlier fine-tune.
+Invoke-Py (Join-Path $Here 'check_onnx.py') --new $onnx --old (Join-Path $Work 'rec_en.original.onnx') --data (Join-Path $Work 'data')
 Write-Host "Exported: $onnx  SHA-256 $((Get-FileHash -LiteralPath $onnx -Algorithm SHA256).Hash)"
 Write-Host 'Next: .\training\rec_en\try_model.ps1 (the Fixture score with the new model)'

@@ -23,17 +23,25 @@ OneDrive or the repo: it holds 400 000 images.
 From the repo root in PowerShell:
 
 ```powershell
-.\training\rec_en\setup.ps1        # venv, PaddleOCR v2.9.1, the pretrained checkpoint, fonts, texts, 400 000 lines
-.\training\rec_en\train.ps1        # about 4-5 hours on an RTX 3080 (10 epochs)
-.\training\rec_en\export.ps1       # -> <work>\rec_en.onnx, then check_onnx.py
-.\training\rec_en\try_model.ps1    # the Fixture score (score_layout.ps1) with the new model, then the old one back
+.\training\rec_en\setup.ps1          # venv, PaddleOCR v2.9.1, the pretrained checkpoint, PaddleOCR's rec_en.onnx,
+                                     # fonts, texts, 400 000 lines
+.\training\rec_en\train.ps1          # about 4-5 hours on an RTX 3080 (10 epochs)
+.\training\rec_en\score_epochs.ps1   # every epoch's Fixture score; pick the epoch with no Fixture worse
+.\training\rec_en\export.ps1 -Checkpoint iter_epoch_5   # -> <work>\rec_en.onnx, the notice, then check_onnx.py
+.\training\rec_en\try_model.ps1      # the Fixture score with the new model in models\, then the old one back
 ```
 
-- `train.ps1 -Resume` goes on after a stop (Ctrl+C is safe; `latest` is saved every epoch).
+- `train.ps1 -Resume` goes on after a stop (Ctrl+C is safe; `latest` is saved every epoch, so at most one epoch,
+  about 25 minutes, is lost).
 - The log is `<work>\output\train.log`. Every 2000 steps it evaluates on the check lines: `acc` is the share of
   lines read exactly, `norm_edit_dis` 1 - the normalised edit distance. `best_accuracy` is the best so far.
-- `export.ps1 -Checkpoint iter_epoch_6` exports another epoch. The best on the synthetic check lines is not always
-  the best on the real Fixtures: try two or three epochs with `try_model.ps1` and keep the best.
+- **Choose the epoch on the Fixtures, not by `best_accuracy`.** In the three runs of Nov 10-11 the best epoch on the
+  synthetic check lines was 8-10, and the best on the real Fixtures was earlier (round 2: epoch 5, which ships).
+  `score_epochs.ps1 -Run <folder> -Epochs 4,5,6` scores another run folder or other epochs; it does not touch
+  `models\`.
+- To ship a model: copy `<work>\rec_en.onnx` to `ocr_models\rec_en.onnx`, put its SHA-256 in
+  `scripts\fetch_deps.ps1`, run `fetch_deps.ps1`, `ctest` and `score_layout.ps1 -SaveBaseline`, and update
+  `ocr_models/README.md` (plan, task L6).
 - `try_model.ps1 -Keep` leaves the new model in `models\`, to try Lexia itself with it (a Release build reads the
   `models\` folder beside `lexia.exe` in the build: copy it there too). Put the old one back from
   `<work>\rec_en.original.onnx`.
@@ -41,8 +49,9 @@ From the repo root in PowerShell:
 ## What `check_onnx.py` checks
 
 The new model has one input `[N, 3, 48, W]` and one output `[N, T, 97]` of softmax scores; on the synthetic check
-lines its character error rate (CER) on normal fonts is at most 0.5 points worse than the old model, and on pixel
-fonts better. `try_model.ps1` then runs `scripts\score_layout.ps1`: no Fixture may be worse than the baseline.
+lines its character error rate (CER) on normal fonts is at most 0.5 points worse than PaddleOCR's own model
+(`<work>\rec_en.original.onnx`, kept by `setup.ps1`; `models\` now holds Lexia's fine-tune), and on pixel fonts
+better. `try_model.ps1` then runs `scripts\score_layout.ps1`: no Fixture may be worse than the baseline.
 
 ## Files
 
@@ -55,8 +64,9 @@ fonts better. `try_model.ps1` then runs `scripts\score_layout.ps1`: no Fixture m
 | `dict_en.txt` | Lexia's `models\dict_en.txt` with LF line ends (the same 95 characters in the same order) |
 | `lexia_rec_en.yml` | The PaddleOCR training config (the reasons for each change are at its top) |
 | `requirements.txt` | The pinned Python packages |
-| `setup.ps1`, `train.ps1`, `export.ps1`, `try_model.ps1`, `common.ps1` | The steps above |
+| `setup.ps1`, `train.ps1`, `score_epochs.ps1`, `export.ps1`, `try_model.ps1`, `common.ps1` | The steps above |
 | `check_onnx.py` | The model check |
+| `stamp_onnx.py` | Writes the Apache-2.0 "modified" notice and the training commit into the model's metadata |
 | `warm_files.py` | Reads every image once before training (a cold first epoch is 4x slower on Windows) |
 
 ## Security
