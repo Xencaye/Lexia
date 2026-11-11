@@ -116,8 +116,9 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 ; {app}\ui held the HTML Settings window of Lexia 0.5, which 0.6 replaced with a native one (ADR-0009):
 ; an update of 0.5 removes it.
 Type: filesandordirs; Name: "{app}\ui"
-; {app}\voices is NOT emptied (B9): an update keeps the Voices that this version no longer ships (ljspeech after
-; 0.6), because Lexia adopts them into the person's own Voices folder at its next start (AdoptRetiredVoices).
+; {app}\voices is NOT emptied (B9): an update keeps the Voices that this version no longer ships (Cori and Mike of
+; the 0.7 test builds), because Lexia adopts them into the person's own Voices folder at its next start
+; (AdoptRetiredVoices).
 ; The Voices that this version ships are overwritten by [Files] above. The uninstaller still removes {app}.
 Type: filesandordirs; Name: "{app}\espeak-ng-data"
 Type: filesandordirs; Name: "{app}\models"

@@ -54,7 +54,7 @@ Voices are separate data files in `voices/`, listed in `voices/voices.json` (wit
 
 The package step fails (so does the build) when a Voice with `"ship": true` has no `voice-<name>.txt`, and when a `.exe` or `.dll` in the package is covered by no `@covers` line. The ctest `package_notices` (`tests/notices_test.cmake`) checks both.
 
-To add a component (the ones planned: SoundTouch, the Atkinson Hyperlegible font):
+To add a component:
 
 1. Check its licence is GPL-3-compatible (ADR-0003) and add a row to the table above.
 2. Add `licenses/components/<name>.txt`. Take the licence text from the vcpkg port's `copyright` file or the component's own source with `@include`, or add the text to `licenses/texts/` if it is a standard one (the SIL OFL for a font, for instance) and refer to it with `@licence-text`. If the component brings a DLL, add `@covers` for it. Fonts and other data files are not checked by `@covers`; name them in "Used for".

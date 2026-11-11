@@ -127,7 +127,7 @@ struct AdoptResult {
 };
 
 // An update keeps the user's Voices (B9). A Voice that an older Lexia shipped in `exeVoicesDir` and that
-// this version's voices.json no longer lists (e.g. ljspeech after 0.6) would otherwise be invisible: Lexia lists
+// this version's voices.json no longer lists (e.g. Cori and Mike of the 0.7 test builds) would otherwise be invisible: Lexia lists
 // the program folder's Voices only through voices.json. This copies each such `<name>.onnx` + `<name>.onnx.json`
 // into `userVoicesDir` (through AddVoiceFiles: checked config, temporary names, then put in place), so the
 // Voice becomes one of the user's own: listed, removable, with its controls and Presets (they are keyed by name).

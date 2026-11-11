@@ -7,5 +7,7 @@ exactly the text Lexia exists to read.
 
 ## Consequences
 
-- The models and ONNX Runtime ship with Lexia and are not in git (`scripts\fetch_deps.ps1`).
+- The models and ONNX Runtime ship with Lexia. They are downloads from pinned URLs (`scripts\fetch_deps.ps1`),
+  except Lexia's own fine-tuned `rec_en.onnx` (task L, 2026-11-11), which is in git as `ocr_models/rec_en.onnx`
+  and copied into `models\` by the same script.
 - Each Language needs its own recognition model and character dictionary.

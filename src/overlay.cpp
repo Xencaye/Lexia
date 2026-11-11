@@ -367,7 +367,7 @@ static void Pump(HWND hwnd, Session& ss) {
 }
 
 // Shows the frozen screenshot full-screen, with the Control bar above it, and keeps it up until the
-// user leaves (F8 again, right-click, Esc or the bar's Close). Each click/drag is passed to
+// user leaves (F8 again, right-click, Esc or the bar's Help, which also opens the Help page). Each click/drag is passed to
 // `onSelect`, which reads the text aloud and says if it found any (the area then stays
 // highlighted). While the user looks at the screen, a job finds all text blocks so hovering and
 // clicking are instant.

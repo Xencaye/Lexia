@@ -1055,7 +1055,7 @@ TEST_CASE("SettingsToText round-trips readAlong, and UpdateSettingsText changes 
 // ------------------------------------------------------------ updates keep Voice names (B9) ---
 
 TEST_CASE("A Voice name that is not installed (any more) survives a load and a save") {
-    // ljspeech after Lexia 0.7: settings.json still names it. Nothing may reset it.
+    // A Voice that is gone (deleted, or no longer shipped): settings.json still names it. Nothing may reset it.
     std::string text = R"({"activeVoices": {"eng": "en_US-ljspeech-medium"},
         "voices": {"en_US-ljspeech-medium": {"speed": 1.25, "pitch": -1, "volume": 0.8}}})";
     Parsed p = Parse(text);
