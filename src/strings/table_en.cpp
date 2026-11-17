@@ -178,8 +178,6 @@ const Table& EnglishTable() {
         {id::kWindowPresetFilter, "Voice settings (.json)"},
         {id::kWindowProblemUnsupportedLanguage, "Lexia can't read {language} yet. Choose a voice for a language that Lexia reads."},
         {id::kWindowProblemThisLanguage, "this language"},
-        {id::kWindowProblemNotMedium, "This voice has {quality} quality. Lexia uses only voices of Medium quality. Choose a Medium voice."},
-        {id::kWindowProblemNotMediumUnknown, "Lexia uses only voices of Medium quality, and this voice is not marked as Medium. Choose a Medium voice."},
         {id::kWindowProblemUnknownQuality, "This voice says its quality is \"{quality}\", which Lexia does not know. Lexia uses voices of X-low, Low, Medium or High quality."},
         {id::kWindowVoiceLabel, "{name} ({quality})"},
         {id::kWindowVoiceQualityXLow, "X-low"},
@@ -194,7 +192,6 @@ const Table& EnglishTable() {
         {id::kWindowProblemCannotWrite, "Lexia could not save the voice on this computer. Check that the disk has free space, then try again."},
         {id::kWindowProblemNotInCatalogue, "This voice is not in the list any more. Close this window, open the list again and choose another voice."},
         {id::kWindowProblemNetwork, "The download did not finish. Check your network connection, then try again."},
-        {id::kWindowProblemCatalogueNetwork, "Lexia could not get the list of voices. Check your network connection, then try again."},
         {id::kWindowProblemBadDownload, "The downloaded files are damaged, so Lexia did not keep them. Try again."},
         {id::kWindowProblemUnknown, "Something went wrong. Try again."},
 

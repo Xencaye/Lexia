@@ -1,6 +1,6 @@
 # The Voices for the download list (B12)
 
-Date: 2026-11-12. Research for B12, no code changed. This is not legal advice. It reports what the primary sources
+Date: 2026-11-12 (section 1 and section 7 updated on 2026-11-17, B12). The research, sections 2 to 6, changed no code. This is not legal advice. It reports what the primary sources
 say and where they say nothing. `docs/notes/voice-licences.md` (B6) is about the Voices that Lexia ships. This note is
 about the Voices that the Download sheet can offer. Lexia does not distribute these Voices: the user downloads each one
 from its source.
@@ -16,11 +16,20 @@ Nov 12:
 Nov 17 (B13):
 
 - Lexia ships the OLD Cori Medium (section 5) as the default English Voice. It is the copy at `rhasspy/piper-voices`
-  commit `5041a7a`. Norman stays the second shipped Voice until the owner picks a male Voice. LJ Speech is not shipped
-  now (an update keeps it as the user's own Voice, B9).
+  commit `5041a7a`. Norman is the second shipped Voice. Cori and Norman are final: the owner does not pick another
+  shipped Voice. LJ Speech is not shipped now (an update keeps it as the user's own Voice, B9).
 - The download list can take a Voice from any source: Hugging Face (at a pinned commit) or Bryce Beattie's LibriVox
   Voices (https://brycebeattie.com/files/tts/). The owner picks each Voice by ear. The "Medium only" rule is for
   what Lexia ships, not for the download list.
+
+Nov 17 (B12, the owner's pick):
+
+- The Download sheet offers only a short list that the owner picked: **Kristin, John and LJ Speech** (all `en_US`,
+  Medium, public domain). Lexia does not fetch the full catalogue now. The list is compiled into Lexia, so the sheet
+  opens with no network request.
+- No labels for now. All three Voices are public domain, so no label of allowed use is needed. The labels (section 6)
+  come back when the owner adds a Voice that needs one.
+- The owner will add more Voices to the list later. Section 7 says how.
 
 ## 2. Sources and how they were checked
 
@@ -166,22 +175,57 @@ Checked on 2026-11-17. The owner hears that this Voice says "library", "anonymiz
 Voices norman and ljspeech. Since B13 (owner, Nov 17) Lexia ships it as the default English Voice: `voices/voices.json`
 gives it its own `source` (the pinned commit `5041a7a`), `scripts/fetch_deps.ps1` checks both files against the
 SHA-256 above and `e262c16d…`, and `licenses/components/voice-en_GB-cori-medium.txt` is its notice. The Download sheet
-still reads the catalogue at `cf910fb`, which holds the NEWER Cori; the shipped Voice of the same name wins in the
-Voice list (B12 must not offer the newer one under that name).
+no longer reads the catalogue (B12), so it cannot offer the NEWER Cori of `cf910fb`. If the owner adds a Voice of the
+name `en_GB-cori-medium` to the list, the shipped Voice of that name wins in the Voice list: do not add one.
 
 ## 6. Recommendation
 
-- Use these labels in the UI: "Free for any use", "Free for any use, credit the Voice" and "Non-commercial use only".
+- Use these labels in the UI when a Voice needs one: "Free for any use", "Free for any use, credit the Voice" and
+  "Non-commercial use only". The owner set the labels aside on Nov 17: the three Voices of the list are public domain.
 - Offer only Voices from the first two categories. If the owner offers a non-commercial Voice, show its label.
 - Do not offer the Voices that are research only, unclear or with no licence.
 - Any quality may be in the list (owner, Nov 17), from Hugging Face or from Bryce Beattie's page. For a Voice from
-  Bryce's page the list needs the SHA-256 of each file (his page gives none; take it from a copy that the owner has
+  Bryce's page (not on the list now) the list needs the SHA-256 of each file (his page gives none; take it from a copy that the owner has
   heard) and Lexia must write a config with a known quality and a full language code (his configs say `cori-med`,
   `mv2` and the code `en`, which Lexia refuses as `unknown-quality`).
 - For a Voice that needs credit, show the credit on the Voices page and in the Download sheet. The Jenny licence asks
   for the name "Jenny (Dioco)" where practical.
 
-## 7. Samples
+## 7. The list as it is now (B12), and how to add a Voice
+
+The list is in `src/tts/download_list.cpp` (`kListed`, one row for each Voice). It is compiled into Lexia. The files
+of all three Voices are at `rhasspy/piper-voices`, commit `cf910fb59f1d79ab3b625a63993a108751c6c25d`. Section 2 found
+them unchanged up to `ae9d835`. The numbers below come from `voices.json` of `cf910fb`. The SHA-256 of each `.onnx` is
+the Git LFS id, and Lexia checked that the download has it. Lexia itself checks the size and the MD5.
+
+| Voice | Files | Size (model + config) | `.onnx` SHA-256 (start) |
+| --- | --- | --- | --- |
+| en_US-kristin-medium | `en/en_US/kristin/medium/` | 63,531,379 + 4,968 bytes | `5849957f` |
+| en_US-john-medium | `en/en_US/john/medium/` | 63,531,379 + 4,965 bytes | `789c6c87` |
+| en_US-ljspeech-medium | `en/en_US/ljspeech/medium/` | 63,531,379 + 4,972 bytes | `6f52a751` |
+
+The sheet shows the Voices in this order (the owner's order). A Voice that the user has already shows "Installed".
+
+### Adding a Voice to the list
+
+1. Choose a Voice from the sections above. It must be in a category that the owner accepts, and its source must be
+   Hugging Face `rhasspy/piper-voices` at a 40-digit commit (a branch name is not allowed). Lexia reads only a Voice
+   that has a known quality and a Language that Lexia reads (English now).
+2. Read `voices.json` at that commit (`https://huggingface.co/rhasspy/piper-voices/resolve/<commit>/voices.json`).
+   Copy the `size_bytes` and the `md5_digest` of the `.onnx` and of the `.onnx.json`.
+3. Download the two files into a new, empty folder. Check the size and the MD5. Check the SHA-256 of the `.onnx`
+   against the Git LFS pointer (`https://huggingface.co/rhasspy/piper-voices/raw/<commit>/<path>.onnx`).
+4. Add one row to `kListed` in `src/tts/download_list.cpp`: the language code, the English name of the language, the
+   dataset, the quality, `kPinnedCommitUrl` (or another pinned base URL), and the four numbers. Put the SHA-256 in the
+   comment above the row. The file names follow Piper's layout, so the code makes the paths itself.
+5. Run `lexia_cli --voices-catalogue` (it shows the row) and `lexia_cli --voice-download <name> --voices-dir <new
+   folder>` (it installs the Voice). Run `ctest`: the list tests check the base URL, the paths, the sizes, the MD5
+   values and the names.
+6. If the Voice needs a label or a credit (section 6), do B12.4 in the plan first. Add the notice of the Voice to
+   `docs/third-party.md` if the licence needs it.
+7. Do not put a Voice that Lexia ships (`voices/voices.json`) on the list.
+
+## 8. Samples
 
 The owner has WAV samples of all of the Voices above in `%USERPROFILE%\LexiaVoiceSamples` (outside the repository;
 nothing is committed). Each Voice reads the same text: the owner's message of Nov 12, then the words that B8 and B10
@@ -192,7 +236,7 @@ Voice. For mv2, each speaker has a WAV. The WAVs are in one folder for each cate
 `index.html` and `summary.csv` list them. The owner does not consider the research-only, unclear and no-licence
 Voices (Nov 12), so their samples were deleted.
 
-## 8. Sources
+## 9. Sources
 
 - Voice index and cards: https://huggingface.co/rhasspy/piper-voices/tree/ae9d8352b73c1b1750748843e753a504b00e05b0/en
 - Checkpoint cards (libritts_r, hifi_tts_92): https://huggingface.co/datasets/rhasspy/piper-checkpoints

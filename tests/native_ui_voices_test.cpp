@@ -325,30 +325,6 @@ TEST_CASE("Voice download: loading, then the list; Esc closes it and the focus g
     CHECK(r.ui.screen.Focused() == p.DownloadButton());
 }
 
-TEST_CASE("Voice download: the catalogue that fails shows a notice and Try again, which asks again") {
-    Rig r;
-    VoicesPage& p = r.Page_();
-    r.Click(*p.DownloadButton());
-    r.Events().CatalogueFailed(VoiceProblem::Network);
-    r.ui.Frame();
-    Sheet* s = r.Top();
-    REQUIRE(s);
-    Widget* retry = Find(*s, "Try again", Role::Button);
-    REQUIRE(retry);
-    std::vector<Widget*> notices;
-    Collect(*s, Role::Text, notices);
-    bool found = false;
-    for (Widget* n : notices) found = found || n->Access().value == T(strings::id::kWindowProblemCatalogueNetwork);
-    CHECK(found);
-
-    r.sent.clear();
-    r.Click(*retry);
-    REQUIRE(r.sent.size() == 1);
-    CHECK(r.Last().type == PageMessageType::OpenCatalogue);
-    CHECK(Find(*s, "Getting the list of voices"));  // loading again
-    CHECK_FALSE(Find(*s, "Try again", Role::Button));
-}
-
 TEST_CASE("Voice download: an empty catalogue says so") {
     Rig r;
     r.Click(*r.Page_().DownloadButton());

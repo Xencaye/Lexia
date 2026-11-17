@@ -1,37 +1,30 @@
 #pragma once
-// The Piper Voices catalogue: the `voices.json` of Hugging Face's rhasspy/piper-voices, which
-// lists every downloadable Voice with its files, sizes and MD5 digests. Parsing and filtering
-// only (Win32-free, no network); voice_download.h fetches it. Only the fields Lexia needs are read.
+// What the Download sheet knows about one downloadable Voice: its name, Language, quality and the two files
+// (path, size, MD5) with the place they come from. The list of these is compiled in (download_list.h); nothing
+// here fetches or parses anything from the network. Win32-free.
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "tts/voice_library.h"
 
 struct CatalogueFile {
-    std::string path;     // inside the repository, e.g. "bg/bg_BG/sample/medium/bg_BG-sample-medium.onnx"
+    std::string path;     // inside the repository, e.g. "en/en_US/kristin/medium/en_US-kristin-medium.onnx"
     uint64_t sizeBytes = 0;
     std::string md5;      // lower case hex
 };
 
 struct CatalogueVoice {
-    std::string name;          // "bg_BG-sample-medium"
-    std::string languageCode;  // the catalogue's, "bg_BG"
-    std::string languageName;  // "Bulgarian" (name_english)
+    std::string name;          // "en_US-kristin-medium"
+    std::string languageCode;  // Piper's, "en_US"
+    std::string languageName;  // "English"
     std::string quality;       // "medium", "low", ...
-    int numSpeakers = 1;
+    // Where the files are, with the trailing slash: `<baseUrl><path>` is the file's URL. A Hugging Face
+    // rhasspy/piper-voices URL pinned to one commit (never a branch), so the file, its size and its MD5 cannot
+    // change under Lexia. The download refuses a base that is not https (voice_download.h).
+    std::string baseUrl;
     CatalogueFile model;       // the .onnx
     CatalogueFile config;      // the .onnx.json
 };
 
-// Every Voice in a catalogue that has an .onnx and an .onnx.json with a safe path, a size and an
-// MD5. Voices without them are left out. On text that is not a catalogue, `error` (if given) gets
-// one line and the result is empty.
-std::vector<CatalogueVoice> ParseVoiceCatalogue(const std::string& jsonText, std::string* error = nullptr);
-
-// Can Lexia use this Voice (CheckVoiceAccepted on its language and quality)?
+// Can Lexia use this Voice (CheckVoiceAccepted on its name, language and quality)?
 VoiceOutcome CheckCatalogueVoice(const CatalogueVoice& voice);
-
-// The Voices Lexia offers: those for one of its Languages (AllLanguages, by the catalogue's
-// language code) in Medium quality, sorted by name.
-std::vector<CatalogueVoice> FilterCatalogueForLexia(const std::vector<CatalogueVoice>& voices);

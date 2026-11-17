@@ -16,6 +16,7 @@
 #include "net/winhttp_fetch.h"
 #include "strings/string_ids.h"
 #include "strings/strings.h"
+#include "tts/download_list.h"
 #include "tts/piper_voice.h"
 #include "tts/preset_file.h"
 #include "tts/voice_download.h"
@@ -89,12 +90,10 @@ VoiceTab::VoiceTab(Settings& settings, Settings& fileSettings, Speaker& speaker,
     : settings_(settings), fileSettings_(fileSettings), speaker_(speaker), host_(std::move(host)) {}
 
 VoiceTab::~VoiceTab() {
-    // A running download or catalogue fetch stops at once: the flag, and the closing of the WinHTTP request that a
-    // blocked connect or receive waits on (FetchCancel), so Quit never waits for the network timeouts.
-    // Cancel() is safe whether or not a fetch runs (it only closes a handle a running fetch has registered).
+    // A running download stops at once: the flag, and the closing of the WinHTTP request that a blocked connect or
+    // receive waits on (FetchCancel), so Quit never waits for the network timeouts.
+    // Cancel() is safe whether or not a download runs (it only closes a handle a running fetch has registered).
     workCancel_.Cancel();
-    catalogueCancel_.Cancel();
-    if (catalogueThread_.joinable()) catalogueThread_.join();
     if (workThread_.joinable()) workThread_.join();
 }
 
@@ -375,37 +374,11 @@ void VoiceTab::Join(std::thread& t, const std::atomic<bool>& running) {
     if (t.joinable() && !running) t.join();
 }
 
+// The Download sheet asks for its list. It is the compiled-in list (download_list.h), so the answer is made here
+// and now, with no network and no thread (ADR-0005: the network is used only for a download the user starts).
+// An entry is marked installed when a Voice of that name is in the Voice library already.
 void VoiceTab::OpenCatalogue() {
-    Join(catalogueThread_, catalogueRunning_);
-    if (catalogueRunning_) return;  // the answer is on its way
-    catalogueRunning_ = true;
-    catalogueCancel_.Reset();  // the previous thread has finished (Join above), so nothing uses it now
-    catalogueThread_ = std::thread([this] {
-        std::error_code ec;
-        const std::filesystem::path temp = std::filesystem::temp_directory_path(ec);
-        // The catalogue fetch has no progress to refuse, so it is stopped by FetchCancel (the flag, and the
-        // closing of the request that a blocked connect or receive waits on).
-        const FetchFn fetch = [this](const std::string& url, const std::filesystem::path& to, uint64_t maxBytes,
-                                     const std::function<bool(uint64_t)>& onBytes, std::string* error) {
-            return WinHttpFetchCancellable(url, to, maxBytes, onBytes, error, &catalogueCancel_);
-        };
-        const CatalogueResult result = FetchVoiceCatalogue(fetch, temp);
-        if (catalogueCancel_.Cancelled()) {  // Quit (or the window ending): no answer is wanted
-            LogInfo("[voice] The Voice catalogue fetch was cancelled.");
-            catalogueRunning_ = false;
-            return;
-        }
-        PostUi([this, result] {
-            if (!result.error.ok()) {
-                LogWarn("[voice] The Voice catalogue could not be fetched: ", result.error.detail);
-                Tell([](VoiceEventSink& e) { e.CatalogueFailed(VoiceProblem::Network); });
-            } else {
-                catalogue_ = result.voices;
-                Tell([&](VoiceEventSink& e) { e.CatalogueShown(OfferedCatalogue(catalogue_, InstalledNames())); });
-            }
-        });
-        catalogueRunning_ = false;
-    });
+    Tell([&](VoiceEventSink& e) { e.CatalogueShown(OfferedCatalogue(DownloadList(), InstalledNames())); });
 }
 
 void VoiceTab::Download(const std::string& name) {
@@ -415,8 +388,10 @@ void VoiceTab::Download(const std::string& name) {
         Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, ProblemFacts{VoiceProblem::Busy, {}, {}}); });
         return;
     }
-    const auto it = std::find_if(catalogue_.begin(), catalogue_.end(), [&](const CatalogueVoice& v) { return v.name == name; });
-    if (it == catalogue_.end()) {
+    // Only a Voice of the list can be downloaded: the name is the page's text, never a URL or a path.
+    const std::vector<CatalogueVoice>& list = DownloadList();
+    const auto it = std::find_if(list.begin(), list.end(), [&](const CatalogueVoice& v) { return v.name == name; });
+    if (it == list.end()) {
         Tell([&](VoiceEventSink& e) { e.DownloadFailed(name, ProblemFacts{VoiceProblem::NotInCatalogue, {}, {}}); });
         return;
     }

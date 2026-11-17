@@ -23,9 +23,10 @@ On-screen wording follows the glossary.
   no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
   stacks in the Layout; L, the English recogniser fine-tuned to read pixel game fonts (owner Nov 10; L0-L3, L5, L6
   done: round 2 epoch 5 ships as `ocr_models/rec_en.onnx`). Open in L: L4 (new pixel-font Fixtures) and L7 (owner).
-  Open: B12, the download list (owner, Nov 12 and Nov 17: Lexia ships Medium Voices only; the download list may offer
-  any quality from any source, picked by the owner by ear, with a label of allowed use). The owner will pick a
-  second, male shipped Voice later; until then Norman is the second one.
+  B12 (owner, Nov 17): the Download sheet offers a short list that the owner picked and that is compiled into Lexia:
+  Kristin, John and LJ Speech (all Medium, public domain, `rhasspy/piper-voices` at `cf910fb`). Lexia no longer
+  fetches the catalogue. The owner will add more Voices to the list later (B12.4, the labels, waits until a Voice
+  needs one). Cori (the old one) and Norman are the shipped Voices, final.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -118,12 +119,17 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   Voice (Delete works), is still the active Voice, still speaks and keeps its Speed; delete it, Quit and start Lexia
   again: it stays deleted and Cori speaks. On a PC that has a Cori of `cf910fb` in `%LOCALAPPDATA%\Lexia\voices`
   (downloaded earlier), check which Cori speaks (the program folder's one, the old one, must win).
-- [ ] **B10 Voices ljspeech and Norman.** Open the Download sheet: the list loads and a download works. (B13 replaced
-  ljspeech by Cori as the default; Norman stays.)
+- [ ] **B12 The download list.** Open Voices, then the Download icon: the three rows (Kristin, John, LJ Speech, each
+  about 61 MB) show at once, with no wait and no "Getting the list of voices" (turn the network off to check). LJ Speech
+  shows "Installed" if it is one of your own Voices already. Download Kristin: the progress bar moves, Cancel works, and
+  when it ends Kristin is in the Voice choice and speaks. Download John too. With the network off, Download shows the
+  network message in the row, and "Try again" works when the network is back. The sheet shows no other Voice.
+- [ ] **B10 Voices ljspeech and Norman.** Norman is in the Voice choice and speaks. (B13 replaced ljspeech by Cori as
+  the default; the Download sheet is B12.)
 - [ ] **B11 Any quality, short names.** Add a High Voice from a file (for example `en_US-ljspeech-high`, 114 MB) and
   a Low one: both are added, listed as "LJ Speech (High)" and "… (Low)", and speak. The Voice choice shows "Cori
   (Medium)" and "Norman (Medium)"; hover the choice and each open row: the tooltip is the file name. The Download
-  sheet shows short names (Medium only until B12) with the file name on hover; the Delete sheet names the short name.
+  sheet shows short names with the file name on hover; the Delete sheet names the short name.
 - [ ] **B9 Update keeps old Voices.** Update a 0.7 build with `en_US-ljspeech-medium` active, its Speed changed and a
   Preset saved (since B13 ljspeech is a Voice that Lexia no longer ships): LJ Speech is on the Voices page as your own
   Voice (Delete works), still speaks, keeps its Speed, and the Preset loads into it. Then delete it, Quit and start
@@ -140,34 +146,33 @@ Help page shows its place until then.
 ### B12 The download list (Lexia 0.7)
 
 Owner, Nov 12: Lexia **ships** Medium Voices only, so that the installer stays small. The **download list** may offer
-any quality (X-low, Low, Medium, High). The owner picks its Voices by ear, and each Voice shows a label of allowed
-use. Owner, Nov 17: the list may take a Voice from any source: Hugging Face (`rhasspy/piper-voices`, at a pinned
-commit) or Bryce Beattie's LibriVox Voices (https://brycebeattie.com/files/tts/). Lexia does not distribute these
-Voices: the user downloads each one from its source. The research, the categories and the samples are in
-`docs/notes/voice-download-list.md`.
+any quality (X-low, Low, Medium, High). Owner, Nov 17: the Download sheet offers only a short list that the owner
+picked by ear: **Kristin, John and LJ Speech** (all `en_US`, Medium, public domain, `rhasspy/piper-voices` at commit
+`cf910fb`). The list is compiled into Lexia (`src/tts/download_list.cpp`), so opening the sheet makes no request:
+Lexia no longer fetches or parses the catalogue. Lexia does not distribute these Voices: the user downloads each one
+from its source. The research and the samples are in `docs/notes/voice-download-list.md`. The owner will add more
+Voices later; adding one is one row in `download_list.cpp` (steps in the note).
 
-- [ ] **B12.1 Pick (owner).** Listen to the samples (`%USERPROFILE%\LexiaVoiceSamples\index.html`) and pick the
-  Voices and the labels. The note recommends three labels ("Free for any use", "Free for any use, credit the Voice",
-  "Non-commercial use only") and no Voice that is research only, unclear or with no licence.
-- [ ] **B12.2 The list (agent).** A list in the repo (for example `voices/download_list.json`): for each Voice the
-  name, the source URL at a pinned commit, the size, the hash, the quality, the label, the licence name and link, and
-  the credit if one is needed. The Download sheet shows only this list, not the full catalogue. A Voice from outside
-  Hugging Face (Bryce Beattie's page, `sfo3.digitaloceanspaces.com/bkmdls/`) needs a SHA-256 in the list, and Lexia
-  must write its config with a known quality and the right language code, because his configs say `cori-med`, `mv2`
-  and so on, with the code `en`, and Lexia refuses them as they are (`unknown-quality`). A Voice that is on Hugging
-  Face only at an older commit (the old Cori of `5041a7a`, which B13 ships) takes its own pinned source, as in
-  `voices/voices.json`.
-- [ ] **B12.3 Quality (agent).** The download accepts any quality of the list (`QualityRule::MediumOnly` is no longer
-  used for downloads; the config that Lexia writes has a known quality, see B12.2). The shipped Voices stay Medium: the
-  package step fails if a `ship: true` Voice in `voices/voices.json` is not Medium.
-- [ ] **B12.4 The sheet (agent).** Each row shows the label, the size (a High Voice is about 114 MB) and the licence;
-  before the download the sheet shows the licence name, its link and the credit. A Voice that needs credit shows it
-  on the Voices page too ("Jenny (Dioco)").
-- **Security.** Network only on the user's request (ADR-0005); each file checked against the hash in the list before
-  it is renamed; the licence links come from the list in the repo through `LinkUrl`, never from the network or a
-  downloaded file; the catalogue and config text stay untrusted input (`CheckVoiceConfig`).
-- *Done when:* the Download sheet offers only the owner's list with its labels and qualities, a High Voice downloads
-  and speaks, `ctest` passes, and the owner's by-hand check is in "The owner's open checks".
+- [x] **B12.1 Pick (owner, Nov 17).** Kristin, John and LJ Speech. The shipped Voices are final (Cori, Norman).
+- [x] **B12.2 The list (agent).** `DownloadList()` in `src/tts/download_list.*`: for each Voice the name, Language, quality,
+  the base URL (https, pinned to a commit of `rhasspy/piper-voices`) and for both files the path, size and MD5, with
+  the SHA-256 in a comment. `FetchVoiceCatalogue`, `ParseVoiceCatalogue`, `FilterCatalogueForLexia`, the catalogue
+  thread of `VoiceTab`, `VoiceEventSink::CatalogueFailed`, the "could not get the list" view and `--sheet offline`
+  are removed. `lexia_cli --voices-catalogue` prints the list with no network.
+- [x] **B12.3 Quality (agent).** `QualityRule` and `VoiceProblem::NotMedium` are removed: every check accepts Piper's
+  qualities (a later entry may be Low or High). The shipped Voices stay Medium: the package step
+  (`cmake/notices.cmake`) fails if a `ship: true` Voice in `voices/voices.json` is not `-medium` (tested in
+  `tests/notices_test.cmake`).
+- [ ] **B12.4 Labels (set aside).** A label of allowed use, the licence name and link, and the credit in each row
+  (owner, Nov 17: no labels while every Voice on the list is public domain). Do this when the owner adds a Voice that
+  needs one (a CC BY Voice needs its credit); then the label and the licence link come from the list in the repo
+  through `LinkUrl`, never from the network.
+- **Security.** No network when the sheet opens, and only on the user's request for a download (ADR-0005). The base URLs
+  are compiled-in constants, https only (`DownloadVoice` refuses another base) and pinned to a commit. Each file is
+  checked by size and MD5 before it is renamed, the paths are plain (`IsSafeRelativePath`, tested), and
+  `CheckVoiceConfig` still checks the downloaded config. No catalogue JSON from the network is parsed now.
+- *Done when:* the Download sheet offers the owner's three Voices at once, a Voice downloads and speaks, `ctest`
+  passes, and the owner's by-hand check is in "The owner's open checks". (Done, except the by-hand check.)
 
 ### Open code-review findings (low priority; fix when the area is touched)
 
@@ -429,11 +434,12 @@ can be scored with `lexia_cli` first if L does not reach its goal.
   `5041a7a`, chosen by a per-Voice `source` in `voices/voices.json`, which `scripts/fetch_deps.ps1` uses and checks by
   SHA-256; public domain, trained from scratch on LibriVox recordings of Cori Samuel), and `en_US-norman-medium`;
   ljspeech stops shipping, and `AdoptRetiredVoices` (B9) keeps it as the user's own Voice, so an update loses
-  nothing; B9 (0.7) an update keeps a Voice that Lexia no
+  nothing; B12 (0.7, owner Nov 17) the Download sheet offers a short list compiled into Lexia (Kristin, John, LJ Speech
+  of `cf910fb`, `src/tts/download_list.*`) and fetches no catalogue; B9 (0.7) an update keeps a Voice that Lexia no
   longer ships: Setup no longer empties `{app}\voices`, and `AdoptRetiredVoices` (`tts/voice_library.*`, called by
   `App::Init`) copies it into the user's Voices folder once (the names handled are kept in settings.json `adoptedVoices`, so deleting the Voice sticks; the rule "Updates keep the user's data").
-  B11 (0.7, owner Nov 11) the user's own Voices in any of Piper's qualities: `QualityRule` (`tts/voice_library.*`; the
-  catalogue and downloads stay Medium, a file or the user's folder is `AnyKnown`; an odd quality word is `UnknownQuality`),
+  B11 (0.7, owner Nov 11) the user's own Voices in any of Piper's qualities (`tts/voice_library.*`: every check accepts the
+  four qualities, or none stated; an odd quality word is `UnknownQuality`; since B12 `QualityRule` and `NotMedium` are gone),
   and the Voice names on screen (`voice_names.*`: "LJ Speech (Medium)", "Jenny (Dioco) (Medium)"; the file name is
   the tooltip of the Voice choice, its rows and the Download sheet's rows).
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
@@ -460,11 +466,11 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
 6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (new Voices instead of Cori and Mike of `cf910fb`);
-   B13 done (the old Cori Medium is the default, Norman the second Voice; the owner picks a male Voice later); B11 done
+   B13 done (the old Cori Medium is the default, Norman the second Voice, both final); B11 done
    (any quality from a file, short Voice names); B9 done
    (an update keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L:
    the fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open);
-   B12 open (the download list).
+   B12 done (the download list: Kristin, John and LJ Speech; the owner extends it later; the owner's check open).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
@@ -473,13 +479,15 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 - **Free and open source, GPL-3.0-or-later** (ADR-0003). Free, no paid version.
 - **Piper replaces SAPI** for all speech (ADR-0004). Lexia ships Medium Voices only, so that the installer stays
   small (owner, Nov 12). Lexia can use each of Piper's qualities: the user may add their own Voices in any quality
-  (B11), and the download list may offer any quality from any source (B12; until B12 it offers Medium only).
-- **The download list is the owner's pick** (Nov 12): each Voice has a label of allowed use; Lexia does not
-  distribute these Voices (`docs/notes/voice-download-list.md`).
+  (B11), and the download list may offer any quality (B12: the list is short and compiled in, Medium only for now).
+- **The download list is the owner's pick** (Nov 12, Nov 17): a short list compiled into Lexia (`src/tts/download_list.cpp`:
+  Kristin, John and LJ Speech), not the full catalogue; opening the sheet makes no request. A Voice gets a label of
+  allowed use only if its licence needs one (none for now: all three are public domain). Lexia does not distribute
+  these Voices (`docs/notes/voice-download-list.md`).
 - **The default English Voice is the old Cori Medium** (owner, Nov 17, B13): Bryce Beattie's model, public domain,
   trained from scratch, at `rhasspy/piper-voices` commit `5041a7a`. The newer `en_GB-cori-medium` of `cf910fb` (base
-  `hifi_tts_92`, CC BY 4.0) mispronounces common words and is not used. Norman stays the second shipped Voice until
-  the owner picks a male one.
+  `hifi_tts_92`, CC BY 4.0) mispronounces common words and is not used. Norman is the second shipped Voice. Both are
+  final (owner, Nov 17): the owner does not pick another shipped Voice.
 - **The Overlay never takes focus; input from global hotkeys only** (ADR-0001). No low-level input hooks (anti-cheat).
 - **PaddleOCR stays** (ADR-0002).
 - **Network only when the user asks; the screen never leaves the PC** (ADR-0005).

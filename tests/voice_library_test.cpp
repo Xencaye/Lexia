@@ -104,18 +104,18 @@ TEST_CASE("CheckVoiceConfig: a Voice for a language Lexia cannot read is refused
     CHECK(noName.languageName == "fr_FR");
 }
 
-TEST_CASE("CheckVoiceConfig: only Medium; the quality comes from the config, else the end of the name") {
+TEST_CASE("CheckVoiceConfig: the quality comes from the config, else the end of the name; any of Piper's qualities is accepted") {
     const VoiceOutcome low = CheckVoiceConfig("en_US-amy-low", Config("en_US", "English", "low"));
-    CHECK(low.problem == VoiceProblem::NotMedium);
+    CHECK(low.ok());
     CHECK(low.quality == "low");
-    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).problem == VoiceProblem::NotMedium);
-    CHECK(CheckVoiceConfig("en_US-amy-x_low", Config("en_US", "English", "x_low")).problem == VoiceProblem::NotMedium);
+    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).quality == "high");
+    CHECK(CheckVoiceConfig("en_US-amy-x_low", Config("en_US", "English", "x_low")).quality == "x_low");
     // No quality in the config: the name says it.
-    CHECK(CheckVoiceConfig("en_US-amy-medium", "{\"language\": {\"code\": \"en_US\"}}").ok());
-    CHECK(CheckVoiceConfig("en_US-amy-low", "{\"language\": {\"code\": \"en_US\"}}").problem == VoiceProblem::NotMedium);
-    // Neither says: refused, with an empty quality.
+    CHECK(CheckVoiceConfig("en_US-amy-medium", "{\"language\": {\"code\": \"en_US\"}}").quality == "medium");
+    CHECK(CheckVoiceConfig("en_US-amy-low", "{\"language\": {\"code\": \"en_US\"}}").quality == "low");
+    // Neither says: accepted, with an empty quality (a Voice the user trained may not say).
     const VoiceOutcome unknown = CheckVoiceConfig("amy", "{\"language\": {\"code\": \"en_US\"}}");
-    CHECK(unknown.problem == VoiceProblem::NotMedium);
+    CHECK(unknown.ok());
     CHECK(unknown.quality.empty());
 }
 
@@ -676,26 +676,24 @@ TEST_CASE("AdoptRetiredVoices: a refused Voice is not handled, so it is tried ag
 
 // ------------------------------------------- Any quality for the user's own Voices (B11) ---
 
-TEST_CASE("CheckVoiceConfig AnyKnown: X-low, Low, Medium, High and no quality are accepted; another word is not") {
+TEST_CASE("CheckVoiceConfig: X-low, Low, Medium, High and no quality are accepted; another word is not") {
     for (const char* q : {"x_low", "low", "medium", "high"}) {
-        const VoiceOutcome o = CheckVoiceConfig(std::string("en_US-amy-") + q, Config("en_US", "English", q), QualityRule::AnyKnown);
+        const VoiceOutcome o = CheckVoiceConfig(std::string("en_US-amy-") + q, Config("en_US", "English", q));
         CHECK(o.ok());
         CHECK(o.quality == q);
     }
     // No quality in the config and none in the name (a Voice the user trained and named): accepted, quality "".
-    const VoiceOutcome mine = CheckVoiceConfig("myvoice", "{\"language\": {\"code\": \"en_US\"}}", QualityRule::AnyKnown);
+    const VoiceOutcome mine = CheckVoiceConfig("myvoice", "{\"language\": {\"code\": \"en_US\"}}");
     CHECK(mine.ok());
     CHECK(mine.quality.empty());
     // "my-voice": the last part of a user's name is not taken for a quality.
-    CHECK(CheckVoiceConfig("my-voice", "{\"language\": {\"code\": \"en_US\"}}", QualityRule::AnyKnown).ok());
-    const VoiceOutcome odd = CheckVoiceConfig("en_US-amy-ultra", Config("en_US", "English", "ultra"), QualityRule::AnyKnown);
+    CHECK(CheckVoiceConfig("my-voice", "{\"language\": {\"code\": \"en_US\"}}").ok());
+    const VoiceOutcome odd = CheckVoiceConfig("en_US-amy-ultra", Config("en_US", "English", "ultra"));
     CHECK(odd.problem == VoiceProblem::UnknownQuality);
     CHECK(odd.quality == "ultra");
     // The language still comes first.
-    CHECK(CheckVoiceConfig("de_DE-x-high", Config("de_DE", "German", "high"), QualityRule::AnyKnown).problem ==
+    CHECK(CheckVoiceConfig("de_DE-x-high", Config("de_DE", "German", "high")).problem ==
           VoiceProblem::UnsupportedLanguage);
-    // The catalogue's rule is unchanged: Medium only.
-    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).problem == VoiceProblem::NotMedium);
 }
 
 TEST_CASE("AddVoiceFiles: a High Voice from a file is added, and listed with its quality") {

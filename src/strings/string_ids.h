@@ -194,8 +194,6 @@
     X(WindowPresetFilter, "window.preset.filter")  /* the Preset file dialogs' filter name (host) */        \
     X(WindowProblemUnsupportedLanguage, "window.problem.unsupportedLanguage")  /* UnsupportedLanguage; {language}: English name of the voice's language */\
     X(WindowProblemThisLanguage, "window.problem.thisLanguage")  /* {language} when no name came */         \
-    X(WindowProblemNotMedium, "window.problem.notMedium")  /* NotMedium; {quality}: lower case, e.g. low */ \
-    X(WindowProblemNotMediumUnknown, "window.problem.notMediumUnknown")  /* NotMedium, quality not known */ \
     X(WindowProblemUnknownQuality, "window.problem.unknownQuality")  /* UnknownQuality (a file); {quality}: the word in its config */ \
     X(WindowVoiceLabel, "window.voice.label")  /* a Voice in the lists: {name} short name, {quality} the quality word */ \
     X(WindowVoiceQualityXLow, "window.voice.quality.xLow")  /* Piper quality x_low */                     \
@@ -210,7 +208,6 @@
     X(WindowProblemCannotWrite, "window.problem.cannotWrite")  /* CannotWrite */                            \
     X(WindowProblemNotInCatalogue, "window.problem.notInCatalogue")  /* NotInCatalogue */                   \
     X(WindowProblemNetwork, "window.problem.network")  /* Network, for a download */                        \
-    X(WindowProblemCatalogueNetwork, "window.problem.catalogueNetwork")  /* Network, for the list of voices */\
     X(WindowProblemBadDownload, "window.problem.badDownload")  /* BadDownload */                            \
     X(WindowProblemUnknown, "window.problem.unknown")  /* a problem code the page does not know */          \
     /* A Language's name in a sentence, one per Language id (language.h); lower case where the   \

@@ -55,7 +55,7 @@ std::string BlocksToExpectedText(const std::vector<TextBlock>& blocks);
 std::string BlocksToJson(const std::vector<TextBlock>& blocks, const std::string& languageCode,
                          long long ms);
 
-// The --voices-catalogue document: one line per Voice, "name<TAB>Language<TAB>size in MB", plus
+// The --voices-catalogue document (the compiled-in download list): one line per Voice, "name<TAB>Language<TAB>size in MB", plus
 // "<TAB>installed" for the names in `installed`.
 std::string VoiceCatalogueToText(const std::vector<CatalogueVoice>& voices, const std::vector<std::string>& installed);
 

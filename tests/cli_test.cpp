@@ -372,11 +372,11 @@ TEST_CASE("VoiceOutcomeToText: says what was added, or the problem id with the f
     german.detail = "Lexia cannot read German yet";
     CHECK(VoiceOutcomeToText(german) == "unsupported-language (German): Lexia cannot read German yet\n");
 
-    VoiceOutcome low;
-    low.problem = VoiceProblem::NotMedium;
-    low.quality = "low";
-    low.detail = "only Medium";
-    CHECK(VoiceOutcomeToText(low) == "not-medium (low): only Medium\n");
+    VoiceOutcome odd;
+    odd.problem = VoiceProblem::UnknownQuality;
+    odd.quality = "ultra";
+    odd.detail = "not a Piper quality";
+    CHECK(VoiceOutcomeToText(odd) == "unknown-quality (ultra): not a Piper quality\n");
 
     VoiceOutcome zip;
     zip.problem = VoiceProblem::BadZip;

@@ -7,13 +7,9 @@ const char* ProblemTextId(const ProblemFacts& facts, ProblemWhere where) {
     using namespace strings::id;
     switch (facts.problem) {
     case VoiceProblem::Network:
-        // The list could not come, or one download did not finish: two sentences.
-        return where == ProblemWhere::Catalogue ? kWindowProblemCatalogueNetwork : kWindowProblemNetwork;
+        return kWindowProblemNetwork;  // a download did not finish
     case VoiceProblem::BadName:
         return where == ProblemWhere::File ? kWindowProblemBadName : kWindowProblemBadNameDownload;
-    case VoiceProblem::NotMedium:
-        // An unknown quality has a sentence that does not name one.
-        return facts.quality.empty() ? kWindowProblemNotMediumUnknown : kWindowProblemNotMedium;
     case VoiceProblem::UnknownQuality: return kWindowProblemUnknownQuality;
     case VoiceProblem::UnsupportedLanguage: return kWindowProblemUnsupportedLanguage;
     case VoiceProblem::MissingFile: return kWindowProblemMissingFile;

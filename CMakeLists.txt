@@ -156,6 +156,7 @@ add_library(lexia_core STATIC
     src/tts/speech_key.cpp
     src/tts/stretch_speech.cpp
     src/tts/voice_controls.cpp
+    src/tts/download_list.cpp
     src/tts/voice_catalogue.cpp
     src/tts/voice_download.cpp
     src/tts/voice_files.cpp
