@@ -716,3 +716,22 @@ TEST_CASE("ListInstalledVoices: a shipped Voice's quality comes from its name") 
     REQUIRE(voices.size() == 1);
     CHECK(voices[0].quality == "medium");
 }
+
+TEST_CASE("RemoveVoice: the patched copies of the Voice go too, those of another Voice stay") {
+    TempDir dir;
+    TempDir aligned;
+    WriteText(dir.path / "en_US-amy-medium.onnx", "model");
+    WriteText(dir.path / "en_US-amy-medium.onnx.json", "{}");
+    WriteText(aligned.path / "en_US-amy-medium.100-200.onnx", "copy");
+    WriteText(aligned.path / "en_US-amy-medium.100-200.onnx.json", "{}");
+    WriteText(aligned.path / "en_US-amy-medium.300-400.onnx.part", "half");
+    WriteText(aligned.path / "en_US-bob-medium.100-200.onnx", "copy");
+    WriteText(aligned.path / "en_US-amy-medium-high.100-200.onnx", "other Voice, longer name");
+
+    CHECK(RemoveVoice(dir.path, "en_US-amy-medium", aligned.path).ok());
+    CHECK_FALSE(fs::exists(aligned.path / "en_US-amy-medium.100-200.onnx"));
+    CHECK_FALSE(fs::exists(aligned.path / "en_US-amy-medium.100-200.onnx.json"));
+    CHECK_FALSE(fs::exists(aligned.path / "en_US-amy-medium.300-400.onnx.part"));
+    CHECK(fs::exists(aligned.path / "en_US-bob-medium.100-200.onnx"));
+    CHECK(fs::exists(aligned.path / "en_US-amy-medium-high.100-200.onnx"));
+}

@@ -720,9 +720,12 @@ BlockSynthesizer WordVoice() {
 }
 
 // The sink holds one word (1 s) at a time, so the queue keeps the rest and Announcements can cut in.
+// The synthesiser is WordVoice unless a test gives its own (ScriptedVoice below).
 struct WordFixture {
     FakeAudioSink sink;
-    ReadingQueue queue{sink, WordVoice(), /*aheadSeconds=*/1e9, /*sinkSeconds=*/1.0};
+    ReadingQueue queue;
+    explicit WordFixture(BlockSynthesizer voice = WordVoice())
+        : queue(sink, std::move(voice), /*aheadSeconds=*/1e9, /*sinkSeconds=*/1.0) {}
 
     void Settle() {
         for (int i = 0; i < 100 && queue.Pump(); ++i) {
@@ -898,6 +901,132 @@ TEST_CASE("Heard word: audio without timings has no word to show") {
     f.Settle();
     CHECK(f.sink.PendingSeconds() > 0);
     CHECK_FALSE(f.queue.HeardWordNow().has_value());
+}
+
+// ----------------------------------------------- the heard word with scripted chunks ---
+
+namespace {
+
+// A chunk of `phonemesPerWord.size()` words, one second each at 100 Hz, as Piper makes them: '^' first,
+// a ' ' phoneme between words, '$' last, and in each word N spoken phonemes spread inside it (so the
+// ' ' phoneme of the next word is the only cut). `textOffset` is the byte offset in the Block's text of
+// the stretch the chunk belongs to (SpeechChunk::textOffset).
+SpeechChunk MakeWordChunk(const std::vector<int>& phonemesPerWord, size_t textOffset) {
+    SpeechChunk c;
+    c.sampleRate = 100;
+    c.textOffset = textOffset;
+    c.samples.assign(phonemesPerWord.size() * 100, 0.f);
+    c.phonemes.push_back({U'^', 0, 0});
+    for (size_t w = 0; w < phonemesPerWord.size(); ++w) {
+        const int base = static_cast<int>(w) * 100;
+        if (w > 0) c.phonemes.push_back({U' ', base, 5});
+        const int n = phonemesPerWord[w];
+        const int step = n > 0 ? 90 / n : 0;
+        for (int j = 0; j < n; ++j) c.phonemes.push_back({U'a', base + 5 + j * step, step});
+    }
+    c.phonemes.push_back({U'$', static_cast<int>(phonemesPerWord.size()) * 100, 0});
+    return c;
+}
+
+// A chunk of one second with no spoken phoneme (only the sentence markers and a full stop), as Piper
+// makes for a text such as "!!!": there is nothing to show while it plays.
+SpeechChunk MakeSilentChunk() {
+    SpeechChunk c;
+    c.sampleRate = 100;
+    c.samples.assign(100, 0.f);
+    c.phonemes = {{U'^', 0, 0}, {U'.', 5, 90}, {U'$', 100, 0}};
+    return c;
+}
+
+// A synthesiser that ignores the text and sends a fixed list of chunks, so a test says exactly what the
+// queue is given (offsets, sentence breaks, silent chunks) without a real Voice. The last chunk is marked
+// as the last of the Block.
+BlockSynthesizer ScriptedVoice(std::vector<SpeechChunk> chunks) {
+    return [chunks = std::move(chunks)](const std::string&, const std::function<bool(const SpeechChunk&)>& onChunk) {
+        for (size_t i = 0; i < chunks.size(); ++i) {
+            SpeechChunk c = chunks[i];
+            c.isLast = i + 1 == chunks.size();
+            if (!onChunk(c)) return SynthResult::Cancelled;
+        }
+        return SynthResult::Done;
+    };
+}
+
+// Plays the Reading word by word and checks that `expected` is heard in turn, each as the text it covers in
+// `text` (absolute ranges); then nothing more is heard and the queue is idle.
+void ExpectHeardInOrder(WordFixture& f, const std::string& text, const std::vector<std::string>& expected) {
+    for (size_t i = 0; i < expected.size(); ++i) {
+        INFO("word " << i);
+        CHECK(f.HeardText(text) == expected[i]);
+        f.NextWord();
+    }
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    CHECK_FALSE(f.queue.Active());
+}
+
+}  // namespace
+
+TEST_CASE("Heard word: a new stretch counts its sentences from the start, and its ranges start at its offset") {
+    // Two stretches in one Block, two sentences each (a Latin one and a Cyrillic one).
+    const std::string text = "One two. Three four "
+                             "\xD0\xA2\xD0\xBE\xD0\xB2\xD0\xB0 \xD0\xB5. "                  // Tova e.
+                             "\xD0\x94\xD0\xBE\xD0\xB1\xD1\x80\xD0\xBE \xD1\x83\xD1\x82\xD1\x80\xD0\xBE.";  // Dobro utro.
+    const std::vector<TextRange> stretches = SpokenStretchRanges(text);
+    REQUIRE(stretches.size() == 2);
+    const size_t cyr = stretches[1].start;
+    WordFixture f(ScriptedVoice({MakeWordChunk({2, 2}, 0), MakeWordChunk({2, 2}, 0),
+                                 MakeWordChunk({2, 2}, cyr), MakeWordChunk({2, 2}, cyr)}));
+    // Four chunks of two words each: two words per sentence.
+    f.queue.Add({text});
+    f.Settle();
+    ExpectHeardInOrder(f, text,
+                       {"One", "two", "Three", "four", "\xD0\xA2\xD0\xBE\xD0\xB2\xD0\xB0", "\xD0\xB5",
+                        "\xD0\x94\xD0\xBE\xD0\xB1\xD1\x80\xD0\xBE", "\xD1\x83\xD1\x82\xD1\x80\xD0\xBE"});
+}
+
+TEST_CASE("Heard word: a chunk with no spoken phoneme is not a sentence") {
+    // "!!!" makes a silent chunk; the sentence index must not move for it, or "One two" would be skipped.
+    const std::string text = "!!! One two. Three.";
+    WordFixture f(ScriptedVoice({MakeSilentChunk(), MakeWordChunk({2, 2}, 0), MakeWordChunk({3}, 0)}));
+    f.queue.Add({text});
+    f.Settle();
+    CHECK(f.sink.PendingSeconds() > 0);  // the silent chunk is playing
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.NextWord();
+    ExpectHeardInOrder(f, text, {"One", "two", "Three"});
+}
+
+TEST_CASE("Heard word: a text offset past the Block's text is played with no word and no crash") {
+    const std::string text = "One two";
+    WordFixture f(ScriptedVoice({MakeWordChunk({2, 2}, 50)}));
+    f.queue.Add({text});
+    f.Settle();
+    CHECK(f.sink.PendingSeconds() > 0);
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    f.NextWord();
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());  // the second word, still none
+    f.NextWord();
+    CHECK(f.sink.TotalWrittenSeconds() == doctest::Approx(2.0));  // both words reached the sink
+    CHECK_FALSE(f.queue.HeardWordNow().has_value());
+    CHECK_FALSE(f.queue.Active());
+}
+
+TEST_CASE("Heard word: an offset that is not a stretch start reads the text to the end of the Block") {
+    // A synthesiser that is not SpeakStretches may give any offset; "Three four." starts at byte 9.
+    const std::string text = "One two. Three four.";
+    WordFixture f(ScriptedVoice({MakeWordChunk({2, 2}, 9)}));
+    f.queue.Add({text});
+    f.Settle();
+    ExpectHeardInOrder(f, text, {"Three", "four"});
+}
+
+TEST_CASE("Heard word: more spoken words than text words stay on the text word") {
+    // "2024" is said as three words: the phoneme counts of I, owe, twenty, twenty, four, now.
+    const std::string text = "I owe 2024 now";
+    WordFixture f(ScriptedVoice({MakeWordChunk({1, 2, 5, 5, 3, 2}, 0)}));
+    f.queue.Add({text});
+    f.Settle();
+    ExpectHeardInOrder(f, text, {"I", "owe", "2024", "2024", "2024", "now"});
 }
 
 TEST_CASE("HasReading: a Reading is in the queue until its last Block is played, or Stop") {

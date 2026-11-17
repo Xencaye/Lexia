@@ -80,6 +80,13 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   `%LOCALAPPDATA%\Lexia`). Setup closes a running Lexia when asked (also an elevated one); the Run as administrator task.
 - [ ] **G1 Read-along bar.** With read-along on: the bar sits under the word you hear; at a hyphen at a Line end; on
   numbers; after Pause, Skip and Stop; with two Picks queued.
+- [ ] **R48 Word marks with the Voices.** With read-along on, pick a text with two or more sentences and a number ("In
+  2024 the old mill was sold for 3.5 million pounds."), with Cori, with Norman and with a Voice you download or add from
+  a file: does the mark move word by word, also in the second sentence, and not skip "old"? The first time a Voice
+  speaks there is a short wait (the log says how long: "Made the aligned copy"); `%LOCALAPPDATA%\Lexia\aligned` then
+  holds two files per Voice (about 60 MB for a Medium Voice) and the next start is as fast as before. Delete a Voice on
+  the Voices page: its files in `aligned` go too. "Wait... then go.": "then" has no mark of its own (known). The
+  uninstaller's offer to remove `%LOCALAPPDATA%\Lexia` removes the copies with it.
 - [ ] **G2 Read-along layer.** With read-along on, in a browser and in Undertale, leave the Overlay while it speaks:
   the bar goes on under the heard word; mouse and keys still reach the game or page; the bar goes when the Reading
   ends, on Stop (Control bar, Speech key triple tap), Off and Quit; it is not in the next Shot; Pause keeps the bar on
@@ -197,6 +204,9 @@ fixed on `feat/L` at the owner's request, this once; later review fixes go on th
 | R43 | `settings_window.cpp` | The destructor skipped `WM_DESTROY`, so the UI Automation provider was not detached in order. | `DestroyWindow` with the user data set, `destroying_` guard |
 | R44 | `CLAUDE.md` | The module map put `key_chord.*` in `native_ui/` and had no `key_edit.*`. | Own row |
 | R45 | `app.cpp` | One Home On / Off click pushed the state twice. | One push |
+| R46 | `piper_voice.cpp`, `speech_chunk.*` | libpiper never clears its list of phoneme code points between sentences, so from the second sentence of a Block the chunk's `phonemes` began with the earlier sentences' groups. `PhonemeTimings` then took this sentence's alignments for them: every word cut after the first sentence was at the wrong place (found by the new `read_along_voice` test on a patched Voice). | `OwnPhonemes` keeps the last `num_phoneme_ids` entries (3 tests) |
+| R47 | `read_along.cpp` | With more spoken words than text words ("2024" said as five words, "3.5" as three) the walk by the middle of each spoken word drifted and skipped the short words after the number ("old", "on", "the"). | `GroupSpokenWords`: every text word gets at least one spoken word, the cut points nearest the phoneme / letter shares (3 tests) |
+| R48 | `voices/`, `piper_voice.cpp`, `onnx_alignment.*` | The shipped Voice files (ljspeech, Norman; also Cori and Mike) come from rhasspy/piper-voices and have no alignment output (the `w_ceil` tensor that piper's `patch_voice_with_alignment.py` exposes), so libpiper gave no phoneme timings. Then the Reading queue cut no words: no read-along mark, and an Announcement waited for the end of the sentence, not the word. Found by `ctest read_along_voice`. Also known, not fixed: libpiper leaves out the space after an ellipsis, so "Wait... then go." is two spoken words and "then" has no mark. | Done (owner chose "patch at load"): `PiperVoice::Load` loads a copy of a model without the output, patched by `AddAlignmentOutput` (one graph output appended; the weights unchanged), from `%LOCALAPPDATA%\Lexia\aligned` (`<name>.<size>-<time>.onnx` and its `.json`; made at the first load, written through a `.part` file and a rename, old keys removed, never through a link). If the copy cannot be made or loaded, the original is used and speech works without marks. `RemoveVoice` deletes the copies. The input is bounds checked (`onnx_alignment_test.cpp`, 16 tests). |
 
 Unverified, for the owner: GDI `BitBlt` returning
 black for exclusive-fullscreen or HDR games; the detector using every core while a game runs (stutter?).
@@ -449,7 +459,9 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 - **E3–E5:** the Alphabet lock, the Lookalike fix, a Voice per script Stretch.
 - **F:** closed (became B1, ADR-0003, ADR-0004).
 - **G — Read-along (0.6):** G1 the Read-along bar on the Overlay (PR #2), G2 the Read-along layer (PR #3); since K9
-  one switch, "enable read-along" (`readAlong`, Off by default), controls both.
+  one switch, "enable read-along" (`readAlong`, Off by default), controls both. Tests added after 0.6: edge cases of
+  the pure core, the heard word and the layer window; `read_along_voice` (real Voices, see R46 to R48); and the rules
+  of the layer as pure functions, `ReadAlongLayerWanted` and `EndsReadAlongLayer`, which `App` asks.
 - **H:** H1 version from `vcpkg.json`, H2 licences and notices, H3 optional signing (`docs/signing.md`), H4 Inno Setup
   installer.
 - **I1:** the string table (`strings/`).

@@ -17,6 +17,7 @@
 #include "strings/string_ids.h"
 #include "strings/strings.h"
 #include "tts/download_list.h"
+#include "tts/onnx_alignment.h"
 #include "tts/piper_voice.h"
 #include "tts/preset_file.h"
 #include "tts/voice_download.h"
@@ -259,7 +260,8 @@ void VoiceTab::DeleteVoice(const std::string& voice) {
     Apply();
     speaker_.ReleaseVoices();
 
-    const VoiceOutcome outcome = RemoveVoice(dir, voice);
+    // The Speaker has let go of every Voice, so the patched copies of its model (word timings) can go too.
+    const VoiceOutcome outcome = RemoveVoice(dir, voice, AlignedDirIn(LexiaDataDir()));
     InvalidateInstalled();  // gone, or half gone: read the list again either way
     if (!outcome.ok()) {
         LogWarn("[voice] The Voice ", voice, " could not be deleted (", ProblemId(outcome.problem), "): ", outcome.detail);

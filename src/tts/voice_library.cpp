@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "language.h"
+#include "tts/onnx_alignment.h"
 #include "tts/voice_files.h"
 #include "tts/voices.h"
 
@@ -495,7 +496,7 @@ const InstalledVoice* PickVoice(const std::vector<InstalledVoice>& installed, co
     return first;
 }
 
-VoiceOutcome RemoveVoice(const fs::path& userVoicesDir, std::string_view name) {
+VoiceOutcome RemoveVoice(const fs::path& userVoicesDir, std::string_view name, const fs::path& alignedDir) {
     const std::string voice(name);
     const VoiceOutcome bad = CheckName(voice);  // before the name goes into a path
     if (!bad.ok()) return bad;
@@ -512,6 +513,7 @@ VoiceOutcome RemoveVoice(const fs::path& userVoicesDir, std::string_view name) {
                         "could not delete '" + file.filename().u8string() + "': " + ec.message());
         }
     }
+    RemoveAlignedCopies(alignedDir, voice);  // the patched copies of the model (word timings) go with it, also if the files were gone already
     if (!any) return Fail(VoiceProblem::MissingFile, voice, "the Voice '" + voice + "' is not in the Voice folder");
     VoiceOutcome ok;
     ok.voiceName = voice;
