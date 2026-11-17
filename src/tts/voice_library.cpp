@@ -21,7 +21,7 @@ constexpr std::uintmax_t kMaxUnpackedBytes = 1024ull * 1024 * 1024;  // 1 GiB ov
 constexpr std::uintmax_t kMaxConfigBytes = 4ull * 1024 * 1024;       // a config is ~5 KB
 
 // A Voice name that is safe as a file name: letters, digits, "_", "-" and "." only, no "..", not
-// starting with ".", at most 120 characters ("en_US-ljspeech-medium").
+// starting with ".", at most 120 characters ("en_GB-cori-medium").
 bool SafeName(const std::string& name) {
     if (name.empty() || name.size() > 120 || name[0] == '.') return false;
     for (unsigned char c : name) {
@@ -119,7 +119,6 @@ const char* ProblemId(VoiceProblem problem) {
     switch (problem) {
         case VoiceProblem::None: return "ok";
         case VoiceProblem::UnsupportedLanguage: return "unsupported-language";
-        case VoiceProblem::NotMedium: return "not-medium";
         case VoiceProblem::UnknownQuality: return "unknown-quality";
         case VoiceProblem::BadName: return "bad-name";
         case VoiceProblem::MissingFile: return "missing-file";
@@ -163,7 +162,7 @@ bool IsKnownVoiceQuality(const std::string& quality) {
 }
 
 VoiceOutcome CheckVoiceAccepted(const std::string& name, const std::string& languageCode,
-                                const std::string& languageName, const std::string& quality, QualityRule rule) {
+                                const std::string& languageName, const std::string& quality) {
     if (VoiceOutcome bad = CheckName(name); !bad.ok()) return bad;
     const Language* lang = FindLanguageByCode(Family(languageCode));
     if (!lang) {
@@ -173,19 +172,11 @@ VoiceOutcome CheckVoiceAccepted(const std::string& name, const std::string& lang
         return o;
     }
     const std::string q = ToLowerAscii(quality);
-    if (rule == QualityRule::AnyKnown) {
-        // A file the user chose: any of Piper's qualities, or none stated. A word that is not a quality
-        // ("ultra") means the config is not what it claims to be, so it is refused by name.
-        if (!q.empty() && !IsKnownVoiceQuality(q)) {
-            VoiceOutcome o = Fail(VoiceProblem::UnknownQuality, name,
-                                  "the Voice's quality '" + q + "' is not one of x_low, low, medium or high");
-            o.quality = q;
-            return o;
-        }
-    } else if (q != "medium") {
-        VoiceOutcome o = Fail(VoiceProblem::NotMedium, name,
-                              q.empty() ? "the Voice's quality is not stated; only Medium Voices are accepted"
-                                        : "the Voice's quality is " + q + "; only Medium Voices are accepted");
+    // Any of Piper's qualities, or none stated. A word that is not a quality ("ultra") means the config is not what
+    // it claims to be, so it is refused by name.
+    if (!q.empty() && !IsKnownVoiceQuality(q)) {
+        VoiceOutcome o = Fail(VoiceProblem::UnknownQuality, name,
+                              "the Voice's quality '" + q + "' is not one of x_low, low, medium or high");
         o.quality = q;
         return o;
     }
@@ -222,13 +213,13 @@ bool ParseVoiceConfig(const std::string& name, const std::string& configText, Vo
     return true;
 }
 
-VoiceOutcome CheckVoiceConfig(const std::string& name, const std::string& configText, QualityRule rule) {
+VoiceOutcome CheckVoiceConfig(const std::string& name, const std::string& configText) {
     VoiceConfig c;
     if (!ParseVoiceConfig(name, configText, &c)) {
         return Fail(VoiceProblem::BadConfig, name,
                     "the .onnx.json is not a Piper Voice config (not JSON, or it names no language)");
     }
-    return CheckVoiceAccepted(name, c.languageCode, c.languageName, c.quality, rule);
+    return CheckVoiceAccepted(name, c.languageCode, c.languageName, c.quality);
 }
 
 std::vector<InstalledVoice> ListInstalledVoices(const fs::path& voicesDir, const fs::path& userDir) {
@@ -252,8 +243,8 @@ std::vector<InstalledVoice> ListInstalledVoices(const fs::path& voicesDir, const
                 const bool shipped = std::any_of(out.begin(), out.end(), [&](const InstalledVoice& v) { return v.name == name; });
                 std::string config;
                 if (shipped || !ReadFileToString(fs::path(f.path()) += ".json", &config, kMaxConfigBytes)) continue;
-                // The user's own folder: any of Piper's qualities (QualityRule::AnyKnown), as when the Voice was added.
-                const VoiceOutcome checked = CheckVoiceConfig(name, config, QualityRule::AnyKnown);
+                // The user's own folder: any of Piper's qualities, as when the Voice was added.
+                const VoiceOutcome checked = CheckVoiceConfig(name, config);
                 if (checked.ok()) user.push_back({name, checked.languageCode, f.path(), false, checked.quality});
             }
             std::sort(user.begin(), user.end(), [](const InstalledVoice& a, const InstalledVoice& b) { return a.name < b.name; });
@@ -330,7 +321,7 @@ VoiceOutcome AddVoiceFiles(const fs::path& model, const fs::path& config, const 
     }
     std::error_code ec;
     if (!fs::is_regular_file(model, ec)) return Fail(VoiceProblem::MissingFile, name, "cannot read " + modelFile);
-    const VoiceOutcome checked = CheckVoiceConfig(name, configText, QualityRule::AnyKnown);  // the user's own file
+    const VoiceOutcome checked = CheckVoiceConfig(name, configText);  // the user's own file
     if (!checked.ok()) return checked;
 
     VoiceParts parts;
@@ -411,7 +402,7 @@ VoiceOutcome AddVoiceZip(const fs::path& zipFile, const fs::path& destDir) {
     if (!ReadFileToString(parts.config, &configText, kMaxConfigBytes)) {
         return Fail(VoiceProblem::CannotWrite, name, "cannot read back the config");
     }
-    const VoiceOutcome checked = CheckVoiceConfig(name, configText, QualityRule::AnyKnown);  // the user's own file
+    const VoiceOutcome checked = CheckVoiceConfig(name, configText);  // the user's own file
     if (!checked.ok()) return checked;
     if (!ExtractEntry(z, model->index, model->size, parts.model)) {
         return Fail(VoiceProblem::BadZip, name, "cannot unpack the model (damaged zip, or the disk is full)");

@@ -36,6 +36,7 @@
 #include "ocr.h"
 #include "recognize.h"
 #include "tts/piper_voice.h"
+#include "tts/download_list.h"
 #include "tts/voice_catalogue.h"
 #include "tts/voice_download.h"
 #include "tts/voice_library.h"
@@ -202,33 +203,28 @@ int ReportVoiceOutcome(const VoiceOutcome& o) {
     return VoiceExitCode(o);
 }
 
-// Where the catalogue is fetched to, briefly (it is deleted again).
-fs::path CatalogueTempDir() { return fs::temp_directory_path() / "LexiaVoices"; }
-
-// --voices-catalogue: the downloadable Voices, marked "installed" when the user has them.
+// --voices-catalogue: the downloadable Voices (the compiled-in list, no network), marked "installed" when the
+// user has them.
 int ListVoices(const CliArgs& args) {
-    const CatalogueResult cat = FetchVoiceCatalogue(WinHttpFetch, CatalogueTempDir());
-    if (!cat.error.ok()) return ReportVoiceOutcome(cat.error);
     std::vector<std::string> installed;
     for (const InstalledVoice& v : ListInstalledVoices(FindVoiceFolders().voices, VoiceLibraryDir(args))) {
         installed.push_back(v.name);
     }
-    WriteStdout(VoiceCatalogueToText(cat.voices, installed));
+    WriteStdout(VoiceCatalogueToText(DownloadList(), installed));
     return kOk;
 }
 
-// --voice-download <name>: the Voice must be in the filtered catalogue. The progress goes to stderr as
+// --voice-download <name>: the Voice must be in the download list (the only network use of the CLI). The progress goes to stderr as
 // one line that is rewritten.
 int DownloadVoiceCommand(const CliArgs& args) {
-    const CatalogueResult cat = FetchVoiceCatalogue(WinHttpFetch, CatalogueTempDir());
-    if (!cat.error.ok()) return ReportVoiceOutcome(cat.error);
-    const auto it = std::find_if(cat.voices.begin(), cat.voices.end(),
+    const std::vector<CatalogueVoice>& list = DownloadList();
+    const auto it = std::find_if(list.begin(), list.end(),
                                  [&](const CatalogueVoice& v) { return v.name == args.downloadVoice; });
-    if (it == cat.voices.end()) {
+    if (it == list.end()) {
         VoiceOutcome o;
         o.problem = VoiceProblem::NotInCatalogue;
         o.voiceName = args.downloadVoice;
-        o.detail = "'" + args.downloadVoice + "' is not a Medium Voice for one of Lexia's Languages in the catalogue; try --voices-catalogue";
+        o.detail = "'" + args.downloadVoice + "' is not in the download list; try --voices-catalogue";
         return ReportVoiceOutcome(o);
     }
     int lastPercent = -1;

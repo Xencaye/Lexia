@@ -18,7 +18,8 @@
 #   @covers <name> [<name>]  not printed: the exe / DLL file names (wildcards * ok) in the package
 #                            that this component is the licence entry for
 # A file named voice-<Voice name>.txt is the entry for that Piper Voice and is used only when
-# voices.json ships the Voice ("ship": true). The build fails if a shipped Voice has no such file,
+# voices.json ships the Voice ("ship": true). The build fails if a shipped Voice is not Medium (its name does not
+# end in -medium), if a shipped Voice has no such file,
 # or if an .exe / .dll in the package is covered by no component.
 
 # lexia_generate_notices(
@@ -27,6 +28,16 @@
 function(lexia_generate_notices)
     cmake_parse_arguments(A "" "SOURCE_DIR;DEST;OUT" "SHIPPED_VOICES;TOKENS" ${ARGN})
     list(APPEND A_TOKENS "SOURCE_DIR=${A_SOURCE_DIR}")  # {SOURCE_DIR} in an @include path
+
+    # Lexia ships Medium Voices only (installer size; owner, Nov 17). Piper writes the quality as the last part of
+    # a Voice's name, so a shipped Voice whose name does not end in "-medium" stops the package step.
+    foreach(voice IN LISTS A_SHIPPED_VOICES)
+        if(NOT voice MATCHES "-medium$")
+            message(FATAL_ERROR "Lexia notices: the Voice ${voice} ships (voices.json) but is not Medium (its name "
+                "does not end in -medium). Lexia ships Medium Voices only: set \"ship\": false in "
+                "voices/voices.json, or ask the owner (docs/notes/voice-download-list.md).")
+        endif()
+    endforeach()
 
     # A shipped Voice with no licence entry is an error, whatever else is in the folder.
     foreach(voice IN LISTS A_SHIPPED_VOICES)

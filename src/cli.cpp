@@ -212,10 +212,10 @@ std::string CliUsage() {
        << "            the Voice controls for --say; ranges and defaults: speed 0.5-2 (1), pitch -6 to 6\n"
        << "            semitones (0), volume 0-2 (1)\n"
        << "  --voices-catalogue\n"
-       << "            list the Voices on Hugging Face (rhasspy/piper-voices) for Lexia's Languages in Medium\n"
-       << "            quality: name, Language, size, \"installed\" if you have it. This goes online, once.\n"
+       << "            list the Voices that can be downloaded (a short list built into Lexia): name,\n"
+       << "            Language, size, \"installed\" if you have it. This makes no network request.\n"
        << "  --voice-download name\n"
-       << "            download that Voice (checked against the catalogue's size and MD5) into your Voice folder\n"
+       << "            download that Voice of the list (checked against its size and MD5) into your Voice folder\n"
        << "  --voice-add path\n"
        << "            add a Voice from a .zip (holding the .onnx and .onnx.json), a .onnx or a .onnx.json\n"
        << "  --voices-dir folder\n"
@@ -292,6 +292,6 @@ std::string VoiceOutcomeToText(const VoiceOutcome& o) {
     if (o.ok()) return "added " + o.voiceName + " (" + o.languageName + ")\n";
     std::string text = ProblemId(o.problem);
     if (o.problem == VoiceProblem::UnsupportedLanguage) text += " (" + o.languageName + ")";
-    if ((o.problem == VoiceProblem::NotMedium || o.problem == VoiceProblem::UnknownQuality) && !o.quality.empty()) text += " (" + o.quality + ")";
+    if (o.problem == VoiceProblem::UnknownQuality && !o.quality.empty()) text += " (" + o.quality + ")";
     return text + ": " + o.detail + "\n";
 }

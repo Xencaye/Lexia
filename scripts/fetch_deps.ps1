@@ -124,6 +124,9 @@ foreach ($m in $models) {
 if ($SkipVoices) { Write-Host "voices: skipped"; Write-Host "Done."; exit 0 }
 # voices\voices.json (tracked) lists the Voices, the pinned download source and the hashes. A
 # Voice with "ship": false is fetched for local testing only: the package step never copies it.
+# A Voice may name its own "source" (a commit-pinned https URL with the same folder layout); it replaces the list's
+# "source" for that Voice only. Cori comes from an older commit of rhasspy/piper-voices than the other Voices (B13).
+# Every file is still checked against its SHA-256 before it is used.
 $voicesDir = Join-Path $root 'voices'
 New-Item -ItemType Directory $voicesDir -Force | Out-Null
 $voiceList = Get-Content -LiteralPath (Join-Path $voicesDir 'voices.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -135,7 +138,11 @@ foreach ($v in $voiceList.voices) {
         $dest = Join-Path $voicesDir $name
         if (Test-Hash $dest $f.Sha) { Write-Host "${name}: present$note"; continue }
         if (Test-Path -LiteralPath $dest) { Write-Host "${name}: wrong SHA-256, replacing" } else { Write-Host "${name}: downloading$note" }
-        Get-Verified $name "$($voiceList.source)/$($v.path)/$name" $f.Sha $dest
+        # The Voice's own source, else the list's. Only https: a typo must never fetch over plain http.
+        $base = $voiceList.source
+        if ($v.source) { $base = $v.source }
+        if ($base -notmatch '^https://') { throw "${name}: the source of a Voice must be an https URL ($base)" }
+        Get-Verified $name "$base/$($v.path)/$name" $f.Sha $dest
     }
 }
 Write-Host 'Done.'

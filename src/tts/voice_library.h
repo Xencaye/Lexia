@@ -8,10 +8,9 @@
 // Voice there is `<name>.onnx` + `<name>.onnx.json`, and the Language it speaks is read from the
 // config. Finding a Voice for a Language looks in both folders (ListInstalledVoices).
 //
-// Only Voices for a Language Lexia can read are accepted. The quality rule depends on where the Voice
-// comes from (QualityRule): the Download sheet's catalogue offers Medium only (about 60 MB each), while a
-// Voice the user adds from a file, or already has in their folder, may be X-low, Low, Medium or High
-// (owner, Nov 11). A refusal is a
+// Only Voices for a Language Lexia can read are accepted, in any of Piper's qualities (X-low, Low, Medium
+// or High, or none stated): what Lexia ships is Medium (the package step checks it), but a Voice the user adds
+// from a file or downloads, or already has in their folder, may be any (owner, Nov 11). A refusal is a
 // VoiceOutcome with a VoiceProblem and the facts the message needs (the language's name, the
 // quality). The words the user sees ("Lexia can't read German yet") are the Settings window's
 // (D5) and the strings table's (I1), not this module's: `detail` is one English line for the log.
@@ -24,16 +23,14 @@
 enum class VoiceProblem {
     None,
     UnsupportedLanguage,  // the Voice speaks a language Lexia cannot read yet; `languageName` says which ("German")
-    NotMedium,            // MediumOnly (catalogue, download): quality is not Medium; `quality` says what it is
-                          // ("low", "high"; empty = unknown)
-    UnknownQuality,       // AnyKnown (a file): the config names a quality Piper does not have; `quality` says which
+    UnknownQuality,       // the config names a quality Piper does not have; `quality` says which
     BadName,              // the Voice's name has characters other than letters, digits, '_', '-' and '.',
                           // or is a Windows device name (CON, NUL, COM1, ... before the first '.')
     MissingFile,          // the .onnx or the .onnx.json is missing or unreadable
     BadConfig,            // the .onnx.json is not a Piper Voice config (not JSON, or no language to find)
     BadZip,               // not a zip, an unsafe path in it, or not exactly the two files
     CannotWrite,          // the Voice's files could not be written into the Voice folder
-    NotInCatalogue,       // download: the catalogue has no such Voice (for Lexia's Languages, Medium)
+    NotInCatalogue,       // download: the download list has no such Voice
     Network,              // download: the network failed or the server said no
     BadDownload,          // download: wrong size or digest; nothing was kept
     Cancelled,            // download: the user cancelled; nothing was kept
@@ -48,31 +45,27 @@ struct VoiceOutcome {
     std::string voiceName;     // the Voice's name (its file name without ".onnx"); set when known
     std::string languageCode;  // Lexia's Language code ("en", "bg"); set when ok
     std::string languageName;  // UnsupportedLanguage: the language's English name, else its code ("German", "de_DE")
-    std::string quality;       // the quality found, lower case (NotMedium / UnknownQuality: the refused one; ok: the Voice's)
+    std::string quality;       // the quality found, lower case (UnknownQuality: the refused one; ok: the Voice's)
     std::string detail;        // one English line for the log
     bool ok() const { return problem == VoiceProblem::None; }
 };
 
-// Which qualities a check accepts.
-//   MediumOnly: "medium" only (the catalogue and its downloads: the Download sheet offers Medium Voices).
-//   AnyKnown:   Piper's qualities "x_low", "low", "medium", "high", or none stated (a Voice the user trained
-//               may not say; Piper does not need it). Anything else is UnknownQuality.
-enum class QualityRule { MediumOnly, AnyKnown };
-
 // Is `quality` (lower case) one of Piper's four qualities? Pure.
 bool IsKnownVoiceQuality(const std::string& quality);
 
-// The quality written in a Piper Voice name: its last '-' part, lower case ("en_US-ljspeech-medium" ->
+// The quality written in a Piper Voice name: its last '-' part, lower case ("en_GB-cori-medium" ->
 // "medium"), only when that part is one of Piper's qualities; else "" (not stated). Pure.
 std::string VoiceQualityFromName(const std::string& name);
 
 // Can Lexia use a Voice with these facts? `languageCode` is the Voice's own ("bg_BG", "en-us";
 // the part before '_' or '-' is matched with the Languages' `code`), `languageName` its English
-// name if known. Checks in this order: BadName, UnsupportedLanguage, then the quality by `rule` (so a
-// low-quality German Voice is reported as German). ok(): voiceName, languageCode and quality are set.
+// name if known. Checks in this order: BadName, UnsupportedLanguage, then the quality (so a
+// Voice of a Language Lexia cannot read is reported as that Language). Piper's qualities "x_low", "low",
+// "medium", "high", or none stated (a Voice the user trained may not say; Piper does not need it) are accepted;
+// any other word is UnknownQuality (the config is not what it claims to be).
+// ok(): voiceName, languageCode and quality are set.
 VoiceOutcome CheckVoiceAccepted(const std::string& name, const std::string& languageCode,
-                                const std::string& languageName, const std::string& quality,
-                                QualityRule rule = QualityRule::MediumOnly);
+                                const std::string& languageName, const std::string& quality);
 
 // The facts in a Piper config (".onnx.json"). The language is `language.code`, else the part of
 // the Voice's name before the first '-' ("bg_BG" in "bg_BG-sample-medium": some configs, the
@@ -85,10 +78,9 @@ struct VoiceConfig {
 };
 bool ParseVoiceConfig(const std::string& name, const std::string& configText, VoiceConfig* out);
 
-// ParseVoiceConfig then CheckVoiceAccepted (with `rule`): BadConfig if the text is not a usable config.
-// The download checks with MediumOnly (the default); adding from a file and listing the user's folder with AnyKnown.
-VoiceOutcome CheckVoiceConfig(const std::string& name, const std::string& configText,
-                              QualityRule rule = QualityRule::MediumOnly);
+// ParseVoiceConfig then CheckVoiceAccepted: BadConfig if the text is not a usable config. Used by a download, by
+// adding from a file and by listing the user's folder.
+VoiceOutcome CheckVoiceConfig(const std::string& name, const std::string& configText);
 
 struct InstalledVoice {
     std::string name;
@@ -100,16 +92,15 @@ struct InstalledVoice {
 
 // Every installed Voice that can be used: first the entries of `voicesDir`\voices.json whose
 // .onnx file is there (in voices.json's order; quality from the name's last '-' part), then each
-// `<name>.onnx` with a valid `<name>.onnx.json` accepted with QualityRule::AnyKnown in `userDir` (in name
+// `<name>.onnx` with a valid `<name>.onnx.json` accepted (CheckVoiceConfig) in `userDir` (in name
 // order; empty `userDir` = none). A Voice in the user's folder with the name of a shipped one is left out.
 // Never throws.
 std::vector<InstalledVoice> ListInstalledVoices(const std::filesystem::path& voicesDir,
                                                 const std::filesystem::path& userDir);
 
 // Adds a Voice to the folder `destDir` (created if missing) from `model` (<name>.onnx) and
-// `config` (<name>.onnx.json), which must have the same name. The config is checked first (with
-// QualityRule::AnyKnown: the user's own file may be any of Piper's qualities; so is AddVoiceZip), the
-// files are copied under temporary names and then put in place (InstallVoice), so a Voice is never
+// `config` (<name>.onnx.json), which must have the same name. The config is checked first (CheckVoiceConfig: the user's own file may be any of
+// Piper's qualities, as in AddVoiceZip), the files are copied under temporary names and then put in place (InstallVoice), so a Voice is never
 // half there. A Voice already there with this name is replaced, and kept if the new one cannot be put in.
 VoiceOutcome AddVoiceFiles(const std::filesystem::path& model, const std::filesystem::path& config,
                            const std::filesystem::path& destDir);
@@ -117,7 +108,7 @@ VoiceOutcome AddVoiceFiles(const std::filesystem::path& model, const std::filesy
 // What AdoptRetiredVoices did.
 struct AdoptResult {
     // One outcome per retired Voice that was tried: ok() = adopted (voiceName set), else the refusal
-    // (BadConfig, NotMedium, CannotWrite ...), for the caller's log.
+    // (BadConfig, CannotWrite ...), for the caller's log.
     std::vector<VoiceOutcome> outcomes;
     // The retired Voice names that count as dealt with after this call: every Voice adopted, and every
     // retired Voice skipped because a Voice of that name was already in the user's folder. A refused Voice

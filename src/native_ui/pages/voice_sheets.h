@@ -89,7 +89,7 @@ private:
 
 
 // The Voice download sheet: the network note, a note about the last download, and the list of Voices
-// (a ScrollArea) in one of four views: loading, failed (+ Try again), empty or the list (a row each: name, size,
+// (a ScrollArea) in one of three views: loading (until the host answers), empty or the list (a row each: name, size,
 // and Download / Cancel / Cancelling / Try again + notice / Installed). One download at a time. The list is
 // built again when the data changes, but the scroll position and the focus (by the Voice's name) are kept, and a
 // progress message only moves the bar of its row.
@@ -113,13 +113,12 @@ public:
     Notice* NoteNotice() const { return note_; }
 
 private:
-    enum class View { Loading, Failed, Empty, List };
+    enum class View { Loading, Empty, List };
     void Refresh();       // the list again, after the event that asked is over
     void Rebuild();
     void DrawProgress();  // the bar and the words of the running download
     void StartDownload(const CatalogueEntry& entry);
     void Cancel();
-    void Retry();
     Button* AddRowButton(Widget& row, const std::string& label, const std::string& aria, const std::string& key,
                          bool disabled, std::function<void()> onClick);
     std::string T(const char* id) const { return strings::Text(env_.interfaceLanguage, id); }
@@ -133,7 +132,7 @@ private:
     CatalogueBody* body_ = nullptr;
     Button* close_ = nullptr;
     View view_ = View::Loading;
-    // The widgets of the rows by the focus key of their button ("<Voice name>", or "retry"), so the focus can
+    // The widgets of the rows by the focus key of their button (the Voice name), so the focus can
     // come back to "the same" control after the rows were built again (Download -> Cancel -> Try again).
     std::map<const Widget*, std::string> focusKeys_;
     // The row that draws the running download (null when none): its bar and text move without a rebuild.

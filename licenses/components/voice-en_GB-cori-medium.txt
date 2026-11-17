@@ -1,0 +1,16 @@
+Piper Voice en_GB-cori-medium (English, British, female; the default English Voice)
+Licence: public domain (no licence is stated for the model itself; see below)
+Source: https://huggingface.co/rhasspy/piper-voices (en/en_GB/cori/medium, commit 5041a7a49ae5b3a0f30e6837769eb03fdbb231bd)
+Used for: speaking English (voices\en_GB-cori-medium.onnx and .onnx.json).
+
+Trained by Bryce Beattie (https://brycebeattie.com/files/tts/) with Piper, from scratch, for
+640 epochs, on about 24 hours of recordings from LibriVox (https://librivox.org), all read by
+Cori Samuel. LibriVox recordings are public domain. The model card in rhasspy/piper-voices at the
+commit above gives the dataset licence as "public domain" and states no separate licence for the
+model weights; Beattie's page lists the Voice as "License: public domain". No attribution is
+required. Credit is given as a courtesy. Cori Samuel, a LibriVox volunteer reader, does not endorse
+Lexia and has no connection with it. The Voice is provided as is, without warranty.
+
+This is the older model of this name. A newer file with the same name (rhasspy/piper-voices from
+commit cf910fb, trained from the Hi-Fi TTS base model under CC BY 4.0) is a different Voice and is
+not the one Lexia ships.

@@ -54,22 +54,14 @@ ResultTexts DescribeResult(const std::string& lang, const ResultOutcome& o) {
 // ------------------------------------------------------------------------------ the person ---
 
 void VoiceLibraryState::BeginSheet() {
-    // A new sheet starts from nothing: no old note, no old failure, no catalogue. A download that runs stays
+    // A new sheet starts from nothing: no old note, no old failure of a row, no list. A download that runs stays
     // (closing the sheet does not stop it; the sheet shows it again).
     note_ = Note::None;
     failedRow_.reset();
-    failure_.reset();
     voices_.clear();
     haveVoices_ = false;
     loading_ = true;
     installedNow_.clear();
-}
-
-void VoiceLibraryState::Reload() {
-    failure_.reset();
-    loading_ = true;
-    voices_.clear();
-    haveVoices_ = false;
 }
 
 bool VoiceLibraryState::StartDownload(const CatalogueEntry& entry) {
@@ -104,15 +96,6 @@ void VoiceLibraryState::CatalogueShown(std::vector<CatalogueEntry> voices) {
     voices_ = std::move(voices);
     haveVoices_ = true;
     loading_ = false;
-    failure_.reset();
-    Tell(Change::Catalogue);
-}
-
-void VoiceLibraryState::CatalogueFailed(VoiceProblem problem) {
-    loading_ = false;
-    voices_.clear();
-    haveVoices_ = false;
-    failure_ = problem;
     Tell(Change::Catalogue);
 }
 

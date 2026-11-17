@@ -4,8 +4,8 @@
 // The pure parts (the state, the answers) are in ui_host.*; this class is the glue: settings.json,
 // the Speaker, worker threads for the network and the file dialog.
 //
-// Threads: everything public runs on the UI thread. The catalogue fetch and a download run on worker
-// threads (one of each at a time) and hand their answers back through Host::runOnUi, which posts to
+// Threads: everything public runs on the UI thread. A download runs on a worker
+// thread (one at a time) and hands its answers back through Host::runOnUi, which posts to
 // the UI thread; an answer for a window that has been closed is dropped (Host::events gives no sink).
 // The network is used only when the page asks (ADR-0005).
 #include <windows.h>
@@ -23,7 +23,6 @@
 #include "net/winhttp_fetch.h"
 #include "settings.h"
 #include "speech.h"
-#include "tts/voice_catalogue.h"
 #include "ui_host.h"
 #include "voice_events.h"
 
@@ -93,13 +92,8 @@ private:
     mutable std::filesystem::file_time_type shippedStamp_{};
     mutable std::filesystem::file_time_type userStamp_{};
 
-    std::vector<CatalogueVoice> catalogue_;           // the last catalogue that came
-
-    std::thread catalogueThread_;
-    std::atomic<bool> catalogueRunning_{false};
     std::thread workThread_;                          // a download, or adding a file
     std::atomic<bool> workRunning_{false};
     FetchCancel workCancel_;                          // stops the download (even in a blocked receive); set by Cancel / ~VoiceTab
-    FetchCancel catalogueCancel_;                     // stops the catalogue fetch the same way
     std::string downloadName_;                        // UI thread; the Voice that downloads, "" = none
 };

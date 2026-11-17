@@ -4,8 +4,8 @@
 // VoiceTab calls a VoiceEventSink, and the native pages (the Voice download sheet, the result sheet)
 // take the values as they are. Pure and Win32-free, in lexia_core.
 //
-// Where a problem is shown decides some of its words (a network failure of the catalogue reads differently
-// from one of a download), so the text of a problem is picked with `ProblemTextId(facts, where)`; the facts
+// Where a problem is shown decides some of its words (a bad name reads differently for a file and for a download),
+// so the text of a problem is picked with `ProblemTextId(facts, where)`; the facts
 // (the language's English name, the quality) go into the text as {language} and {quality}. The ids and the
 // rule are those of the old ui/js/voice_library.js (`problemText`, deleted in K.6).
 #include <cstdint>
@@ -18,7 +18,7 @@
 #include "tts/voice_library.h"
 #include "ui_host.h"
 
-// One downloadable Voice of the catalogue, as the sheet lists it.
+// One downloadable Voice of the download list, as the sheet lists it.
 struct CatalogueEntry {
     std::string name;
     std::string language;     // a Lexia Language id ("eng")
@@ -34,8 +34,8 @@ struct ProblemFacts {
     std::string quality;
 };
 
-// Where a problem is shown: the list of the Voice download sheet, one row of it, or a result sheet (Add from file).
-enum class ProblemWhere { Catalogue, Download, File };
+// Where a problem is shown: one row of the Voice download sheet, or a result sheet (Add from file).
+enum class ProblemWhere { Download, File };
 
 // The string id (strings/) of a problem's text in a place. A problem with no text of its own (Busy, None,
 // Cancelled, a code the page does not know) gives `window.problem.unknown`.
@@ -49,7 +49,7 @@ ProblemFacts FactsOf(const VoiceOutcome& outcome);
 const Language* OfferedLanguageForCode(const std::string& code);
 
 // The downloadable Voices for the Voice download sheet: only those of offered Languages, in the order of the
-// catalogue. `installedNames` marks the ones that are installed already.
+// list. `installedNames` marks the ones that are installed already.
 std::vector<CatalogueEntry> OfferedCatalogue(const std::vector<CatalogueVoice>& voices,
                                              const std::set<std::string>& installedNames);
 
@@ -68,7 +68,6 @@ public:
     virtual ~VoiceEventSink() = default;
 
     virtual void CatalogueShown(std::vector<CatalogueEntry> voices) = 0;
-    virtual void CatalogueFailed(VoiceProblem problem) = 0;
     virtual void DownloadProgress(const std::string& name, uint64_t done, uint64_t total) = 0;
     virtual void DownloadDone(const std::string& name) = 0;
     // `facts.problem == Cancelled` is the answer to a cancel: no error is shown for it.

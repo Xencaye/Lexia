@@ -98,11 +98,11 @@ TEST_CASE("EncodeWav16: no samples is still a valid, empty WAV") {
 
 // ------------------------------------------------------------------ voices.json ---
 
-TEST_CASE("ParseVoiceList: reads language and name, ignores the other fields") {
+TEST_CASE("ParseVoiceList: reads language and name, ignores the other fields (also a per-Voice \"source\")") {
     std::string err;
     const auto v = ParseVoiceList(
         R"({"source":"x","voices":[
-            {"language":"en","name":"en_GB-cori-medium","ship":true,"onnxSha256":"AB"},
+            {"language":"en","name":"en_GB-cori-medium","source":"https://example.test/pinned","ship":true,"onnxSha256":"AB"},
             {"language":"bg","name":"bg_BG-sample-medium","ship":false}]})", &err);
     REQUIRE(v.size() == 2);
     CHECK(err.empty());

@@ -41,15 +41,11 @@ TEST_CASE("ProblemTextId: every problem has its text, and three read differently
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::NotInCatalogue), ProblemWhere::Download)) == kWindowProblemNotInCatalogue);
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::BadDownload), ProblemWhere::Download)) == kWindowProblemBadDownload);
 
-    // Network: the list, or one download.
-    CHECK(std::string(ProblemTextId(Facts(VoiceProblem::Network), ProblemWhere::Catalogue)) == kWindowProblemCatalogueNetwork);
+    // Network: one download did not finish.
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::Network), ProblemWhere::Download)) == kWindowProblemNetwork);
     // BadName: a file the person chose, or a Voice of the list.
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::BadName), ProblemWhere::File)) == kWindowProblemBadName);
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::BadName), ProblemWhere::Download)) == kWindowProblemBadNameDownload);
-    // NotMedium: with a quality, or without.
-    CHECK(std::string(ProblemTextId(Facts(VoiceProblem::NotMedium, "", "low"), ProblemWhere::File)) == kWindowProblemNotMedium);
-    CHECK(std::string(ProblemTextId(Facts(VoiceProblem::NotMedium), ProblemWhere::File)) == kWindowProblemNotMediumUnknown);
     // No text of their own: the general one.
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::Busy), ProblemWhere::Download)) == kWindowProblemUnknown);
     CHECK(std::string(ProblemTextId(Facts(VoiceProblem::Cancelled), ProblemWhere::Download)) == kWindowProblemUnknown);
@@ -57,13 +53,13 @@ TEST_CASE("ProblemTextId: every problem has its text, and three read differently
 }
 
 TEST_CASE("ProblemText: every problem reads in every place and the facts are filled in") {
-    const VoiceProblem all[] = {VoiceProblem::None,       VoiceProblem::UnsupportedLanguage, VoiceProblem::NotMedium,
+    const VoiceProblem all[] = {VoiceProblem::None,       VoiceProblem::UnsupportedLanguage,
                                 VoiceProblem::BadName,    VoiceProblem::MissingFile,         VoiceProblem::BadConfig,
                                 VoiceProblem::BadZip,     VoiceProblem::CannotWrite,         VoiceProblem::NotInCatalogue,
                                 VoiceProblem::Network,    VoiceProblem::BadDownload,         VoiceProblem::Cancelled,
                                 VoiceProblem::Busy,       VoiceProblem::UnknownQuality};
     for (VoiceProblem p : all) {
-        for (ProblemWhere where : {ProblemWhere::Catalogue, ProblemWhere::Download, ProblemWhere::File}) {
+        for (ProblemWhere where : {ProblemWhere::Download, ProblemWhere::File}) {
             const std::string text = ProblemText("en", Facts(p, "German", "low"), where);
             CHECK_FALSE(text.empty());
             CHECK(text.find('{') == std::string::npos);  // no placeholder is left
@@ -74,8 +70,8 @@ TEST_CASE("ProblemText: every problem reads in every place and the facts are fil
     // No name came: "this language", never a hole in the sentence.
     CHECK(ProblemText("en", Facts(VoiceProblem::UnsupportedLanguage), ProblemWhere::File) ==
           "Lexia can't read this language yet. Choose a voice for a language that Lexia reads.");
-    CHECK(ProblemText("en", Facts(VoiceProblem::NotMedium, "", "low"), ProblemWhere::File) ==
-          "This voice has low quality. Lexia uses only voices of Medium quality. Choose a Medium voice.");
+    CHECK(ProblemText("en", Facts(VoiceProblem::UnknownQuality, "", "ultra"), ProblemWhere::File) ==
+          "This voice says its quality is \"ultra\", which Lexia does not know. Lexia uses voices of X-low, Low, Medium or High quality.");
 }
 
 TEST_CASE("OfferedCatalogue keeps only the Voices of offered Languages and marks the installed ones") {

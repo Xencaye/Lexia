@@ -3,8 +3,8 @@
 // (SettingsUi owns one) and not by the Voices page, so a download goes on being known while another page shows
 // and the page can be built again (K.3, ADR-0009). Pure and Win32-free, in lexia_core, tested.
 //
-// It is the port of the state of old ui/js/voice_library.js: which catalogue came, the download that runs, the
-// last failure of a row, the note over the list, the Voices installed since the catalogue came, the row to
+// It is the port of the state of old ui/js/voice_library.js: which list came, the download that runs, the
+// last failure of a row, the note over the list, the Voices installed since the list came, the row to
 // scroll into view. It is not a setting (the installed Voices are drawn from the host's `state`); it is the
 // sheets' own progress. It is the VoiceEventSink the host (VoiceTab) calls, and it tells whoever listens
 // (the Voices page, when it shows) what kind of change came.
@@ -54,15 +54,13 @@ public:
     };
     enum class Note { None, Done, Cancelled };
 
-    // What a listener is told. Catalogue: the catalogue or its failure came (open the sheet if it is closed,
-    // draw it again). Rows: the rows change (a download ended, started, failed): draw the list again.
+    // What a listener is told. Catalogue: the download list came (open the sheet if it is closed, draw it again). Rows: the rows change (a download ended, started, failed): draw the list again.
     // Progress: only the bytes of the running download changed. Result: a result is waiting (TakeResult).
     enum class Change { Catalogue, Rows, Progress, Result };
     void SetOnChange(std::function<void(Change)> fn) { onChange_ = std::move(fn); }
 
     // ---- what the sheets draw
     bool Loading() const { return loading_; }
-    const std::optional<VoiceProblem>& Failure() const { return failure_; }
     bool HaveVoices() const { return haveVoices_; }
     const std::vector<CatalogueEntry>& Voices() const { return voices_; }
     const std::optional<Download>& CurrentDownload() const { return download_; }
@@ -77,10 +75,8 @@ public:
     bool HasResult() const { return result_.has_value(); }
 
     // ---- what the person does
-    // The download icon: a new sheet starts loading (the host is asked for the catalogue by the page).
+    // The download icon: a new sheet starts loading (the page asks the host for the list; the host answers at once).
     void BeginSheet();
-    // Try again after the catalogue failed.
-    void Reload();
     void ClearNote() { note_ = Note::None; }
     // Download (or Try again) on a row; false when a download runs already (one at a time).
     bool StartDownload(const CatalogueEntry& entry);
@@ -89,7 +85,6 @@ public:
 
     // ---- VoiceEventSink: the host's answers
     void CatalogueShown(std::vector<CatalogueEntry> voices) override;
-    void CatalogueFailed(VoiceProblem problem) override;
     void DownloadProgress(const std::string& name, uint64_t done, uint64_t total) override;
     void DownloadDone(const std::string& name) override;
     void DownloadFailed(const std::string& name, const ProblemFacts& facts) override;
@@ -107,14 +102,13 @@ private:
     void PostResult(ResultOutcome outcome);  // keeps it for a sheet and says Change::Result
 
     bool loading_ = false;
-    std::optional<VoiceProblem> failure_;
     bool haveVoices_ = false;
     std::vector<CatalogueEntry> voices_;
     std::optional<Download> download_;
     std::optional<FailedRow> failedRow_;
     Note note_ = Note::None;
     std::string noteName_;
-    std::set<std::string> installedNow_;  // Voices that finished downloading since the catalogue came
+    std::set<std::string> installedNow_;  // Voices that finished downloading since the list came
     std::string reveal_;
     std::optional<ResultOutcome> result_;
     std::function<void(Change)> onChange_;

@@ -19,7 +19,6 @@ constexpr float kRowPadY = 9, kRowGap = 8, kInfoGap = 12;                   // r
 constexpr float kActionMinH = 30;                                           // `.voice-action { min-height: 30px }`
 constexpr float kBarGap = 12;                                               // the bar to its words
 constexpr float kMarkSize = 18, kMarkGap = 6;                               // the "Installed" check
-constexpr float kRetryGap = 12;                                             // `.catalogue-state .btn { margin-top: 12px }`
 constexpr float kLoadingMinH = 80;                                          // `.catalogue-body[data-view=loading]`
 constexpr float kNetworkGap = 12;                                           // under the network note and the note
 
@@ -320,7 +319,7 @@ void DownloadSheet::OnChange(VoiceLibraryState::Change change) {
     using Change = VoiceLibraryState::Change;
     switch (change) {
     case Change::Catalogue:
-        // The catalogue (or its failure) came: the sheet opens if it is closed, with no old note.
+        // The download list came: the sheet opens if it is closed, with no old note.
         if (!sheet_) {
             library_.ClearNote();
             Open();
@@ -383,12 +382,6 @@ void DownloadSheet::Cancel() {
     Refresh();
 }
 
-void DownloadSheet::Retry() {
-    library_.Reload();
-    screen_.Emit(Message(PageMessageType::OpenCatalogue, "openCatalogue"));
-    Refresh();
-}
-
 // The list of one state: built from nothing each time, as the old renderSheet did.
 void DownloadSheet::Rebuild() {
     if (!sheet_ || !body_) return;
@@ -404,8 +397,8 @@ void DownloadSheet::Rebuild() {
     bar_ = nullptr;
     barText_ = nullptr;
 
-    // The note over the list: the last download done, or cancelled. Not while a list is got or has failed.
-    const bool noteShown = library_.NoteKind() != VoiceLibraryState::Note::None && !library_.Failure() && !library_.Loading();
+    // The note over the list: the last download done, or cancelled. Not while the list is got.
+    const bool noteShown = library_.NoteKind() != VoiceLibraryState::Note::None && !library_.Loading();
     note_->SetVisible(noteShown);
     if (noteShown) {
         if (library_.NoteKind() == VoiceLibraryState::Note::Done) {
@@ -424,18 +417,7 @@ void DownloadSheet::Rebuild() {
     const std::string reveal = library_.TakeReveal();
     Widget* revealRow = nullptr;
 
-    if (library_.Failure()) {
-        view_ = View::Failed;
-        Notice* text = body_->Add<Notice>();
-        text->SetKind(Notice::Kind::Bad);
-        text->SetLead(T(sid::kWindowResultProblem));
-        text->SetText(ProblemText(env_.interfaceLanguage, ProblemFacts{*library_.Failure(), {}, {}}, ProblemWhere::Catalogue));
-        body_->AddItem(text, 0, true);
-        Button* retry = body_->Add<Button>(T(sid::kWindowDownloadRetry));
-        retry->SetOnActivate([this] { Retry(); });
-        focusKeys_[retry] = "retry";
-        body_->AddItem(retry, kRetryGap, false);
-    } else if (library_.Loading() || !library_.HaveVoices()) {
+    if (library_.Loading() || !library_.HaveVoices()) {
         view_ = View::Loading;
         Label* wait = body_->Add<Label>(T(sid::kWindowDownloadLoading));
         wait->SetLiveRegion(true);  // "Getting the list of voices" is announced
