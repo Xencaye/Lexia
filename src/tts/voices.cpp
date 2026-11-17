@@ -3,7 +3,7 @@
 #include <nlohmann/json.hpp>
 
 // voices/voices.json: { "voices": [ { "language": "<code>", "name": "<Voice name>", ... } ] }.
-// The other fields (source, path, ship, the SHA-256 hashes) are for fetch_deps.ps1 and the package
+// The other fields (source, also per Voice, path, ship, the SHA-256 hashes) are for fetch_deps.ps1 and the package
 // step, not read here. One bad
 // entry fails the whole list: the file is Lexia's own, so a mistake in it is a bug to show, not skip.
 std::vector<VoiceEntry> ParseVoiceList(const std::string& jsonText, std::string* error) {

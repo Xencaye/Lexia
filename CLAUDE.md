@@ -45,8 +45,8 @@ LLVM's (`C:\Program Files\LLVM\bin`, must be on PATH).
 - `models\` — det.onnx, rec_en.onnx, dict_en.txt, rec_cyrillic.onnx, dict_cyrillic.txt. `rec_en.onnx` is Lexia's
   fine-tune for game fonts (task L): it is in git as `ocr_models\rec_en.onnx` (`ocr_models/README.md`) and the script
   copies it after a SHA-256 check; a retrained model changes the file and the hash in `fetch_deps.ps1` together
-- `voices\` — the Piper Voice files listed in `voices\voices.json` (all of them ship; Lexia has no Bulgarian Voice
-  now)
+- `voices\` — the Piper Voice files listed in `voices\voices.json` (all of them ship: Cori from its own pinned
+  `source`, Norman from the list's; Lexia has no Bulgarian Voice now)
 
 Piper is not fetched: the first build clones piper1-gpl and espeak-ng at pinned commits and builds `piper.dll` into
 `build\lp_install` (CMake `libpiper_external`; needs the network and a short build path).
@@ -90,7 +90,7 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
   Fixture score as one line of JSON). Models beside itself, else the dev `models\`.
   `--say "text" --lang en|bg --wav out.wav` speaks to a WAV (`--speed`, `--pitch`, `--volume`).
   Voice library (the only network use, and only when you run it): `--voices-catalogue` (Hugging Face
-  `rhasspy/piper-voices`, Lexia's Languages, Medium only), `--voice-download <name>` (checks size and MD5),
+  `rhasspy/piper-voices`, Lexia's Languages, Medium only until B12), `--voice-download <name>` (checks size and MD5),
   `--voice-add <file.zip|.onnx|.onnx.json>`; both write to `%LOCALAPPDATA%\Lexia\voices` unless `--voices-dir <folder>`.
   `--version`.
 - **`score_layout.ps1`**: `-Cli <exe>` (default `build\cli\Release`), `-Tolerance` (default 0.02 on the normalised
@@ -159,7 +159,7 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
 | jobqueue.* | `JobQueue`: 2 worker threads, jobs in Post order, `CancelPending` / `WaitIdle`; logs a `std::exception` from a job. Pure, tested |
 | speech.* | `Speaker` (pimpl): a speech thread that speaks Blocks one by one, each as its Stretches with the matching Voice, through `WaveOutSink`. `SpeakReading` (returns the Reading id, 0 = nothing queued), `HeardWordNow()`, `Pause` / `Resume` / `Skip` / `Stop` / `SessionStarted`, `StopReading(id)` (the one being spoken is cut off and the next starts at Block 0; a waiting one is dropped; unknown id = nothing), `TapSpeechKey` / `SettleSpeechKey`, `SetActivityNotify` (busy / idle -> a posted message), `SetVoiceControls`, `VoicesChanged` (a Voice was added or downloaded: the speech thread drops its loaded Voices, also a remembered "none", before the next Block), `ReleaseVoices` (waits until every loaded Voice is dropped, so its files can be deleted), `SetInterfaceLanguage` / `Announce(stringId)` / `AnnounceLanguage(lang)` (a missing Voice is announced once per Language) |
 | tts/ | Speech engine. Win32-free, in `lexia_core`, tested: `speech_chunk.*` (`SpeechChunk`, `PhonemeTiming`), `voice_controls.*` (`VoiceControls` = Speed, Pitch, Volume; `RangeOf` / `Clamped` / `ResetControl`; `PaceForSpeed`, `ApplyVolume`), `pitch_shift.*` (`ShiftPitch`, SoundTouch, length-preserving), `wav.*`, `voices.*` (`ParseVoiceList`), `voice_library.*` (`CheckVoiceConfig(name, text, QualityRule)` (a Language Lexia reads; `MediumOnly` for the catalogue and downloads, `AnyKnown` (x_low, low, medium, high or none stated; another word = `UnknownQuality`) for a file the user adds and the user's folder), `VoiceQualityFromName`, `InstalledVoice::quality`, `ListInstalledVoices` (exe `voices\` + `%LOCALAPPDATA%\Lexia\voices`), `AdoptRetiredVoices(exeVoicesDir, userVoicesDir)` (called by `App::Init` at start: copies a Voice that the exe's `voices\` holds but its voices.json no longer lists into the user's folder through `AddVoiceFiles`; never replaces, never deletes, skips links; adopts nothing without a readable voices.json; each retired name is handled once: the caller keeps `AdoptResult::handled` in settings `adoptedVoices`, so a deleted Voice stays deleted), `AddVoice` / `AddVoiceFiles` / `AddVoiceZip` (miniz; refuses path traversal and extra files; extensions in any case, installed lower case), `RemoveVoice`, `PickVoice`; refusals are a `VoiceOutcome` with a `VoiceProblem`, never UI words), `voice_catalogue.*`, `voice_download.*` (`FetchVoiceCatalogue`, `DownloadVoice` over an injected `FetchFn`: temp file, size + MD5, rename; progress, cancel; runs only when called), `voice_files.*` (shared helpers for the `.onnx.part` files), `md5.*`, `audio_sink.h` (`AudioSink`; Write never blocks; audio at a new sample rate waits until the old has played), `stretch_speech.*` (`SpeakStretches`), `reading_queue.*` (`ReadingQueue`: the queue's rules over an `AudioSink` and a synthesiser; `Pump` from the speech thread; `Add` returns a Reading id; every word piece carries (id, Block, `TextRange`); `HeardWordNow()` = the first not-yet-played piece (none during an Announcement, when idle, after Skip / Stop); `StopReading` (never cuts off a playing Announcement; the pause held for the stopped Reading ends with it); `SetActiveListener`; an Announcement holds the Reading at a word boundary, because the sink gets the Block a word at a time; rules in the header; tested with `tests/fake_audio_sink.h` and `announcement_test.cpp`), `speech_key.*` (`SpeechKey`: taps within 0.4 s are counted; the 1st goes quiet at once, the 3rd = Stop, else that many Skips), `preset_file.*` (`PresetToJson`, `ParsePresetFile` -> `PresetFileOutcome`, `PresetsDir`, `ChoosePresetTarget(fileVoice, activeVoice, installed)` -> ActiveVoice / OtherVoice / NotInstalled, `PresetVoiceForDisplay` (an untrusted name cut to 80 code points, control and direction characters removed)). Win32: `piper_voice.*` (`PiperVoice`, pimpl over libpiper's C API; `LoadVoiceForLanguage`, `DefaultVoiceFolders`; narrow paths as 8.3 short names when the code page cannot hold them), `waveout_sink.*` (`WaveOutSink`, winmm) |
-| voices/ | `voices.json` (tracked: which Voice speaks which Language, pinned source and SHA-256, `ship` flag); the `.onnx` files are fetched. `ship: false` Voices are never packaged |
+| voices/ | `voices.json` (tracked: which Voice speaks which Language, pinned source (top level, or a per-Voice `source` that replaces it) and SHA-256, `ship` flag); the `.onnx` files are fetched. `ship: false` Voices are never packaged |
 | layout.* | `SortReadingOrder` (a row = vertical overlap of half the shorter box and less than half of the narrower width shared; stacked boxes are ordered top first), `MergeRowFragments` (pieces of one row of similar height and centre, at most 1.2 line heights apart, become one Line; run first by `GroupBlocks`), `GroupBlocks` (a short Line also goes on into the next when the two form a tight, ragged, centred all-caps stack whose upper Line does not end a sentence), `BlocksToText`, `FindBlockAt`, `LayoutParams` (the grouping knobs in line heights; settings.json `layout`, no UI). Pure, no `<windows.h>` (not even through common.h) |
 | log.* | `LogError/Warn/Info/Debug`, `ConsolePrint` (console only: recognised text goes here, never to the log); `lexia.log` in `%LOCALAPPDATA%\Lexia`, rotates at ~1 MB |
 | strings/ | Lexia's user-facing text per Interface language (`interfaceLanguage`, `en` default; `bg` has a table but is not offered: `IsOfferedInterfaceLanguage`). Pure, tested. `string_ids.h` (one X-macro line per id; `strings::id::kTrayQuit`), `strings.*` (`Text`, `Format` with `{name}` placeholders, `LanguageName`, `InterfaceLanguages`; missing in a language -> English; missing in English = a test failure), `table_en.cpp` / `table_bg.cpp` (a new language = a new table + one line in `strings.cpp` + `CMakeLists.txt`). Log lines and `lexia_cli` output stay English, outside the table |
@@ -243,11 +243,13 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   made from `v0.6.0`: the corrected package `README.txt` only) and **Lexia 0.6.2** (2026-11-08, tag `v0.6.2`, made from
   `v0.6.1`: the new Discord invite only), kept in `release\<v>\` (git-ignored).
 - **Now: towards Lexia 0.7** (owner, Nov 8: future changes go into 0.7); `vcpkg.json` says 0.7.0. Done for 0.7:
-  B10 (replaces B8's Cori and Mike, which mispronounce common words such as "library"), the shipped Voices
-  `en_US-ljspeech-medium` (the default: the first English Voice in `voices.json`) and `en_US-norman-medium`, both
-  public domain and trained from scratch, and the Download sheet's catalogue at the same pinned commit (`cf910fb`)
-  as `voices.json`; B11, a Voice the user adds from a file may be X-low, Low, Medium or High, and the Voice lists
-  show the short name and quality ("LJ Speech (Medium)") with the file name as the tooltip; B9, an update keeps a
+  B10 (replaces B8's Cori and Mike of `cf910fb`, which mispronounce common words such as "library"); B13 (owner,
+  Nov 17: the shipped Voices are the old `en_GB-cori-medium` of Bryce Beattie, the default (the first English Voice
+  in `voices.json`; `rhasspy/piper-voices` commit `5041a7a`, set by a per-Voice `source` in `voices.json`), and
+  `en_US-norman-medium` (`cf910fb`), both public domain and trained from scratch; `en_US-ljspeech-medium` stopped
+  shipping, and an update keeps it as one of the user's own Voices); B11, a Voice the user adds from a file may be
+  X-low, Low, Medium or High, and the Voice lists show the short name and quality ("Cori (Medium)") with the file
+  name as the tooltip; B9, an update keeps a
   Voice that Lexia no longer ships (it becomes one of the user's own Voices; Lexia adopts it at start); A6, Layout: row fragments and
   tight centred stacks. **L (L0–L3, L5, L6 done; L4 and L7 open):** the English recogniser `rec_en.onnx` is
   fine-tuned on synthetic lines in pixel game fonts mixed with normal fonts (70 font families with an allowed
@@ -255,9 +257,13 @@ Task ids and the order of work are in `docs/Lexia — Code Review & Agent Plan.m
   (`training/rec_en/README.md`); same input and output (`ocr.cpp`, `ctc.*` unchanged). Three training rounds; the
   shipped model is round 2, epoch 5, chosen on the Fixtures (average distance 0.131 -> 0.110, Block-count error
   1.29 -> 1.00; `unraveled_04` worse, accepted by the owner); it is `ocr_models/rec_en.onnx`, copied into `models\`
-  by `fetch_deps.ps1`. Open: L4, new pixel-font Fixtures (the owner gives screenshots). New work branches from `main`.
+  by `fetch_deps.ps1`. Open: L4, new pixel-font Fixtures (the owner gives screenshots). **B12 (open):** Lexia ships
+  Medium Voices only (installer size); the download list may offer any quality from any source (Hugging Face or
+  Bryce Beattie's LibriVox Voices), picked by the owner by ear, with a label of allowed use per Voice
+  (`docs/notes/voice-download-list.md`). The owner will pick a second, male shipped Voice later (Norman until then).
+  New work branches from `main`.
 - **Open, the owner's:** the by-hand checks listed in the plan (K7, G1, G2, K9–K13, D9, D10, B9, B10, B11, A6, L7, R36–R45,
-  games, the installer pages), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub
+  games, the installer pages), B13 (the default Voice by ear), B12.1 (the pick of the download list), D7 (the tutorial video), A5. Open code-review findings: R24, R25, R33 (low). No GitHub
   issue is open.
 - **Later:** E1, E2, E6 (the owner trains a Bulgarian Voice from their own voice) and the Language UI (Lexia 0.8);
   J, Linux on Ubuntu, and H5, free signing through SignPath Foundation (Lexia 1.0; 0.7 and 0.8 ship unsigned).

@@ -6,8 +6,8 @@
 namespace shot {
 
 namespace {
-constexpr const char* kShipped = "en_US-ljspeech-medium";  // comes with Lexia
-constexpr const char* kUser = "en_GB-alba-medium";         // one a person added: it can be deleted
+constexpr const char* kShipped = "en_GB-cori-medium";  // comes with Lexia (the default English Voice)
+constexpr const char* kUser = "en_GB-alba-medium";    // one a person added: it can be deleted
 constexpr uint64_t kMiB = 1024 * 1024;
 }  // namespace
 
@@ -44,11 +44,12 @@ UiState SampleState(bool on, bool dark, const std::string& voices) {
 
 std::vector<CatalogueEntry> SampleCatalogue() {
     return {{"en_GB-alba-medium", "eng", 63 * kMiB, true},
+            {"en_GB-cori-medium", "eng", 63 * kMiB, true},
             {"en_GB-jenny_dioco-medium", "eng", 63 * kMiB, false},
             {"en_GB-northern_english_male-medium", "eng", 63 * kMiB, false},
             {"en_US-amy-medium", "eng", 63 * kMiB, false},
             {"en_US-lessac-medium", "eng", 63 * kMiB, false},
-            {"en_US-ljspeech-medium", "eng", 63 * kMiB, true}};
+            {"en_US-ljspeech-medium", "eng", 63 * kMiB, false}};
 }
 
 }  // namespace shot

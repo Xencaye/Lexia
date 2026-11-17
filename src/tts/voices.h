@@ -1,10 +1,11 @@
 #pragma once
 // voices.json: which Piper Voice speaks which Language. The choice lives in this data file (in
 // voices\ next to the exe), not in code. Win32-free.
-//   {"voices": [{"language": "en", "name": "en_US-ljspeech-medium", "ship": true, ...}]}
+//   {"voices": [{"language": "en", "name": "en_GB-cori-medium", "ship": true, ...}]}
 // "language" is a Language code (language.h); the Voice's files are voices\<name>.onnx and
 // voices\<name>.onnx.json. "ship" and the other fields are for scripts\fetch_deps.ps1 and the
-// package step; only language and name are read here.
+// package step (a Voice may name its own "source", a pinned download URL); only language and name are read here.
+// The first English entry is the default Voice (PickVoice), so the order of the file is the order of preference.
 #include <string>
 #include <vector>
 

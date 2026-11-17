@@ -62,7 +62,7 @@ enum class QualityRule { MediumOnly, AnyKnown };
 // Is `quality` (lower case) one of Piper's four qualities? Pure.
 bool IsKnownVoiceQuality(const std::string& quality);
 
-// The quality written in a Piper Voice name: its last '-' part, lower case ("en_US-ljspeech-medium" ->
+// The quality written in a Piper Voice name: its last '-' part, lower case ("en_GB-cori-medium" ->
 // "medium"), only when that part is one of Piper's qualities; else "" (not stated). Pure.
 std::string VoiceQualityFromName(const std::string& name);
 
