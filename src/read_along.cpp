@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 
 #include "codepoint.h"
 #include "stretch.h"
@@ -145,6 +146,59 @@ bool EndsSentence(const std::string& text, const std::vector<Token>& tokens, siz
     return !IsLowerLetter(NextCodePoint(text, next));
 }
 
+// Splits the spoken words of a sentence into one run per text word, in order, every run with at least one
+// spoken word (needs more spoken words than text words). Returns the index of the first spoken word of each
+// text word, or an empty list when that is not possible or too big to work out.
+// The cut points are chosen so that the share of the sentence's phonemes spoken before each text word is as
+// close as it can be to the share of its letters before it (SpokenWeight): a small dynamic programme over
+// "text word j starts at spoken word k". A greedy walk by the middle of a spoken word (the old rule) drifts
+// when a number takes many short words and then jumps over the short words that follow it ("old", "on").
+std::vector<size_t> GroupSpokenWords(const std::string& text, const std::vector<TextRange>& words,
+                                     const std::vector<int>& phonemesPerWord) {
+    const size_t n = phonemesPerWord.size();  // spoken words
+    const size_t m = words.size();            // text words
+    // The work is about m * n * n steps: a sentence is far below this (the guard is for a runaway Block).
+    if (m == 0 || n < m || m * n * n > 20000000) return {};
+    // Cumulative shares: spoken[k] = phonemes of the first k spoken words, letters[j] = weight of the first j text words.
+    std::vector<double> spoken(n + 1, 0.0), letters(m + 1, 0.0);
+    for (size_t i = 0; i < n; ++i) spoken[i + 1] = spoken[i] + std::max(phonemesPerWord[i], 1);
+    for (size_t j = 0; j < m; ++j) letters[j + 1] = letters[j] + static_cast<double>(SpokenWeight(text, words[j]));
+    // cost[j][k]: the least total mismatch when text word j starts at spoken word k (the words before it
+    // are placed); from[j][k]: where text word j - 1 started in that best case.
+    const double inf = 1e300;
+    std::vector<std::vector<double>> cost(m, std::vector<double>(n, inf));
+    std::vector<std::vector<size_t>> from(m, std::vector<size_t>(n, 0));
+    cost[0][0] = 0;  // the first text word starts at the first spoken word
+    for (size_t j = 1; j < m; ++j) {
+        // Text word j can start at k when j words (at least one spoken word each) come before it and m - j
+        // words (the same) can still follow.
+        for (size_t k = j; k + (m - j) <= n; ++k) {
+            const double mismatch = std::abs(spoken[k] / spoken[n] - letters[j] / letters[m]);
+            for (size_t previous = j - 1; previous < k; ++previous) {
+                if (cost[j - 1][previous] >= inf) continue;
+                const double total = cost[j - 1][previous] + mismatch;
+                if (total < cost[j][k]) {  // (the first of equals wins: the earlier cut)
+                    cost[j][k] = total;
+                    from[j][k] = previous;
+                }
+            }
+        }
+    }
+    // The best place for the last text word, then walk back.
+    size_t best = n;
+    for (size_t k = m - 1; k + 1 <= n; ++k) {
+        if (cost[m - 1][k] < inf && (best == n || cost[m - 1][k] < cost[m - 1][best])) best = k;
+    }
+    if (best == n) return {};
+    std::vector<size_t> first(m, 0);
+    for (size_t j = m - 1; j > 0; --j) {
+        first[j] = best;
+        best = from[j][best];
+    }
+    first[0] = 0;
+    return first;
+}
+
 // The text words of each sentence of `text`. A sentence with no word in it ("...") is left out, as
 // Piper makes no chunk to speak for it.
 std::vector<std::vector<TextRange>> SentenceWords(const std::string& text) {
@@ -233,10 +287,24 @@ std::vector<TextRange> SpokenWordRanges(const std::string& stretchText, size_t s
     // The usual case: every spoken word is a text word.
     if (words.size() == out.size()) return words;
 
-    // Else by proportion: a spoken word lands on the text word that holds the middle of its share of
-    // the sentence's phonemes, measured against the share of the sentence's letters. Monotonic, so
-    // the highlight never goes back; several spoken words may share one text word ("2024" said as
-    // "twenty twenty four"), and a text word may be skipped.
+    // More spoken words than text words (a number said as several words, "3.5" as "three point five"): every
+    // text word gets at least one of them, so the mark never skips a word.
+    if (out.size() > words.size()) {
+        const std::vector<size_t> firstSpoken = GroupSpokenWords(stretchText, words, phonemesPerWord);
+        if (!firstSpoken.empty()) {
+            for (size_t j = 0; j < words.size(); ++j) {
+                const size_t end = j + 1 < words.size() ? firstSpoken[j + 1] : out.size();
+                for (size_t i = firstSpoken[j]; i < end; ++i) out[i] = words[j];
+            }
+            return out;
+        }
+    }
+
+    // Else (fewer spoken words than text words: espeak-ng, so Piper, says two words as one after an ellipsis
+    // or when it joins them) by proportion: a spoken word lands on the text word that holds the middle of its
+    // share of the sentence's phonemes, measured against the share of the sentence's letters. Monotonic, so
+    // the highlight never goes back; a text word may be skipped, as the fused words have only one sound.
+    // (The grouping above is the same idea for the opposite case, but it can promise every text word a turn.)
     double totalPhonemes = 0;
     for (int p : phonemesPerWord) totalPhonemes += std::max(p, 1);
     std::vector<double> letters;  // the spoken length of each text word, in letters (at least 1)
@@ -411,3 +479,27 @@ std::vector<Rect> ReadAlongTrack::Bars(const std::optional<HeardWord>& heard, in
     for (const Rect& box : Words(heard)) bars.push_back(UnderlineBar(box, thickness, gap));
     return bars;
 }
+
+// ------------------------------------------------------------ the click-through layer ---
+
+bool ReadAlongLayerWanted(const ReadAlongLayerFacts& f) {
+    return f.styleReadAlong && f.settingReadAlong && f.lexiaOn && !f.quitting && f.haveWindow &&
+           f.trackHasReadings && f.anyReadingActive;
+}
+
+bool EndsReadAlongLayer(ReadAlongLayerEvent event, bool nowOn) {
+    switch (event) {
+    case ReadAlongLayerEvent::Stop:
+    case ReadAlongLayerEvent::Quit:
+    case ReadAlongLayerEvent::RunEnded:
+    case ReadAlongLayerEvent::NewSession:
+    case ReadAlongLayerEvent::NewLayer:
+        return true;
+    case ReadAlongLayerEvent::LexiaSwitched:
+    case ReadAlongLayerEvent::ReadAlongSwitched:
+        return !nowOn;
+    }
+    return false;  // (an event this function does not know does not end the layer)
+}
+
+bool KeepLayerOnEndedMessage(bool layerEnded) { return !layerEnded; }

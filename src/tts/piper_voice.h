@@ -10,15 +10,26 @@
 #include "tts/speech_chunk.h"
 #include "tts/voice_controls.h"
 
+// Where the app keeps the patched copies of Voice models: `%LOCALAPPDATA%\Lexia\aligned` (empty if there is no
+// %LOCALAPPDATA%, so no copies). RemoveVoice's caller deletes a Voice's copies from here too.
+std::filesystem::path DefaultAlignedDir();
+
 class PiperVoice {
 public:
     // `model` is the Voice's .onnx file; its config is "<model>.json" beside it. `espeakData`
     // is the espeak-ng-data folder. nullptr and a line in `error` (if given) when a file is
     // missing or unreadable. Loading takes a moment, so do it off the UI thread.
     // Free all Voices together: libpiper shuts espeak-ng down when any one of them is freed.
+    //
+    // Phoneme timings (onnx_alignment.h): a model without the alignment output is loaded from a patched copy in
+    // `alignedDir` (made on the first load, which takes a moment more; the Voice's name stays the original's).
+    // If the copy cannot be made or loaded, the original is loaded and speech works, only without word marks
+    // (logged once per Voice, no text). An empty `alignedDir` means no copy. The default is
+    // DefaultAlignedDir(); a test passes a folder of its own.
     static std::unique_ptr<PiperVoice> Load(const std::filesystem::path& model,
                                             const std::filesystem::path& espeakData,
-                                            std::string* error = nullptr);
+                                            std::string* error = nullptr,
+                                            const std::filesystem::path& alignedDir = DefaultAlignedDir());
     ~PiperVoice();
     PiperVoice(const PiperVoice&) = delete;
     PiperVoice& operator=(const PiperVoice&) = delete;

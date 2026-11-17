@@ -3,6 +3,7 @@
 // UTF-8 escapes so the test does not depend on how the editor saved it.
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -778,4 +779,110 @@ TEST_CASE("Read-along: AnyActive is false after Clear, whatever the queue says")
     CHECK(track.AnyActive(always));
     track.Clear();
     CHECK_FALSE(track.AnyActive(always));
+}
+
+
+TEST_CASE("Read-along: more spoken words than text words give every text word a turn") {
+    // "In 2024 the old mill" as Piper says it: in, two, thousand, and, twenty, four, the, old, mill. A walk by
+    // the middle of each spoken word skipped "old"; the grouping puts one text word on each run of words.
+    const std::string text = "In 2024 the old mill";
+    const std::vector<TextRange> r = SpokenWordRanges(text, 0, {2, 4, 8, 2, 7, 4, 3, 5, 4});
+    REQUIRE(r.size() == 9);
+    // Which spoken word starts the next text word is an estimate from the phoneme and letter shares, so only the
+    // order and the coverage are exact: every text word is marked, in order, the first one first and the last one last.
+    Words distinct;
+    for (const std::string& w : Cuts(text, r)) {
+        if (distinct.empty() || distinct.back() != w) distinct.push_back(w);
+    }
+    CHECK(distinct == Words{"In", "2024", "the", "old", "mill"});
+}
+
+TEST_CASE("Read-along: with more spoken words than text words no text word is skipped and none goes back") {
+    const std::string text = "A short text, with 12 words in it; and some more.";
+    const size_t textWords = 11;  // A short text with 12 words in it and some more: one sentence ("it;" does not end one)
+    for (size_t spoken = textWords + 1; spoken < 40; ++spoken) {
+        // Uneven phoneme counts: one long spoken word (a number), the others short.
+        std::vector<int> counts(spoken, 3);
+        counts[spoken / 2] = 9;
+        const std::vector<TextRange> r = SpokenWordRanges(text, 0, counts);
+        REQUIRE(r.size() == spoken);
+        // The distinct text words in the order they are marked: each starts where the one before it ended or later,
+        // and, counted by their start, they are all the words of the sentence.
+        std::vector<TextRange> distinct;
+        for (const TextRange& x : r) {
+            if (distinct.empty() || x.start != distinct.back().start) distinct.push_back(x);
+        }
+        CHECK(distinct.size() == textWords);  // no text word was skipped
+        for (size_t i = 1; i < distinct.size(); ++i) CHECK(distinct[i].start > distinct[i - 1].start);  // none went back
+        CHECK(Cut(text, r.front()) == "A");
+        CHECK(Cut(text, r.back()) == "more");
+    }
+}
+
+TEST_CASE("Read-along: four spoken words on three text words skip none") {
+    const std::string text = "alpha beta gamma";
+    const Words heard = Cuts(text, SpokenWordRanges(text, 0, {4, 4, 2, 2}));
+    REQUIRE(heard.size() == 4);
+    CHECK(heard.front() == "alpha");
+    CHECK(heard.back() == "gamma");
+    // "beta" is heard: the second text word has a spoken word of its own.
+    CHECK(std::count(heard.begin(), heard.end(), std::string("beta")) >= 1);
+}
+
+// ------------------------------------------------------- the click-through layer's rules ---
+
+namespace {
+
+// Facts for which the layer is wanted; a test turns one off.
+ReadAlongLayerFacts AllTrue() {
+    ReadAlongLayerFacts f;
+    f.styleReadAlong = f.settingReadAlong = f.lexiaOn = f.haveWindow = f.trackHasReadings = f.anyReadingActive = true;
+    f.quitting = false;
+    return f;
+}
+
+}  // namespace
+
+TEST_CASE("Read-along layer: it is wanted only when every condition holds") {
+    CHECK(ReadAlongLayerWanted(AllTrue()));
+    struct Case {
+        const char* what;
+        void (*spoil)(ReadAlongLayerFacts&);
+    };
+    const Case cases[] = {
+        {"the Session was run without Read-along", [](ReadAlongLayerFacts& f) { f.styleReadAlong = false; }},
+        {"the setting was turned off during the Session", [](ReadAlongLayerFacts& f) { f.settingReadAlong = false; }},
+        {"Lexia is Off", [](ReadAlongLayerFacts& f) { f.lexiaOn = false; }},
+        {"Lexia is quitting", [](ReadAlongLayerFacts& f) { f.quitting = true; }},
+        {"there is no window to post to", [](ReadAlongLayerFacts& f) { f.haveWindow = false; }},
+        {"nothing was Picked", [](ReadAlongLayerFacts& f) { f.trackHasReadings = false; }},
+        {"every Reading is done", [](ReadAlongLayerFacts& f) { f.anyReadingActive = false; }},
+    };
+    for (const Case& c : cases) {
+        ReadAlongLayerFacts f = AllTrue();
+        c.spoil(f);
+        CHECK_MESSAGE(!ReadAlongLayerWanted(f), c.what);
+    }
+    CHECK_FALSE(ReadAlongLayerWanted(ReadAlongLayerFacts{}));  // no fact true: not wanted
+}
+
+TEST_CASE("Read-along layer: which events end it") {
+    // These end it whatever the flag says.
+    for (const ReadAlongLayerEvent e : {ReadAlongLayerEvent::Stop, ReadAlongLayerEvent::Quit, ReadAlongLayerEvent::RunEnded,
+                                        ReadAlongLayerEvent::NewSession, ReadAlongLayerEvent::NewLayer}) {
+        CHECK(EndsReadAlongLayer(e));
+        CHECK(EndsReadAlongLayer(e, true));
+        CHECK(EndsReadAlongLayer(e, false));
+    }
+    // Turning Lexia Off ends it; turning it On does not.
+    CHECK(EndsReadAlongLayer(ReadAlongLayerEvent::LexiaSwitched, false));
+    CHECK_FALSE(EndsReadAlongLayer(ReadAlongLayerEvent::LexiaSwitched, true));
+    // The Read-along setting turned off (the page or settings.json) ends it; turned on does not.
+    CHECK(EndsReadAlongLayer(ReadAlongLayerEvent::ReadAlongSwitched, false));
+    CHECK_FALSE(EndsReadAlongLayer(ReadAlongLayerEvent::ReadAlongSwitched, true));
+}
+
+TEST_CASE("Read-along layer: a posted 'ended' message deletes only a layer that has ended") {
+    CHECK(KeepLayerOnEndedMessage(false));  // a newer layer that runs: the stale message leaves it alone
+    CHECK_FALSE(KeepLayerOnEndedMessage(true));
 }

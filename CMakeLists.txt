@@ -148,6 +148,7 @@ add_library(lexia_core STATIC
     src/settings.cpp
     src/tray_menu.cpp
     src/tts/md5.cpp
+    src/tts/onnx_alignment.cpp
     src/tts/speech_chunk.cpp
     src/tts/piper_voice.cpp
     src/tts/pitch_shift.cpp
@@ -379,6 +380,24 @@ set_target_properties(lexia_layer_test PROPERTIES
 add_custom_command(TARGET lexia_layer_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_layer_test> "$<TARGET_FILE_DIR:lexia_layer_test>"
     COMMAND_EXPAND_LISTS)
+# A check of the read-along against REAL Piper Voices (tests/read_along_voice_main.cpp): the shipped English Voices of
+# the dev voices\ folder speak hard Blocks through SpeakStretches and the ReadingQueue, and the heard words must agree
+# with the text. ctest read_along_voice runs it; it skips (exit 0, says why) when no Voice can be loaded. Own output
+# folder (piper.dll, ONNX Runtime and SoundTouch come beside it, as for lexia_cli). The Voice folders are dev paths,
+# known only to this test (as for lexia_cli).
+add_executable(lexia_voice_test tests/read_along_voice_main.cpp)
+target_link_libraries(lexia_voice_test PRIVATE lexia_core nlohmann_json::nlohmann_json)
+target_compile_definitions(lexia_voice_test PRIVATE LEXIA_DEV_VOICES_DIR="${CMAKE_SOURCE_DIR}/voices"
+    LEXIA_DEV_ESPEAK_DATA_DIR="${ESPEAK_DATA_DIR}")
+set_target_properties(lexia_voice_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/voice_test"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/voice_test/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/voice_test/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/voice_test/RelWithDebInfo"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/voice_test/MinSizeRel")
+add_custom_command(TARGET lexia_voice_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:lexia_voice_test> "$<TARGET_FILE_DIR:lexia_voice_test>"
+    COMMAND_EXPAND_LISTS)
 # ------------------------------------------------------------------- tests ---
 # Unit tests (doctest) for the pure logic in lexia_core. Run with
 #   ctest --test-dir build -C Release --output-on-failure
@@ -401,6 +420,7 @@ add_executable(lexia_tests
     tests/layout_test.cpp
     tests/lookalike_test.cpp
     tests/md5_test.cpp
+    tests/onnx_alignment_test.cpp
     tests/mouse_role_test.cpp
     tests/palette_test.cpp
     tests/native_ui_access_test.cpp
@@ -464,6 +484,8 @@ add_test(NAME settingsshot_smoke
 
 # The UI Automation tree of the real Settings window, from a client (tests/uia_tree_main.cpp). Skips with exit 0
 # and a message when the session has no interactive desktop (a service).
+add_test(NAME read_along_voice COMMAND lexia_voice_test)
+set_tests_properties(read_along_voice PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP read_along_voice" TIMEOUT 300)
 add_test(NAME read_along_layer COMMAND lexia_layer_test)
 set_tests_properties(read_along_layer PROPERTIES TIMEOUT 60)
 add_test(NAME uia_tree COMMAND lexia_uia_test)
@@ -475,7 +497,7 @@ set_tests_properties(uia_tree PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP uia_tree"
 # Lexia's own targets get /WX, not the vcpkg ports.
 option(LEXIA_WARNINGS_AS_ERRORS "Treat compiler warnings in Lexia's own targets as errors" OFF)
 if(LEXIA_WARNINGS_AS_ERRORS)
-    foreach(target lexia_core lexia_net lexia lexia_cli lexia_tests lexia_uia_test lexia_layer_test)
+    foreach(target lexia_core lexia_net lexia lexia_cli lexia_tests lexia_uia_test lexia_layer_test lexia_voice_test)
         target_compile_options(${target} PRIVATE /WX)
     endforeach()
     # Linker warnings too (e.g. LNK4098 conflicting default libs). lexia_core is a static

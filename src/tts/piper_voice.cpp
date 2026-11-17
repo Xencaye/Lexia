@@ -4,11 +4,14 @@
 
 #include <piper.h>
 
+#include <chrono>
 #include <exception>
+#include <set>
 #include <vector>
 
 #include "common.h"
 #include "log.h"
+#include "tts/onnx_alignment.h"
 #include "tts/pitch_shift.h"
 #include "tts/voice_library.h"
 
@@ -53,11 +56,51 @@ struct PiperVoice::Impl {
 PiperVoice::PiperVoice(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 PiperVoice::~PiperVoice() = default;
 
+fs::path DefaultAlignedDir() { return AlignedDirIn(LexiaDataDir()); }
+
+namespace {
+
+// Creates the synthesiser for a model file and its config ("<model>.json"). nullptr and `why` when a path cannot
+// be handed to libpiper, or libpiper refuses the files (it throws on a corrupt model or config).
+piper_synthesizer* CreateSynth(const fs::path& model, const fs::path& espeakData, std::string* why) {
+    const fs::path config = model.wstring() + L".json";
+    const std::string modelA = NarrowPath(model);
+    const std::string configA = NarrowPath(config);
+    const std::string dataA = NarrowPath(espeakData);
+    if (modelA.empty() || configA.empty() || dataA.empty()) {
+        *why = "The Voice's path cannot be handed to Piper (not in the ANSI code page, and no 8.3 short name): " +
+               model.u8string();
+        return nullptr;
+    }
+    try {
+        piper_synthesizer* synth = piper_create(modelA.c_str(), configA.c_str(), dataA.c_str());
+        if (!synth) *why = "Could not load the Voice " + model.filename().u8string();
+        return synth;
+    } catch (const std::exception& e) {
+        *why = std::string("Could not load the Voice: ") + e.what();
+        return nullptr;
+    }
+}
+
+// Names of the Voices whose aligned copy failed: the reason is logged once per Voice per run, not at every
+// load (a Voice is loaded again after each change of the Voice list). Speech thread only, like the Voices.
+std::set<std::string>& AlignedWarned() {
+    static std::set<std::string> warned;
+    return warned;
+}
+
+}  // namespace
+
 // Loads <name>.onnx with its <name>.onnx.json beside it; espeakData is the espeak-ng-data folder that
 // turns text into phonemes. nullptr and *error on failure. The Voice's name is the file name without
-// ".onnx".
+// ".onnx" (of the original file, also when a patched copy is what is loaded).
+//
+// Word timings: a model without the alignment output is replaced by a patched copy (EnsureAlignedCopy). The
+// copy is only a help: when it cannot be made (no %LOCALAPPDATA%, a full disk, a model the patch does not fit)
+// or libpiper refuses it, the original is loaded, so the person always hears the Voice. The log says that the
+// copy was made and how long it took (the first load of a Voice pays for it), or why it was not.
 std::unique_ptr<PiperVoice> PiperVoice::Load(const fs::path& model, const fs::path& espeakData,
-                                             std::string* error) {
+                                             std::string* error, const fs::path& alignedDir) {
     auto fail = [&](const std::string& why) {
         if (error) *error = why;
         return std::unique_ptr<PiperVoice>();
@@ -68,23 +111,35 @@ std::unique_ptr<PiperVoice> PiperVoice::Load(const fs::path& model, const fs::pa
     if (!fs::is_regular_file(config, ec)) return fail("Voice config not found: " + config.u8string());
     if (!fs::is_directory(espeakData, ec)) return fail("espeak-ng-data not found: " + espeakData.u8string());
 
-    const std::string modelA = NarrowPath(model);
-    const std::string configA = NarrowPath(config);
-    const std::string dataA = NarrowPath(espeakData);
-    if (modelA.empty() || configA.empty() || dataA.empty()) {
-        return fail("The Voice's path cannot be handed to Piper (not in the ANSI code page, and no 8.3 short name): " +
-                    model.u8string());
-    }
+    const std::string name = model.stem().u8string();
     piper_synthesizer* synth = nullptr;
-    try {  // libpiper throws on a corrupt model or config
-        synth = piper_create(modelA.c_str(), configA.c_str(), dataA.c_str());
-    } catch (const std::exception& e) {
-        return fail(std::string("Could not load the Voice: ") + e.what());
+    std::string why;
+    if (!alignedDir.empty()) {
+        const auto started = std::chrono::steady_clock::now();
+        const AlignedCopy copy = EnsureAlignedCopy(model, alignedDir);
+        if (!copy.model.empty()) {
+            if (copy.created) {
+                const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
+                LogInfo("[voice] Made the aligned copy of the Voice ", name, " (word timings for the read-along) in ", ms.count(), " ms.");
+            }
+            std::string copyWhy;
+            synth = CreateSynth(copy.model, espeakData, &copyWhy);
+            if (!synth) {
+                // A copy libpiper refuses (damaged on disk, say) is deleted, so the next start makes a new one.
+                RemoveAlignedCopies(alignedDir, name);
+                if (AlignedWarned().insert(name).second) {
+                    LogWarn("[voice] The aligned copy of the Voice ", name, " could not be loaded, so the original is used: ", copyWhy);
+                }
+            }
+        } else if (!copy.alreadyAligned && AlignedWarned().insert(name).second) {
+            LogWarn("[voice] No aligned copy of the Voice ", name, ", so it speaks without word timings (no read-along mark): ", copy.why);
+        }
     }
-    if (!synth) return fail("Could not load the Voice " + model.filename().u8string());
+    if (!synth) synth = CreateSynth(model, espeakData, &why);
+    if (!synth) return fail(why);
     auto impl = std::make_unique<Impl>();
     impl->synth = synth;
-    impl->name = model.stem().u8string();
+    impl->name = name;
     return std::unique_ptr<PiperVoice>(new PiperVoice(std::move(impl)));
 }
 
@@ -125,8 +180,9 @@ SynthResult PiperVoice::Synthesize(const std::string& utf8, const VoiceControls&
             out.isLast = c.is_last;
             if (controls.pitch != 0.f) out.samples = ShiftPitch(out.samples, out.sampleRate, controls.pitch);
             if (controls.volume != 1.f) ApplyVolume(out.samples, controls.volume);
+            // libpiper keeps the phonemes of earlier sentences in `phonemes`: keep this chunk's own (OwnPhonemes).
             if (c.phonemes && c.alignments) {
-                out.phonemes = PhonemeTimings(std::vector<char32_t>(c.phonemes, c.phonemes + c.num_phonemes),
+                out.phonemes = PhonemeTimings(OwnPhonemes(std::vector<char32_t>(c.phonemes, c.phonemes + c.num_phonemes), c.num_phoneme_ids),
                                               std::vector<int>(c.alignments, c.alignments + c.num_alignments));
             }
             if (!onChunk(out)) return SynthResult::Cancelled;

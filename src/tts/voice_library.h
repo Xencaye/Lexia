@@ -180,4 +180,8 @@ const InstalledVoice* PickVoice(const std::vector<InstalledVoice>& installed, co
 // CannotWrite when a file could not be deleted (e.g. it is in use). A Voice with only one of its
 // two files is removed too. `voiceName` of the result is `name`. The caller decides which Voices
 // may be removed (shipped ones are not in the user's folder, and never reach here).
-VoiceOutcome RemoveVoice(const std::filesystem::path& userVoicesDir, std::string_view name);
+// `alignedDir` (onnx_alignment.h; empty = none): the Voice's patched copies there are deleted too, after the two
+// files, best effort (a copy that cannot go is only a leftover file; it never makes the delete fail). The caller
+// has let go of the Voice first (Speaker::ReleaseVoices), as it holds the copy open.
+VoiceOutcome RemoveVoice(const std::filesystem::path& userVoicesDir, std::string_view name,
+                        const std::filesystem::path& alignedDir = std::filesystem::path());
