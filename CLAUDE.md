@@ -51,9 +51,11 @@ LLVM's (`C:\Program Files\LLVM\bin`, must be on PATH).
 Piper is not fetched: the first build clones piper1-gpl and espeak-ng at pinned commits and builds `piper.dll` into
 `build\lp_install` (CMake `libpiper_external`; needs the network and a short build path).
 
-**Release:** build Release with `-DLEXIA_INSTALLER=ON`, get a clear run (How work runs, step 4), copy
-`build\package\Lexia-<v>-setup.exe` and `Lexia.zip` (as `Lexia-<v>-portable.zip`) to `release\<v>\` (git-ignored),
-tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
+**Release:** on the version branch `release/<v>`, build Release with `-DLEXIA_INSTALLER=ON` and get a clear run (How
+work runs, step 4). The owner merges `release/<v>` into `main` (one PR). On `main`: build again, copy
+`build\package\Lexia-<v>-setup.exe` and `Lexia.zip` (as `Lexia-<v>-portable.zip`) to the folder `release\<v>\`
+(git-ignored; not the branch), tag `v<v>`. Then make the next version branch from `main` and raise the version in
+`vcpkg.json` on it.
 
 ## Running Lexia
 
@@ -175,13 +177,19 @@ under `src/` updates its row in the same change.
 
 ## How work runs
 
-One task per branch (`feat/<task-id>`, from `main`), one task per PR. Every task takes these steps, in order.
+**Branches** (owner, Nov 19). Each version has a **version branch** `release/<major>.<minor>` (now `release/0.7`),
+made from `main`; `main` changes only when the owner merges a version branch into it at a release (one PR). One task
+per branch (`feat/<task-id>`, from the version branch), one task per PR, and the PR targets the version branch. A fix
+for a review finding outside the task goes on the version branch, not on the task branch. CI runs on pushes to
+`main` and `release/**`; `check_docs.ps1` finds the version branch itself (`-Base` to name another).
+
+Every task takes these steps, in order.
 
 **Roles.** The **overseer** is the main session: Opus 5.5 at high effort. It plans, splits the task, briefs and
 reviews the builders, owns the clear run, commits and reports. If the session runs another model, tell the owner
 before work starts. **Builders** are Sonnet 5.5 subagents (`Agent` with `model: "sonnet"`): `effort: "high"` to write
 or fix code, `effort: "medium"` for searches; the docs review is its own agent (step 5). Parallel builders get `isolation: "worktree"` and
-first reset to the task branch tip (a worktree starts from `main`). A builder brief holds the task id, the files, the
+first reset to the task branch tip (a worktree starts from `main`, not from the version branch). A builder brief holds the task id, the files, the
 done-when, the rules of this file that bear on it (clangd, comments, `strings/`, British English, the Security
 section) and what to report. Builders do not see the owner's memory: put every owner rule a builder needs in the brief.
 
@@ -196,7 +204,7 @@ section) and what to report. Builders do not see the owner's memory: put every o
    it itself: a builder's "it passes" does not count. **Docs only:** when the change touches only Markdown files
    (`*.md`), one full run is `.\scripts\check_docs.ps1` alone.
 5. **Docs review**: run the agent `docs-reviewer` (`.claude/agents/docs-reviewer.md`: Sonnet 5.5, medium effort, a
-   fresh context; it holds the list of documents) with the task's base branch. It fixes each stale line in the docs,
+   fresh context; it holds the list of documents) with the version branch as the base. It fixes each stale line in the docs,
    and reports each document of its list by name, plus the items it leaves to the overseer (code, `strings/`, the
    installer, a licence question). The overseer deals with each of those items. If a file changed, do step 4 again.
 6. **Commit and report** (overseer): commit on the task branch when the run is clear (a push needs the owner's yes).
@@ -211,7 +219,7 @@ The plan, `docs/Lexia — Code Review & Agent Plan.md`, is the source: task ids,
 the same.
 
 - **Released:** the last release is Lexia 0.6.2 (tags `v0.5.0` to `v0.6.2`; files in `release\<v>\`, git-ignored).
-- **Now:** Lexia 0.7 (`vcpkg.json` says 0.7.0). Done: A6, B9–B13, G3, L0–L3, L5, L6. Open: L4 (new pixel-font
+- **Now:** Lexia 0.7 (`vcpkg.json` says 0.7.0) on the version branch `release/0.7`. Done: A6, B9–B13, G3, L0–L3, L5, L6. Open: L4 (new pixel-font
   Fixtures from the owner's screenshots). Owner decisions: the shipped Voices (the old Cori, the default, and Norman)
   are final; the Download sheet's list grows by one row per Voice (`docs/notes/voice-download-list.md`).
 - **Open, the owner's:** the by-hand checks in the plan (also L7, the game-font recogniser), D7 (the tutorial video),

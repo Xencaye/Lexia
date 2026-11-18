@@ -14,7 +14,7 @@ On-screen wording follows the glossary.
   0.6.0 one still described the console prototype). **Lexia 0.6.2** (Nov 8, tag `v0.6.2`, made from `v0.6.1`, files
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
-- **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
+- **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12). The work goes on the version branch `release/0.7` (owner, Nov 19: one version branch per version, merged into `main` at its release; CLAUDE.md, "How work runs").
   Done for 0.7: B10, new Voices instead of B8's Cori and Mike of `cf910fb`, and the Download sheet's catalogue at
   commit `cf910fb`; B13 (owner, Nov 17), the shipped Voices are the old Cori Medium of Bryce Beattie (the default;
   `rhasspy/piper-voices` commit `5041a7a`) and Norman, and ljspeech stops shipping (an update keeps it as the user's

@@ -2,6 +2,8 @@
 
 ## How it was verified
 
+- [ ] The PR targets the version branch (`release/<v>`); only a release PR targets `main`
+
 - [ ] Release build with 0 warnings
 - [ ] `ctest` passes
 - [ ] `.\scripts\score_layout.ps1` (no Fixture worse; before / after numbers for a layout change)

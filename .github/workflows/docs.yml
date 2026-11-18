@@ -9,7 +9,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
-    branches: [main]
+    branches: [main, 'release/**']   # main and the version branches (CLAUDE.md, Branches)
   workflow_dispatch:
 
 concurrency:
@@ -27,7 +27,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      # Full history, so the script can find the merge base with main.
+      # Full history, so the script can find the merge base with the PR's base branch.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
