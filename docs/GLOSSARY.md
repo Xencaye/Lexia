@@ -255,7 +255,7 @@ Lexia has no quit key; quitting is done from the tray menu. Closing the Settings
 
 Lexia uses British English everywhere: the UI words (`strings/table_en.cpp`: "minimise", "analyses", "colours"), the
 installer, this glossary and the other docs. Code identifiers and file keys that come from other APIs or older files
-keep their spelling (`SC_MINIMIZE`, `hoverColor` in settings.json).
+keep their spelling (`SC_MINIMIZE`, `RecognizeBlocks`).
 
 ## Testing
 

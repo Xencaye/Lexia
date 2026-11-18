@@ -25,7 +25,9 @@
 #include "layout.h"
 #include "log.h"
 #include "overlay.h"
+#include "overlay_highlight.h"
 #include "recognize.h"
+#include "win32_geom.h"
 #include "version.h"
 #include "strings/string_ids.h"
 #include "strings/strings.h"
@@ -959,8 +961,10 @@ void App::OpenOverlay() {
     LogInfo("\n[overlay on monitor at ", shot.ox, ",", shot.oy, "  ", shot.w, "x", shot.h, "]");
 
     OverlayStyle style;
-    style.hoverColor = settings_.hoverColor;
-    style.pickedColor = settings_.pickedColor;
+    // G3: the Overlay's marks and the read-along bar are Lexia's accent. "Dark" is decided as for the Settings
+    // window and the Control bar (the theme setting, "system" = Windows' app mode: IsDarkTheme), once per
+    // Session; the layer after the Session gets the same colour.
+    style.accent = ToColorRef(overlay_highlight::AccentRgb(IsDarkTheme(settings_.theme, SystemUsesLightTheme())));
     style.pauseKey = settings_.pause.IsBound() ? settings_.pause.text : std::string();  // "" = no key: the tooltip shows the word
     style.speechKey = settings_.speech.IsBound() ? settings_.speech.text : std::string();
     style.interfaceLanguage = settings_.interfaceLanguage;
@@ -1017,14 +1021,15 @@ void App::OpenOverlay() {
     // Read-along on (G2): if a Reading of this Session is still being read, a
     // click-through layer goes on drawing the bar under the heard word. The Control bar does not stay.
     // StartReadAlongLayer asks ReadAlongLayerWanted (the setting, On, Quit, the Readings still queued).
-    StartReadAlongLayer(mon, std::move(result.track), style.readAlong);
+    StartReadAlongLayer(mon, std::move(result.track), style.readAlong, style.accent);
 }
 
 // Starts the read-along layer over monitor `mon` for the Readings of `track`, if ReadAlongLayerWanted says
 // so (read_along.h: the Session was run with the setting on and it is on now, Lexia is On and not quitting,
 // and a Reading of the track is still in the Reading queue). At most one layer exists: a new one replaces
-// the old.
-void App::StartReadAlongLayer(const RECT& mon, ReadAlongTrack track, bool styleReadAlong) {
+// the old. `accent` is the Session's own bar colour (OverlayStyle::accent), so the bar does not change colour
+// when the Overlay ends.
+void App::StartReadAlongLayer(const RECT& mon, ReadAlongTrack track, bool styleReadAlong, COLORREF accent) {
     EndReadAlongLayerFor(ReadAlongLayerEvent::NewLayer);
     auto isActive = [this](uint64_t id) { return speaker_.HasReading(id); };
     ReadAlongLayerFacts facts;
@@ -1039,7 +1044,7 @@ void App::StartReadAlongLayer(const RECT& mon, ReadAlongTrack track, bool styleR
 
     ReadAlongLayerConfig cfg;
     cfg.monitor = mon;
-    cfg.color = settings_.hoverColor;  // the colour of the Session's own read-along bar
+    cfg.color = accent;  // the colour of the Session's own read-along bar
     cfg.title = Utf8ToWide(strings::Text(settings_.interfaceLanguage, strings::id::kReadAlongLayerName));
     cfg.track = std::move(track);
     cfg.heardWord = [this]() { return speaker_.HeardWordNow(); };

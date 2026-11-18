@@ -135,6 +135,7 @@ add_library(lexia_core STATIC
     src/native_ui/widget.cpp
     src/native_ui/window_hit.cpp
     src/ocr.cpp
+    src/overlay_highlight.cpp
     src/read_along.cpp
     src/recognize.cpp
     src/score.cpp
@@ -260,7 +261,7 @@ set_target_properties(lexia PROPERTIES WIN32_EXECUTABLE TRUE)
 target_link_libraries(lexia PRIVATE
     lexia_core lexia_net
     opencv_core opencv_imgproc
-    user32 gdi32 gdiplus ole32 uuid winmm dwmapi shcore advapi32 shell32 d2d1 d3d11 dxgi dwrite windowscodecs shlwapi uiautomationcore oleaut32)
+    user32 gdi32 msimg32 gdiplus ole32 uuid winmm dwmapi shcore advapi32 shell32 d2d1 d3d11 dxgi dwrite windowscodecs shlwapi uiautomationcore oleaut32)
 
 # Speech data next to the dev exe too (the package step copies it again, selectively)
 add_custom_command(TARGET lexia POST_BUILD
@@ -424,6 +425,7 @@ add_executable(lexia_tests
     tests/onnx_alignment_test.cpp
     tests/mouse_role_test.cpp
     tests/palette_test.cpp
+    tests/overlay_highlight_test.cpp
     tests/native_ui_access_test.cpp
     tests/native_ui_animation_test.cpp
     tests/native_ui_controls_test.cpp

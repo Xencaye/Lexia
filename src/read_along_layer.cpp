@@ -5,6 +5,7 @@
 
 #include "control_bar_layout.h"  // ScaleForDpi
 #include "log.h"
+#include "overlay_highlight.h"  // the bar's thickness and gap, the same as in the Overlay
 
 namespace {
 
@@ -24,7 +25,7 @@ struct ReadAlongLayer::Impl {
     HGDIOBJ dibOld = nullptr;
     uint32_t* bits = nullptr;  // w * h premultiplied BGRA pixels, top-down, all 0 = transparent
     int w = 0, h = 0;
-    int thickness = 3, gap = 1;       // px, scaled for the monitor's DPI (as the Overlay's bars)
+    int thickness = 3, gap = 0;       // px, thickness scaled for the monitor's DPI (as the Overlay's bars)
     uint32_t barPixel = 0xFF000000u;  // the colour as an opaque premultiplied pixel
     std::vector<Rect> drawn;          // the bars that are in the picture now (clipped, layer coordinates)
     bool ended = false;
@@ -101,8 +102,8 @@ bool ReadAlongLayer::Impl::Make(ReadAlongLayerConfig config) {
         return false;
     }
     const int dpi = std::max(96, static_cast<int>(GetDpiForWindow(hwnd)));
-    thickness = ScaleForDpi(3, dpi);
-    gap = ScaleForDpi(1, dpi);
+    thickness = ScaleForDpi(overlay_highlight::kBarThickness, dpi);
+    gap = overlay_highlight::kBarGap;  // 0: the bar touches the bottom of the word's line box, as in the Overlay
     barPixel = 0xFF000000u | (static_cast<uint32_t>(GetRValue(cfg.color)) << 16) |
                (static_cast<uint32_t>(GetGValue(cfg.color)) << 8) | static_cast<uint32_t>(GetBValue(cfg.color));
 

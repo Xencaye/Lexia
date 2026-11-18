@@ -65,8 +65,8 @@ struct Settings {
     int speechRate = 0;      // -10 (slow) .. 10 (fast)
     int speechVolume = 100;  // 0 .. 100
 
-    COLORREF hoverColor = RGB(0xFF, 0xC8, 0x00);   // outline of the block under the mouse
-    COLORREF pickedColor = RGB(0x50, 0xC8, 0x78);  // outline of areas already read
+    // (No colours: the Overlay and the read-along bar always use the accent colour of the theme in force
+    // (overlay_highlight.h). An old file's "overlay" object stays in the file, unread.)
 
     ControlBarSettings controlBar;
 
