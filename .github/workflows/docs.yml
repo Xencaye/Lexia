@@ -1,7 +1,7 @@
 name: Docs
 
-# Checks that CLAUDE.md and the plan are up to date (scripts/check_docs.ps1). A separate workflow from
-# ci.yml, so a label change re-runs only this quick job, not the build.
+# Checks that CLAUDE.md, the module map (docs/module-map.md) and the plan are up to date (scripts/check_docs.ps1).
+# A separate workflow from ci.yml, so a label change re-runs only this quick job, not the build.
 # The label "docs-not-needed" on a PR skips the diff checks (a change that needs no plan update);
 # the content checks always run.
 
@@ -32,7 +32,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check CLAUDE.md and the plan
+      - name: Check CLAUDE.md, the module map and the plan
         env:
           IS_PR: ${{ github.event_name == 'pull_request' }}
           SKIP_DIFF: ${{ contains(github.event.pull_request.labels.*.name, 'docs-not-needed') }}

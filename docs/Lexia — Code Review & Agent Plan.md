@@ -40,16 +40,8 @@ On-screen wording follows the glossary.
 
 ## How we work
 
-- One task = one branch (`feat/<task-id>`) = one PR. Stop at the task boundary and summarise: what changed, how it
-  was verified, what the owner must check by hand.
-- Every task has checks an agent can run itself: a Release build with zero warnings, `ctest`, and for layout work
-  `score_layout.ps1` (no Fixture worse than the tolerance).
-- The owner is the eyes and ears: anything visual, audible, or inside a game is on the owner's list.
-- A change that implements or changes a task updates this plan and the "Plan" section of `CLAUDE.md` in the same PR.
-- New and changed code is commented (the why, the non-obvious). C++ is navigated with clangd. Code plans use the
-  Security Guidance plugin and have a Security section.
-- Before each merge: `.\scripts\check_docs.ps1` passes (CI: `.github/workflows/docs.yml`), and the PR template's
-  docs checklist is done.
+The steps of a task (the roles of the overseer and the builders, the clear run, the docs review, the report) are in
+`CLAUDE.md`, section "How work runs", and its Rules. This plan keeps only what is done and what is open.
 
 ## The owner's open checks
 

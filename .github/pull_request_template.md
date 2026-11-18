@@ -10,7 +10,8 @@
 ## Docs (checked before the merge)
 
 - [ ] The plan (`docs/Lexia — Code Review & Agent Plan.md`): task ticked, status, milestones, the owner's by-hand check added
-- [ ] CLAUDE.md: module map, tools and the "Plan" section say the same as the plan
+- [ ] `docs/module-map.md` and CLAUDE.md (tools, the "Plan" section) describe the code as it is now and say the same as the plan
+- [ ] The `docs-reviewer` report names every document of its list; each item it left to the overseer is dealt with
 - [ ] New code has comments (the why, the non-obvious)
 
 ## What the owner must check by hand
