@@ -117,8 +117,9 @@ LRESULT CALLBACK App::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         app->OpenSettingsWindow();
         return 0;
     }
-    if (app && msg == QuitMessage()) {  // the installer (Setup or the uninstaller) asks Lexia to end
-        LogInfo("The installer asked Lexia to quit (Lexia.Quit).");
+    if (app && msg == QuitMessage()) {  // another program (see QuitMessage in instance.h) asks Lexia to end
+        // The sender is not known: Setup, the uninstaller or scripts/close_lexia.ps1 all post the same message.
+        LogInfo("Lexia.Quit received from outside (Setup, the uninstaller or scripts/close_lexia.ps1); quitting.");
         app->Quit();  // the same clean end as the tray's Quit: speech stops, keys are freed, the icon goes
         return 0;
     }
@@ -148,8 +149,9 @@ bool App::CreateMessageWindow() {
     // again") from a program that is not elevated: UIPI drops registered messages unless they are let through.
     // Harmless when Lexia is not elevated.
     ChangeWindowMessageFilterEx(window_, OpenSettingsMessage(), MSGFLT_ALLOW, nullptr);
-    // Lexia.Quit too, so that Setup (not elevated) can close an elevated Lexia. It can only end Lexia cleanly,
-    // which any process of the same user can already do to a non-elevated Lexia; nothing else comes in.
+    // Lexia.Quit too, so that Setup or scripts/close_lexia.ps1 (not elevated) can close an elevated Lexia.
+    // It can only end Lexia cleanly, which any process of the same user can already do to a non-elevated
+    // Lexia; nothing else comes in.
     ChangeWindowMessageFilterEx(window_, QuitMessage(), MSGFLT_ALLOW, nullptr);
     ChangeWindowMessageFilterEx(window_, RegisterWindowMessageW(L"TaskbarCreated"), MSGFLT_ALLOW, nullptr);
     return true;

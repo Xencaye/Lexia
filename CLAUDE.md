@@ -9,6 +9,7 @@ planned for 0.8, Linux on Ubuntu for 1.0 (stream J).
 
 ```powershell
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+.\scripts\close_lexia.ps1                                  # first: ends a running Lexia, also an elevated one (exit 1 = quit it from the tray)
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure      # runs lexia_tests (doctest, tests/) and the tool tests
 .\scripts\score_layout.ps1                                 # Fixture score vs tests\fixtures\baseline.json; exit 1 if any got worse
@@ -197,8 +198,10 @@ section) and what to report. Builders do not see the owner's memory: put every o
 2. **Build** (builders): the code, its tests and its comments.
 3. **Review** (overseer): read every builder diff with clangd and Grep against the Rules. Send each finding back to a
    builder.
-4. **Clear run** (owner, Nov 18). One full run is: a Release build in the owner's tree `build\` (stop a running
-   `lexia.exe` or `lexia_cli.exe` first and say so) with no `warning` line in the output, then `ctest`,
+4. **Clear run** (owner, Nov 18). First run `.\scripts\close_lexia.ps1`: it ends a running `lexia.exe` (also one that
+   runs as administrator, through `Lexia.Quit`) and `lexia_cli.exe`, so the build can write them; say so in the
+   report. If it exits 1, ask the owner to quit Lexia from the tray and wait for the answer before the build (owner,
+   Nov 19). One full run is: a Release build in the owner's tree `build\` with no `warning` line in the output, then `ctest`,
    `.\scripts\score_layout.ps1` and `.\scripts\check_docs.ps1`. Each failure or warning goes to a builder to fix, then
    the full run starts again from the build. The run is **clear** when one full run finds no issue. The overseer runs
    it itself: a builder's "it passes" does not count. **Docs only:** when the change touches only Markdown files

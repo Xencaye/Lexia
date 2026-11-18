@@ -45,7 +45,8 @@
 #define AppName "Lexia"
 #define AppExe "lexia.exe"
 ; The mutex of a running Lexia (src/instance.cpp: Local\Lexia.SingleInstance, the session namespace) and the
-; class of its hidden App window (src/instance.h, kAppWindowClass), which Setup posts Lexia.Quit to.
+; class of its hidden App window (src/instance.h, kAppWindowClass), which Setup (and scripts/close_lexia.ps1
+; before a build) posts Lexia.Quit to.
 #define MutexName "Lexia.SingleInstance"
 #define AppWindowClass "LexiaApp"
 
