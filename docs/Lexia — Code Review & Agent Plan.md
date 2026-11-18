@@ -26,7 +26,11 @@ On-screen wording follows the glossary.
   B12 (owner, Nov 17): the Download sheet offers a short list that the owner picked and that is compiled into Lexia:
   Kristin, John and LJ Speech (all Medium, public domain, `rhasspy/piper-voices` at `cf910fb`). Lexia no longer
   fetches the catalogue. The owner will add more Voices to the list later (B12.4, the labels, waits until a Voice
-  needs one). Cori (the old one) and Norman are the shipped Voices, final.
+  needs one). Cori (the old one) and Norman are the shipped Voices, final. **G3** (owner, Nov 18): the Overlay and the
+  read-along bar are drawn in Lexia's accent colour of the current light or dark mode; a Picked area has a soft
+  see-through accent fill and no frame; the Block under the mouse, a press and the Drag have a see-through accent
+  frame and no fill; the bar touches the line box (no gap). The colour settings (`overlay.hoverColor`,
+  `overlay.pickedColor`) are removed; an old file keeps them, unread.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -91,6 +95,16 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   the bar goes on under the heard word; mouse and keys still reach the game or page; the bar goes when the Reading
   ends, on Stop (Control bar, Speech key triple tap), Off and Quit; it is not in the next Shot; Pause keeps the bar on
   its word. With read-along off nothing stays, and no bar shows on the Overlay.
+- [ ] **G3 Overlay and bar in the accent colour.** In light and in dark mode (Settings window, Dark mode; also
+  Windows' own mode with the theme on "system"): press the Read key. A Block under the mouse has a thin see-through
+  frame in the accent colour (you can read the text through it); press the button on it: the frame stays until you
+  move far enough to make a Drag; a Drag shows the same frame round the area. After the Pick, the area is
+  un-dimmed with a soft accent tint and no frame; a Block you hover that is already Picked keeps its tint. With
+  read-along on, the bar under the heard word is the accent colour and touches the bottom of the line, in the Overlay
+  and in the layer after you leave it, with the same colour. Check in a browser and in Undertale, at 100 % and
+  150 %. Is the frame (2 px, about 60 %) and the tint (about 22 %) easy to see on a busy picture? Tell me if
+  the numbers should change (`overlay_highlight.h`). An old settings.json with `overlay.hoverColor` loads without
+  a note and keeps the keys.
 - [ ] **K9 Settings page.** The page against your mockup (light and dark); hover and Tab over each switch and read the
   card; the read button on a switch's card; turn read-along off while the layer shows: the layer goes; Narrator reads
   a switch as a switch.
@@ -461,7 +475,9 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 - **G — Read-along (0.6):** G1 the Read-along bar on the Overlay (PR #2), G2 the Read-along layer (PR #3); since K9
   one switch, "enable read-along" (`readAlong`, Off by default), controls both. Tests added after 0.6: edge cases of
   the pure core, the heard word and the layer window; `read_along_voice` (real Voices, see R46 to R48); and the rules
-  of the layer as pure functions, `ReadAlongLayerWanted` and `EndsReadAlongLayer`, which `App` asks.
+  of the layer as pure functions, `ReadAlongLayerWanted` and `EndsReadAlongLayer`, which `App` asks. G3 (0.7, owner
+  Nov 18): the Overlay and the read-along bar in the accent colour, see-through marks (`overlay_highlight.*`), the bar
+  with no gap, and the colour settings removed.
 - **H:** H1 version from `vcpkg.json`, H2 licences and notices, H3 optional signing (`docs/signing.md`), H4 Inno Setup
   installer.
 - **I1:** the string table (`strings/`).
@@ -482,7 +498,8 @@ can be scored with `lexia_cli` first if L does not reach its goal.
    (any quality from a file, short Voice names); B9 done
    (an update keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L:
    the fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open);
-   B12 done (the download list: Kristin, John and LJ Speech; the owner extends it later; the owner's check open).
+   B12 done (the download list: Kristin, John and LJ Speech; the owner extends it later; the owner's check open);
+   G3 done (the Overlay and the read-along bar in the accent colour; the owner's check open).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 

@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -97,27 +96,6 @@ bool ParseHotkey(const std::string& text, Hotkey& out) {
     return true;
 }
 
-// ------------------------------------------------------------------- colours ---
-
-static std::string ColorToString(COLORREF c) {
-    char buf[16];
-    std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", GetRValue(c), GetGValue(c), GetBValue(c));
-    return buf;
-}
-
-// "#RRGGBB" or "RRGGBB" -> a COLORREF (which is stored as 0x00BBGGRR). False for anything else.
-static bool ParseColor(std::string s, COLORREF& out) {
-    s = Trim(s);
-    if (!s.empty() && s[0] == '#') s.erase(0, 1);
-    if (s.size() != 6) return false;
-    for (unsigned char c : s) {
-        if (!std::isxdigit(c)) return false;
-    }
-    const unsigned long rgb = std::stoul(s, nullptr, 16);  // 0xRRGGBB, as written in the file
-    out = RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
-    return true;
-}
-
 // ----------------------------------------------------------------- file i/o ---
 
 static json VoiceControlsJson(const std::map<std::string, VoiceControls>& voices);
@@ -160,8 +138,6 @@ static json ToJson(const Settings& s) {
     j["controlBar"] = {{"size", s.controlBar.size == BarSize::Small ? "small" : "large"},
                        {"x", s.controlBar.x},
                        {"y", s.controlBar.y}};
-    j["overlay"] = {{"hoverColor", ColorToString(s.hoverColor)},
-                    {"pickedColor", ColorToString(s.pickedColor)}};
     j["layout"] = {{"paragraphGap", s.layout.paragraphGap},
                    {"columnGap", s.layout.columnGap},
                    {"listLine", s.layout.listLine}};
@@ -374,8 +350,7 @@ bool operator==(const Settings& a, const Settings& b) {
            a.enabled == b.enabled && a.theme == b.theme && a.runAtStartup == b.runAtStartup &&
            a.startMinimised == b.startMinimised && a.runAsAdmin == b.runAsAdmin && a.leftHanded == b.leftHanded && a.readAlong == b.readAlong &&
            a.speechRate == b.speechRate &&
-           a.speechVolume == b.speechVolume && a.hoverColor == b.hoverColor &&
-           a.pickedColor == b.pickedColor && a.layout.paragraphGap == b.layout.paragraphGap &&
+           a.speechVolume == b.speechVolume && a.layout.paragraphGap == b.layout.paragraphGap &&
            a.layout.columnGap == b.layout.columnGap && a.layout.listLine == b.layout.listLine &&
            a.voices == b.voices && a.activeVoices == b.activeVoices && a.adoptedVoices == b.adoptedVoices && a.controlBar.size == b.controlBar.size &&
            a.controlBar.x == b.controlBar.x && a.controlBar.y == b.controlBar.y;
@@ -404,8 +379,6 @@ Settings MergeReloadedSettings(const Settings& inForce, const Settings& lastFile
     keep(&Settings::switchLanguage);
     keep(&Settings::speechRate);
     keep(&Settings::speechVolume);
-    keep(&Settings::hoverColor);
-    keep(&Settings::pickedColor);
     keep(&Settings::voices);
     keep(&Settings::activeVoices);
     keep(&Settings::adoptedVoices);
@@ -582,19 +555,9 @@ Settings ParseSettings(const std::string& jsonText, std::vector<std::string>& no
     boolean("leftHanded", s.leftHanded);
     boolean("readAlong", s.readAlong);
 
-    auto colour = [&](const char* key, COLORREF& dst) {
-        const json* v = Find(j, "overlay", key);
-        if (!v) return;
-        COLORREF c = 0;
-        if (v->is_string() && ParseColor(v->get<std::string>(), c)) {
-            dst = c;
-        } else {
-            notes.push_back(Note("overlay.", key, " must look like \"#FFC800\"; keeping ",
-                                 ColorToString(dst), "."));
-        }
-    };
-    colour("hoverColor", s.hoverColor);
-    colour("pickedColor", s.pickedColor);
+    // An "overlay" object (overlay.hoverColor / overlay.pickedColor of Lexia 0.7 and before) is not read any more:
+    // the Overlay always draws in the accent colour (G3). It is left alone, not even noted, and a save keeps it
+    // in the file (UpdateSettingsText only touches the keys it is given).
 
     // Tuning knobs for the grouping (A4). Whole or fractional numbers, in line heights.
     auto knob = [&](const char* key, double lo, double hi, double& dst) {

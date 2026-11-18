@@ -24,7 +24,9 @@
 
 struct ReadAlongLayerConfig {
     RECT monitor = {};                 // the screen area it covers: the Shot's monitor
-    COLORREF color = RGB(255, 200, 0); // the bars' colour (the Overlay's hover colour, as in the Session)
+    // The bars' colour: Lexia's accent for the theme in force when the Session started, the same as the Overlay's
+    // own bar (OverlayStyle::accent).
+    COLORREF color = RGB(0x6E, 0x50, 0x4A);
     std::wstring title;                // the window's name (strings ReadAlongLayerName); never shown
     ReadAlongTrack track;              // the Session's Readings and their Blocks (Shot coordinates)
     // The word heard now (Speaker::HeardWordNow) and whether a Reading is still in the Reading queue

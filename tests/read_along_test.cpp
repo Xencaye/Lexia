@@ -434,12 +434,16 @@ TEST_CASE("Read-along: the track gives bars for the Readings it knows and no oth
     CHECK(track.Knows(7));
     CHECK_FALSE(track.Knows(9));
 
-    const std::vector<Rect> bars = track.Bars(HeardWord{7, 0, {4, 7}}, 3, 1);
+    // G3: the bar touches the line box (gap 0, what the Overlay and the layer use): it starts at the box bottom.
+    const std::vector<Rect> bars = track.Bars(HeardWord{7, 0, {4, 7}}, 3, 0);
     REQUIRE(bars.size() == 1);
     CHECK(bars[0].left == 40);
     CHECK(bars[0].right == 70);
-    CHECK(bars[0].top == 11);
-    CHECK(bars[0].bottom == 14);
+    CHECK(bars[0].top == 10);  // the Line's bottom
+    CHECK(bars[0].bottom == 13);
+    // The default gap is 0 too; a gap moves the bar down by exactly that much.
+    CHECK(track.Bars(HeardWord{7, 0, {4, 7}}, 3)[0].top == 10);
+    CHECK(track.Bars(HeardWord{7, 0, {4, 7}}, 3, 1)[0].top == 11);
 
     // The second Block of Reading 8.
     const std::vector<Rect> second = track.Words(HeardWord{8, 1, {3, 5}});
