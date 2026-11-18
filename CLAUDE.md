@@ -51,7 +51,7 @@ LLVM's (`C:\Program Files\LLVM\bin`, must be on PATH).
 Piper is not fetched: the first build clones piper1-gpl and espeak-ng at pinned commits and builds `piper.dll` into
 `build\lp_install` (CMake `libpiper_external`; needs the network and a short build path).
 
-**Release:** build Release with `-DLEXIA_INSTALLER=ON`, run `ctest` and `score_layout.ps1`, copy
+**Release:** build Release with `-DLEXIA_INSTALLER=ON`, get a clear run (How work runs, step 4), copy
 `build\package\Lexia-<v>-setup.exe` and `Lexia.zip` (as `Lexia-<v>-portable.zip`) to `release\<v>\` (git-ignored),
 tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
 
@@ -197,9 +197,6 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
 - Zero compiler warnings at `/W4`. Don't silence a warning without a comment saying why.
   CI (`.github/workflows/ci.yml`) builds Release with `-DLEXIA_WARNINGS_AS_ERRORS=ON` (`/WX` on Lexia's own
   targets; OFF by default), runs `ctest` and `score_layout.ps1`. `vcpkg.json` pins `builtin-baseline`: bump it on purpose.
-- **Test until clear** (owner, Nov 18). After every change: build, run `ctest`, `score_layout.ps1` and
-  `check_docs.ps1`; fix each failure or warning and run them all again; repeat until a full run finds no issue.
-  Only then is the work done (and committed). Report the last, clean run.
 - Any change to grouping/reading order must run the fixture score before and after and report both.
   No fixture may get worse beyond the tolerance in `scripts/score_layout.ps1`.
 - Text the user sees or hears (Announcements, Control bar, tray, Settings window) goes through `strings/`, never a
@@ -210,9 +207,6 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
   third-party notices (`licenses/components/`, see `docs/third-party.md`).
 - Lexia is GPL-3.0-or-later (`docs/adr/0003-gpl-3-licence.md`): every dependency, and every
   shipped voice, must have a GPL-3-compatible licence.
-- A change that implements or changes a plan item (a task id, an R-finding) updates `docs/Lexia — Code Review & Agent Plan.md`
-  in the same PR (tick the task, its status, the milestones; add its by-hand check to "The owner's open checks").
-  The "Plan" section below must say the same.
 - **Use clangd for C++.** Navigate and review C++ with the LSP tool (clangd): definitions, references,
   hover, call hierarchy, symbols. Cross-check references with Grep until the index is complete. Run
   `.\scripts\compile_db.ps1` after you add a source file. This applies to every subagent too.
@@ -223,20 +217,51 @@ tag `v<v>`, then raise the version in `vcpkg.json` for the next one.
 - **Comment the code you write.** Every function, class and non-obvious block you add or change gets a comment:
   the why, the rules it keeps, what a caller must know (thread, lifetime, units). Comment `.cpp` bodies too, not only
   headers. A change to commented code updates its comment.
-- **Check the docs before each merge.** Run `.\scripts\check_docs.ps1` (CI runs it too, `.github/workflows/docs.yml`):
-  it fails when code changed but the plan did not, when a file was added to or removed from `src/` but CLAUDE.md did
-  not change, when the version of `vcpkg.json` is missing from CLAUDE.md or the plan, when a file of the module map or
-  a script / doc path named here does not exist, or when one of these rules is gone. Then read the diff of both files:
-  the "Plan" section below and the plan say the same, and the module map describes the code as it is now (no task ids
-  or history in it). A PR that needs no plan change gets the label `docs-not-needed` (the content checks still run).
-  The PR template (`.github/pull_request_template.md`) has the checklist.
-- One task per branch (`feat/<task-id>`), one task per PR. Stop at the task boundary and summarise:
-  what changed, how it was verified, what the owner must check by hand.
+- **Docs are part of the task.** `.\scripts\check_docs.ps1` is the machine half of the docs (what it checks: the
+  script's header; CI runs it, `.github/workflows/docs.yml`); the docs review (How work runs, step 5) is the reading
+  half. A PR that needs no plan change gets the label `docs-not-needed` (the content checks still run). The PR
+  template (`.github/pull_request_template.md`) has the checklist.
 
-## What only the owner can check
+## How work runs
 
-Anything visual or audible, and behaviour inside games (Undertale is the reference title). End
-each task with a short manual test list for the owner rather than claiming it works.
+One task per branch (`feat/<task-id>`, from `main`), one task per PR. Every task takes these steps, in order.
+
+**Roles.** The **overseer** is the main session: Opus 5.5 at high effort. It plans, splits the task, briefs and
+reviews the builders, owns the clear run, commits and reports. If the session runs another model, tell the owner
+before work starts. **Builders** are Sonnet 5.5 subagents (`Agent` with `model: "sonnet"`): `effort: "high"` to write
+or fix code, `effort: "medium"` for the docs review and for searches. Parallel builders get `isolation: "worktree"` and
+first reset to the task branch tip (a worktree starts from `main`). A builder brief holds the task id, the files, the
+done-when, the rules of this file that bear on it (clangd, comments, `strings/`, British English, the Security
+section) and what to report. Builders do not see the owner's memory: put every owner rule a builder needs in the brief.
+
+1. **Plan** (overseer): the steps, the files, the done-when and a Security section (see Rules).
+2. **Build** (builders): the code, its tests and its comments.
+3. **Review** (overseer): read every builder diff with clangd and Grep against the Rules. Send each finding back to a
+   builder.
+4. **Clear run** (owner, Nov 18). One full run is: a Release build in the owner's tree `build\` (stop a running
+   `lexia.exe` or `lexia_cli.exe` first and say so) with no `warning` line in the output, then `ctest`,
+   `.\scripts\score_layout.ps1` and `.\scripts\check_docs.ps1`. Each failure or warning goes to a builder to fix, then
+   the full run starts again from the build. The run is **clear** when one full run finds no issue. The overseer runs
+   it itself: a builder's "it passes" does not count.
+5. **Docs review** (a fresh builder, medium effort): it reads the task's diff (`git diff main...HEAD`) and then every
+   document below, fixes each stale line, and reports each document by name: "current" or what it changed. The step
+   is done when the report names every document of the list.
+   - The plan (`docs/Lexia — Code Review & Agent Plan.md`): the task ticked, its status, "Status", the milestones, the
+     by-hand check in "The owner's open checks"; an R-finding marked fixed. CLAUDE.md's "Plan" section says the same.
+   - CLAUDE.md: the module map, Build, Running Lexia and Dev tools describe the code as it is now (no task ids or
+     history in the module map).
+   - Licences: `LICENSE`, `licenses/components/` (one entry per dependency, DLL, Voice, font, icon set and model),
+     `licenses/texts/`, `docs/third-party.md`; every one GPL-3-compatible.
+   - Terms and decisions: `docs/GLOSSARY.md`, `docs/adr/`.
+   - What the user reads: `package/README.txt`, `installer/lexia.iss`, `strings/table_en.cpp`.
+   - The docs the task touches: `docs/notes/`, `docs/signing.md`, `ocr_models/README.md`, `training/rec_en/README.md`,
+     `voices/voices.json`, `.github/pull_request_template.md`.
+
+   If the docs review changed a file, do step 4 again.
+6. **Commit and report** (overseer): commit on the task branch when the run is clear (a push needs the owner's yes).
+   Stop at the task boundary. Report what changed, the last clear run (with the Fixture numbers), the docs review
+   and a short test list for the owner. Only the owner can check what is visual or audible and what happens inside
+   games (Undertale is the reference title): list these, and do not claim them.
 
 ## Plan
 
