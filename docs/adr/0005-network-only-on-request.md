@@ -8,4 +8,6 @@ including private messages and documents, so this is a promise to users, not a d
 ## Consequences
 
 - No telemetry, crash upload or update check without the user's explicit request.
+- A third-party runtime that sends telemetry has it turned off at start (ONNX Runtime: `DisableTelemetryEvents`,
+  in `ort_runtime.*`, called at start and in `PiperVoice::Load`).
 - Recognition and speech must keep working with no network at all.

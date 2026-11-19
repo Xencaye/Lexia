@@ -32,6 +32,7 @@
 #include "common.h"
 #include "elevation.h"
 #include "instance.h"
+#include "ort_runtime.h"
 #include "settings.h"
 #include "stale_data.h"
 #include "version.h"
@@ -142,6 +143,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     // it is logged: an uncaught exception would end the program with no message at all.
     int rc = 1;
     try {
+        // ADR-0005: ONNX Runtime telemetry off before the App loads any OCR model or Voice. Never throws (a
+        // failure is logged; the OCR start in App::Init then reports it again if the environment is missing).
+        StartOnnxRuntime();
         rc = Run();
     } catch (const std::exception& e) {
         LogError("Lexia stopped because of an unexpected error: ", e.what());

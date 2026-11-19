@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "ort_runtime.h"
 #include "tts/onnx_alignment.h"
 #include "tts/pitch_shift.h"
 #include "tts/voice_library.h"
@@ -105,6 +106,10 @@ std::unique_ptr<PiperVoice> PiperVoice::Load(const fs::path& model, const fs::pa
         if (error) *error = why;
         return std::unique_ptr<PiperVoice>();
     };
+    // ADR-0005: ONNX Runtime telemetry must be off before piper.dll creates any session, and a Voice can load
+    // in a process that has no OcrEngine (the tests, the tools). The switch is process-wide and this call is
+    // cheap and safe to repeat, so every load makes sure of it. Never throws.
+    StartOnnxRuntime();
     std::error_code ec;
     if (!fs::is_regular_file(model, ec)) return fail("Voice file not found: " + model.u8string());
     const fs::path config = model.wstring() + L".json";
