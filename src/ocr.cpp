@@ -19,6 +19,7 @@
 #include "ctc.h"
 #include "log.h"
 #include "lookalike.h"
+#include "ort_runtime.h"
 
 // The names of a session's first input and first output.
 struct IoNames {
@@ -80,13 +81,6 @@ static std::filesystem::path ResolveModelsDir() {
     if (!std::filesystem::exists(beside / "det.onnx", ec)) return std::filesystem::u8path(MODELS_DIR);
 #endif
     return beside;
-}
-
-// One ONNX Runtime environment for the whole process, as ORT asks: a Language switch keeps two
-// engines alive for a moment. Each engine holds a reference, so it outlives their sessions.
-static std::shared_ptr<Ort::Env> SharedOrtEnv() {
-    static const std::shared_ptr<Ort::Env> env = std::make_shared<Ort::Env>(ORT_LOGGING_LEVEL_WARNING, "lexia");
-    return env;
 }
 
 struct OcrEngine::Impl {

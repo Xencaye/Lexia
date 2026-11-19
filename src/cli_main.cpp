@@ -34,6 +34,7 @@
 #include "log.h"
 #include "net/winhttp_fetch.h"
 #include "ocr.h"
+#include "ort_runtime.h"
 #include "recognize.h"
 #include "tts/piper_voice.h"
 #include "tts/download_list.h"
@@ -348,6 +349,10 @@ int wmain(int argc, wchar_t** argv) {
         return kBadArgs;
     }
     try {
+        // ADR-0005: ONNX Runtime telemetry off before any OCR model or Voice (--say) loads. After the argument
+        // parse, so --help and --version create no ONNX Runtime environment (onnxruntime.dll itself loads at
+        // process start, it is not delay-loaded). StartOnnxRuntime never throws.
+        StartOnnxRuntime();
         return Run(parsed.args);
     } catch (const std::exception& e) {
         LogError("lexia_cli failed: ", e.what());

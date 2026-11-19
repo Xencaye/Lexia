@@ -135,6 +135,7 @@ add_library(lexia_core STATIC
     src/native_ui/widget.cpp
     src/native_ui/window_hit.cpp
     src/ocr.cpp
+    src/ort_runtime.cpp
     src/overlay_highlight.cpp
     src/read_along.cpp
     src/recognize.cpp
