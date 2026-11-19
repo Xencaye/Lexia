@@ -2,8 +2,11 @@
 
 Update 2026-11-17 (B13): Lexia 0.7 ships the OLD `en_GB-cori-medium` of Bryce Beattie (the default; `rhasspy/piper-voices`
 commit `5041a7a`, public domain, trained from scratch on about 24 hours of LibriVox recordings of Cori Samuel; the
-model is not the `cf910fb` one that is described below and in B8, B10) and `en_US-norman-medium`. `en_US-ljspeech-medium`
-is not shipped now (an update keeps it as the user's own Voice, B9). Cori's licence entry: `licenses/components/voice-en_GB-cori-medium.txt`.
+model is not the `cf910fb` one that is described below and in B8, B10) and, until B14, `en_US-norman-medium`. `en_US-ljspeech-medium`
+is not shipped now (an update keeps it as the user's own Voice, B9).
+Update 2026-11-19 (B14): `en_US-norman-medium` is not shipped any more (owner: it mispronounces too much). Cori is the
+only shipped Voice; Norman's licence entry is removed from the package notices, and an update keeps his files as one of
+the user's own Voices (B9). The research on him below stays as it was. Cori's licence entry: `licenses/components/voice-en_GB-cori-medium.txt`.
 Section 5 of `docs/notes/voice-download-list.md` has the evidence.
 
 The research on all of Bryce Beattie's LibriVox Voices (Cori Medium and High, Kristin, John, Norman, ManyVoice, and
@@ -32,7 +35,7 @@ list, checked again at `ae9d835`, are in `docs/notes/voice-download-list.md`. Se
 jenny_dioco, the medium amy, cori-medium, hfc_female, joe, mike and ryan-medium: since `cf910fb` they are fine-tuned
 from `hifi_tts_92` or `rdh`, not from lessac.
 
-Update 2026-11-11 (B10): Lexia 0.7 ships `en_US-ljspeech-medium` (the default) and `en_US-norman-medium` instead of
+Update 2026-11-11 (B10; superseded by B13 and B14, see above): Lexia 0.7 shipped `en_US-ljspeech-medium` (the default) and `en_US-norman-medium` instead of
 Cori and Mike, which mispronounce common words ("library", "anonymized", "account"; espeak-ng's phonemes are right).
 At `cf910fb` both are as in section 3 (trained from scratch, public domain). Tried and dropped by ear: Joe (`rdh`
 base, CC0) and Jenny (Dioco) (`hifi_tts_92` base; dataset licence: commercial use permitted, the voice must be called

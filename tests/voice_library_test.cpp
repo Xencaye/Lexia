@@ -469,7 +469,9 @@ TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, e
     CHECK(PickVoice({}, "en", "") == nullptr);
 }
 
-// The default English Voice is the first one voices.json lists (Cori, then Norman). A settings.json from a 0.7 build
+// The default English Voice is the first one voices.json lists. The list here is made-up data with two Voices (Cori,
+// then Norman, who shipped in the 0.7 test builds and no longer does, B14): the test needs a second listed Voice, and
+// the real voices.json lists Cori only. A settings.json from a 0.7 build
 // names en_US-ljspeech-medium as the active Voice; that Voice no longer ships from the program folder, so the first
 // listed one speaks instead, with no migration step (AdoptRetiredVoices keeps its files as one of the user's own
 // Voices, and then the settings.json choice finds it again).
@@ -710,6 +712,7 @@ TEST_CASE("AddVoiceFiles: a High Voice from a file is added, and listed with its
 
 TEST_CASE("ListInstalledVoices: a shipped Voice's quality comes from its name") {
     TempDir shipped;
+    // Made-up data: any Voice name that voices.json lists will do (Norman is not shipped any more, B14).
     WriteText(shipped.path / "voices.json", "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-norman-medium\"}]}");
     WriteText(shipped.path / "en_US-norman-medium.onnx", "M");
     const auto voices = ListInstalledVoices(shipped.path, {});

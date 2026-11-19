@@ -46,8 +46,9 @@ LLVM's (`C:\Program Files\LLVM\bin`, must be on PATH).
 - `models\` — det.onnx, rec_en.onnx, dict_en.txt, rec_cyrillic.onnx, dict_cyrillic.txt. `rec_en.onnx` is Lexia's
   fine-tune for game fonts (task L): it is in git as `ocr_models\rec_en.onnx` (`ocr_models/README.md`) and the script
   copies it after a SHA-256 check; a retrained model changes the file and the hash in `fetch_deps.ps1` together
-- `voices\` — the Piper Voice files listed in `voices\voices.json` (all of them ship: Cori from its own pinned
-  `source`, Norman from the list's; Lexia has no Bulgarian Voice now)
+- `voices\` — the Piper Voice files listed in `voices\voices.json` (all of them ship: now Cori only, from its own pinned
+  `source`; the list's `source` is the default for an entry without one. Norman stopped shipping in B14. Lexia has no
+  Bulgarian Voice now)
 
 Piper is not fetched: the first build clones piper1-gpl and espeak-ng at pinned commits and builds `piper.dll` into
 `build\lp_install` (CMake `libpiper_external`; needs the network and a short build path).
@@ -222,9 +223,9 @@ The plan, `docs/Lexia — Code Review & Agent Plan.md`, is the source: task ids,
 the same.
 
 - **Released:** the last release is Lexia 0.6.2 (tags `v0.5.0` to `v0.6.2`; files in `release\<v>\`, git-ignored).
-- **Now:** Lexia 0.7 (`vcpkg.json` says 0.7.0) on the version branch `release/0.7`. Done: A6, B9–B13, G3, L0–L3, L5, L6. Open: L4 (new pixel-font
-  Fixtures from the owner's screenshots). Owner decisions: the shipped Voices (the old Cori, the default, and Norman)
-  are final; the Download sheet's list grows by one row per Voice (`docs/notes/voice-download-list.md`).
+- **Now:** Lexia 0.7 (`vcpkg.json` says 0.7.0) on the version branch `release/0.7`. Done: A6, B9–B14, G3, L0–L3, L5, L6. Open: L4 (new pixel-font
+  Fixtures from the owner's screenshots). Owner decisions: the old Cori, the default, is the only shipped Voice and is
+  final (B14, Nov 19: Norman stopped shipping; an update keeps him as one of the user's own Voices); the Download sheet's list grows by one row per Voice (`docs/notes/voice-download-list.md`).
 - **Open, the owner's:** the by-hand checks in the plan (also L7, the game-font recogniser), D7 (the tutorial video),
   A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.
 - **Later:** E1, E2, E6 (a Bulgarian Voice from the owner's own voice) and the Language UI in Lexia 0.8; J (Linux on
