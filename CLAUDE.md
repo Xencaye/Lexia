@@ -179,7 +179,7 @@ under `src/` updates its row in the same change.
 
 ## How work runs
 
-**Branches** (owner, Nov 19). Each version has a **version branch** `release/<major>.<minor>` (now `release/0.7`),
+**Branches** (owner, Nov 19). Each version has a **version branch** `release/<major>.<minor>` (now `release/0.8`),
 made from `main`; `main` changes only when the owner merges a version branch into it at a release (one PR). One task
 per branch (`feat/<task-id>`, from the version branch), one task per PR, and the PR targets the version branch. A fix
 for a review finding outside the task goes on the version branch, not on the task branch. CI runs on pushes to
@@ -222,9 +222,11 @@ The plan, `docs/Lexia — Code Review & Agent Plan.md`, is the source: task ids,
 ("Done", one line each) and what is open ("Status", "The owner's open checks"). This section is its summary and says
 the same.
 
-- **Released:** the last release is Lexia 0.6.2 (tags `v0.5.0` to `v0.6.2`; files in `release\<v>\`, git-ignored).
-- **Now:** Lexia 0.7 (`vcpkg.json` says 0.7.0) on the version branch `release/0.7`. Done: A6, B9–B14, G3, L0–L3, L5, L6. Open: L4 (new pixel-font
-  Fixtures from the owner's screenshots). Owner decisions: the old Cori, the default, is the only shipped Voice and is
+- **Released:** the last release is Lexia 0.7.0 (Nov 19; tags `v0.5.0` to `v0.7.0`; files in `release\<v>\`,
+  git-ignored). Done in 0.7: A6, B9–B14, G3, L0–L3, L5, L6, R48–R50.
+- **Now:** Lexia 0.8 (`vcpkg.json` says 0.8.0) on the version branch `release/0.8`. Open: L4 (new pixel-font Fixtures
+  from the owner's screenshots). CI cannot fetch ONNX Runtime while `github.com/microsoft/onnxruntime` answers 404
+  (since about Nov 17). Owner decisions: the old Cori, the default, is the only shipped Voice and is
   final (B14, Nov 19: Norman stopped shipping; an update keeps him as one of the user's own Voices); the Download sheet's list grows by one row per Voice (`docs/notes/voice-download-list.md`).
 - **Open, the owner's:** the by-hand checks in the plan (also L7, the game-font recogniser), D7 (the tutorial video),
   A5. Open code-review findings: R24, R25, R33 (low). No GitHub issue is open.

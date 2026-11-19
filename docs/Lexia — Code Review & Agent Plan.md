@@ -6,7 +6,7 @@ records are in git history and in the PRs)
 Every term below is defined in `GLOSSARY.md`, and every decision with a trade-off is in `docs/adr/`.
 On-screen wording follows the glossary.
 
-## Status (Nov 12, 2026)
+## Status (Nov 19, 2026)
 
 - **Released:** Lexia 0.5.0 (Nov 5, tag `v0.5.0`) and **Lexia 0.6.0** (Nov 8, tag `v0.6.0`:
   `Lexia-0.6.0-setup.exe` and `Lexia-0.6.0-portable.zip`, kept in `release\0.6.0\`). **Lexia 0.6.1** (Nov 8, tag `v0.6.1`,
@@ -14,8 +14,10 @@ On-screen wording follows the glossary.
   0.6.0 one still described the console prototype). **Lexia 0.6.2** (Nov 8, tag `v0.6.2`, made from `v0.6.1`, files
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
-- **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12). The work goes on the version branch `release/0.7` (owner, Nov 19: one version branch per version, merged into `main` at its release; CLAUDE.md, "How work runs").
-  Done for 0.7: B10, new Voices instead of B8's Cori and Mike of `cf910fb`, and the Download sheet's catalogue at
+- **Released: Lexia 0.7.0** (Nov 19, tag `v0.7.0`: `Lexia-0.7.0-setup.exe` and `Lexia-0.7.0-portable.zip`, kept in
+  `release\0.7.0\`; the final 0.7, owner Nov 19; `release/0.7` merged into `main` by PR #24). CI failed at its fetch
+  step, because `github.com/microsoft/onnxruntime` answers 404 since about Nov 17 (an outage outside Lexia); the local
+  clear run passed. Done in 0.7: R50, ONNX Runtime telemetry off (ADR-0005); B10, new Voices instead of B8's Cori and Mike of `cf910fb`, and the Download sheet's catalogue at
   commit `cf910fb`; B13 (owner, Nov 17), the shipped Voices are the old Cori Medium of Bryce Beattie (the default;
   `rhasspy/piper-voices` commit `5041a7a`) and Norman, and ljspeech stops shipping (an update keeps it as the user's
   own Voice); B14 (owner, Nov 19), Norman stops shipping too (he mispronounces too much; an update keeps him as the
@@ -32,6 +34,9 @@ On-screen wording follows the glossary.
   see-through accent fill and no frame; the Block under the mouse, a press and the Drag have a see-through accent
   frame and no fill; the bar touches the line box (no gap). The colour settings (`overlay.hoverColor`,
   `overlay.pickedColor`) are removed; an old file keeps them, unread.
+- **Now:** towards **Lexia 0.8** (owner, Nov 19: future changes go into 0.8). `vcpkg.json` says 0.8.0. The work goes
+  on the version branch `release/0.8` (one version branch per version, merged into `main` at its release; CLAUDE.md,
+  "How work runs"). Open from 0.7: L4 (new pixel-font Fixtures).
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -498,7 +503,7 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (new Voices instead of Cori and Mike of `cf910fb`);
+6. **M6 Lexia 0.7** — released Nov 19, 2026 (tag `v0.7.0`; your checks open). Future changes after 0.6 (owner, Nov 8); R50 done (ONNX Runtime telemetry off); B10 done (new Voices instead of Cori and Mike of `cf910fb`);
    B13 done (the old Cori Medium is the default); B14 done (Norman stops shipping: the old Cori is the only shipped
    Voice, final); B11 done
    (any quality from a file, short Voice names); B9 done
