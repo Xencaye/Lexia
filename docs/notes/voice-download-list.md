@@ -16,8 +16,10 @@ Nov 12:
 Nov 17 (B13):
 
 - Lexia ships the OLD Cori Medium (section 5) as the default English Voice. It is the copy at `rhasspy/piper-voices`
-  commit `5041a7a`. Norman is the second shipped Voice. Cori and Norman are final: the owner does not pick another
-  shipped Voice. LJ Speech is not shipped now (an update keeps it as the user's own Voice, B9).
+  commit `5041a7a`. Norman shipped as the second Voice until B14 (owner, Nov 19: he mispronounces too much; he is not shipped
+  and not on the download list now, an update keeps him as the user's own Voice, B9). Cori is the only shipped Voice
+  and is final: the owner does not pick another shipped Voice. LJ Speech is not shipped now (an update keeps it as the
+  user's own Voice, B9).
 - The download list can take a Voice from any source: Hugging Face (at a pinned commit) or Bryce Beattie's LibriVox
   Voices (https://brycebeattie.com/files/tts/). The owner picks each Voice by ear. The "Medium only" rule is for
   what Lexia ships, not for the download list.
@@ -73,7 +75,7 @@ hfc_female, joe, mike and ryan-medium are not fine-tuned from lessac now. Two ol
 | Voice | Qualities | Data licence | Base | Note |
 | --- | --- | --- | --- | --- |
 | en_US-ljspeech | medium, high | Public domain | from scratch | Shipped until B13 (Medium); now an own Voice after an update |
-| en_US-norman | medium | Public domain (LibriVox) | from scratch | Ships |
+| en_US-norman | medium | Public domain (LibriVox) | from scratch | Shipped until B14 (Nov 19, mispronounces); now an own Voice after an update |
 | en_US-kristin | medium | Public domain (LibriVox) | from scratch | |
 | en_US-john | medium | Public domain (LibriVox) | kristin | |
 | en_GB-cori | high | Public domain (LibriVox) | from scratch | The old cori of Bryce Beattie |
@@ -172,7 +174,7 @@ Checked on 2026-11-17. The owner hears that this Voice says "library", "anonymiz
 - There is no base model and no other dataset, thus no other licence applies.
 
 **For Lexia:** the old Cori Medium is in the category "Free for any use". It has the same licence status as the
-Voices norman and ljspeech. Since B13 (owner, Nov 17) Lexia ships it as the default English Voice: `voices/voices.json`
+Voices norman (shipped until B14) and ljspeech. Since B13 (owner, Nov 17) Lexia ships it as the default English Voice: `voices/voices.json`
 gives it its own `source` (the pinned commit `5041a7a`), `scripts/fetch_deps.ps1` checks both files against the
 SHA-256 above and `e262c16d…`, and `licenses/components/voice-en_GB-cori-medium.txt` is its notice. The Download sheet
 no longer reads the catalogue (B12), so it cannot offer the NEWER Cori of `cf910fb`. If the owner adds a Voice of the

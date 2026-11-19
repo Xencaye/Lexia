@@ -88,7 +88,7 @@ TEST_CASE("DownloadList: names are unique, and a Voice Lexia ships is not on the
     for (const CatalogueVoice& v : DownloadList()) {
         CHECK(names.insert(v.name).second);
         CHECK(v.name != "en_GB-cori-medium");    // shipped (voices/voices.json)
-        CHECK(v.name != "en_US-norman-medium");  // shipped
+        CHECK(v.name != "en_US-norman-medium");  // no longer shipped (B14, owner Nov 19) and not offered for download
     }
 }
 
