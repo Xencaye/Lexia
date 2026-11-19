@@ -1,92 +1,116 @@
-// Unit tests for tts/voice_catalogue.h: parsing and filtering the piper-voices catalogue.
+// Unit tests for tts/download_list.h and tts/voice_catalogue.h: the compiled-in list of downloadable Voices.
 #include <doctest/doctest.h>
 
+#include <cctype>
+#include <set>
 #include <string>
 
+#include "tts/download_list.h"
 #include "tts/voice_catalogue.h"
+#include "tts/voice_library.h"
 
 namespace {
 
-// One catalogue entry, shaped like the real voices.json of rhasspy/piper-voices.
-std::string Entry(const std::string& key, const std::string& family, const std::string& code,
-                  const std::string& english, const std::string& quality, const std::string& dir = "") {
-    const std::string base = (dir.empty() ? family + "/" + code + "/x/" + quality : dir) + "/" + key;
-    return "\"" + key + "\": {\"key\": \"" + key + "\", \"name\": \"x\", \"language\": {\"code\": \"" + code +
-           "\", \"family\": \"" + family + "\", \"name_english\": \"" + english + "\"}, \"quality\": \"" + quality +
-           "\", \"num_speakers\": 1, \"files\": {\"" + base + ".onnx\": {\"size_bytes\": 1000, \"md5_digest\": "
-           "\"FC1CE62A4F04F089E22B8C3A13BDE28A\"}, \"" + base + ".onnx.json\": {\"size_bytes\": 50, "
-           "\"md5_digest\": \"5fb4aa5e5b20d4ed515d40f0b4ce16f0\"}, \"" + base + "/MODEL_CARD\": "
-           "{\"size_bytes\": 5, \"md5_digest\": \"6056805758b0136214309e799209d9c9\"}}, \"aliases\": []}";
+// The path goes into a URL: only plain path characters, no ".." and no leading slash.
+bool PlainPath(const std::string& path) {
+    if (!IsSafeRelativePath(path)) return false;
+    for (unsigned char c : path) {
+        if (!(std::isalnum(c) || c == '_' || c == '-' || c == '.' || c == '/')) return false;
+    }
+    return true;
+}
+
+bool LowerHex(const std::string& s, size_t length) {
+    if (s.size() != length) return false;
+    for (char c : s) {
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    }
+    return true;
 }
 
 }  // namespace
 
-TEST_CASE("ParseVoiceCatalogue: reads the name, language, quality and the two files with size and MD5") {
-    const std::string json = "{" + Entry("bg_BG-sample-medium", "bg", "bg_BG", "Bulgarian", "medium") + "}";
-    const auto voices = ParseVoiceCatalogue(json);
-    REQUIRE(voices.size() == 1);
-    const CatalogueVoice& v = voices[0];
-    CHECK(v.name == "bg_BG-sample-medium");
-    CHECK(v.languageCode == "bg_BG");
-    CHECK(v.languageName == "Bulgarian");
-    CHECK(v.quality == "medium");
-    CHECK(v.model.path == "bg/bg_BG/x/medium/bg_BG-sample-medium.onnx");
-    CHECK(v.model.sizeBytes == 1000);
-    CHECK(v.model.md5 == "fc1ce62a4f04f089e22b8c3a13bde28a");  // lower-cased
-    CHECK(v.config.path == "bg/bg_BG/x/medium/bg_BG-sample-medium.onnx.json");
-    CHECK(v.config.sizeBytes == 50);
+TEST_CASE("DownloadList: the owner's three Voices, in the owner's order") {
+    const auto& list = DownloadList();
+    REQUIRE(list.size() == 3);
+    CHECK(list[0].name == "en_US-kristin-medium");
+    CHECK(list[1].name == "en_US-john-medium");
+    CHECK(list[2].name == "en_US-ljspeech-medium");
 }
 
-TEST_CASE("ParseVoiceCatalogue: text that is not a catalogue gives no Voices and an error line") {
-    std::string error;
-    CHECK(ParseVoiceCatalogue("not json", &error).empty());
-    CHECK_FALSE(error.empty());
-    error.clear();
-    CHECK(ParseVoiceCatalogue("[1, 2]", &error).empty());
-    CHECK_FALSE(error.empty());
-    CHECK(ParseVoiceCatalogue("{}", nullptr).empty());  // an empty catalogue is fine, and no error pointer is fine
+TEST_CASE("DownloadList: every entry is accepted by CheckCatalogueVoice and its Language is English") {
+    for (const CatalogueVoice& v : DownloadList()) {
+        CAPTURE(v.name);
+        const VoiceOutcome o = CheckCatalogueVoice(v);
+        CHECK(o.ok());
+        CHECK(o.languageCode == "en");
+        CHECK(v.languageName == "English");
+        CHECK(v.name.rfind(v.languageCode + "-", 0) == 0);  // starts with "<code>-"
+        CHECK(v.name.size() > v.quality.size());
+        CHECK(v.name.substr(v.name.size() - v.quality.size()) == v.quality);  // ends with its quality
+    }
 }
 
-TEST_CASE("ParseVoiceCatalogue: an entry without both files, a size, an MD5 or a plain path is left out") {
-    const std::string noConfig =
-        "\"a-b-medium\": {\"language\": {\"code\": \"en_US\"}, \"quality\": \"medium\", \"files\": "
-        "{\"a/a-b-medium.onnx\": {\"size_bytes\": 5, \"md5_digest\": \"fc1ce62a4f04f089e22b8c3a13bde28a\"}}}";
-    const std::string noMd5 =
-        "\"c-d-medium\": {\"language\": {\"code\": \"en_US\"}, \"quality\": \"medium\", \"files\": "
-        "{\"c/c-d-medium.onnx\": {\"size_bytes\": 5}, \"c/c-d-medium.onnx.json\": {\"size_bytes\": 5, "
-        "\"md5_digest\": \"fc1ce62a4f04f089e22b8c3a13bde28a\"}}}";
-    const std::string climbing = Entry("e-f-medium", "en", "en_US", "English", "medium", "../../evil");
-    const std::string spaced = Entry("g h-medium", "en", "en_US", "English", "medium", "en");
-    const std::string good = Entry("i-j-medium", "en", "en_US", "English", "medium");
-    const auto voices = ParseVoiceCatalogue("{" + noConfig + "," + noMd5 + "," + climbing + "," + spaced + "," + good + "}");
-    REQUIRE(voices.size() == 1);
-    CHECK(voices[0].name == "i-j-medium");
+TEST_CASE("DownloadList: each base URL is https, rhasspy/piper-voices, pinned to a 40-digit commit, with a slash") {
+    const std::string prefix = "https://huggingface.co/rhasspy/piper-voices/resolve/";
+    for (const CatalogueVoice& v : DownloadList()) {
+        CAPTURE(v.name);
+        REQUIRE(v.baseUrl.rfind(prefix, 0) == 0);
+        CHECK(v.baseUrl.back() == '/');
+        const std::string commit = v.baseUrl.substr(prefix.size(), v.baseUrl.size() - prefix.size() - 1);
+        CHECK(LowerHex(commit, 40));  // a commit, not a branch that can move
+    }
 }
 
-TEST_CASE("FilterCatalogueForLexia: Lexia's Languages in Medium quality, sorted by name") {
-    const std::string json = "{" + Entry("en_US-zed-medium", "en", "en_US", "English", "medium") + "," +
-                             Entry("en_US-low-low", "en", "en_US", "English", "low") + "," +
-                             Entry("de_DE-thorsten-medium", "de", "de_DE", "German", "medium") + "," +
-                             Entry("bg_BG-sample-medium", "bg", "bg_BG", "Bulgarian", "medium") + "," +
-                             Entry("en_GB-alan-medium", "en", "en_GB", "English", "medium") + "," +
-                             Entry("en_US-big-high", "en", "en_US", "English", "x_high") + "}";
-    const auto kept = FilterCatalogueForLexia(ParseVoiceCatalogue(json));
-    REQUIRE(kept.size() == 3);
-    CHECK(kept[0].name == "bg_BG-sample-medium");
-    CHECK(kept[1].name == "en_GB-alan-medium");
-    CHECK(kept[2].name == "en_US-zed-medium");
+TEST_CASE("DownloadList: the file paths are plain and safe, and name the Voice's two files") {
+    for (const CatalogueVoice& v : DownloadList()) {
+        CAPTURE(v.name);
+        CHECK(PlainPath(v.model.path));
+        CHECK(PlainPath(v.config.path));
+        CHECK(v.model.path.size() > v.name.size());
+        CHECK(v.model.path.substr(v.model.path.size() - v.name.size() - 5) == v.name + ".onnx");
+        CHECK(v.config.path == v.model.path + ".json");
+    }
 }
 
-TEST_CASE("CheckCatalogueVoice: names the language Lexia cannot read, or the quality that is not Medium") {
-    const auto de = ParseVoiceCatalogue("{" + Entry("de_DE-thorsten-medium", "de", "de_DE", "German", "medium") + "}");
-    REQUIRE(de.size() == 1);
-    const VoiceOutcome refused = CheckCatalogueVoice(de[0]);
+TEST_CASE("DownloadList: sizes are above 0 and MD5 digests are 32 lower-case hex digits") {
+    for (const CatalogueVoice& v : DownloadList()) {
+        CAPTURE(v.name);
+        CHECK(v.model.sizeBytes > 0);
+        CHECK(v.config.sizeBytes > 0);
+        CHECK(LowerHex(v.model.md5, 32));
+        CHECK(LowerHex(v.config.md5, 32));
+    }
+}
+
+TEST_CASE("DownloadList: names are unique, and a Voice Lexia ships is not on the list") {
+    std::set<std::string> names;
+    for (const CatalogueVoice& v : DownloadList()) {
+        CHECK(names.insert(v.name).second);
+        CHECK(v.name != "en_GB-cori-medium");    // shipped (voices/voices.json)
+        CHECK(v.name != "en_US-norman-medium");  // no longer shipped (B14, owner Nov 19) and not offered for download
+    }
+}
+
+TEST_CASE("CheckCatalogueVoice: names the language Lexia cannot read, or a quality Piper does not have") {
+    CatalogueVoice v = DownloadList().front();
+
+    CatalogueVoice german = v;
+    german.name = "de_DE-thorsten-medium";
+    german.languageCode = "de_DE";
+    german.languageName = "German";
+    const VoiceOutcome refused = CheckCatalogueVoice(german);
     CHECK(refused.problem == VoiceProblem::UnsupportedLanguage);
     CHECK(refused.languageName == "German");
 
-    const auto low = ParseVoiceCatalogue("{" + Entry("en_US-low-low", "en", "en_US", "English", "low") + "}");
-    REQUIRE(low.size() == 1);
-    const VoiceOutcome notMedium = CheckCatalogueVoice(low[0]);
-    CHECK(notMedium.problem == VoiceProblem::NotMedium);
-    CHECK(notMedium.quality == "low");
+    CatalogueVoice odd = v;
+    odd.quality = "ultra";
+    const VoiceOutcome unknown = CheckCatalogueVoice(odd);
+    CHECK(unknown.problem == VoiceProblem::UnknownQuality);
+    CHECK(unknown.quality == "ultra");
+
+    // A Low or a High Voice is fine: the owner may put one on the list later.
+    CatalogueVoice low = v;
+    low.quality = "low";
+    CHECK(CheckCatalogueVoice(low).ok());
 }

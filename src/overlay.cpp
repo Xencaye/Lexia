@@ -15,6 +15,7 @@
 #include "layout.h"
 #include "log.h"
 #include "mouse_role.h"
+#include "overlay_highlight.h"
 #include "win32_geom.h"
 
 // Everything one Session of the Overlay knows. It lives on RunOverlay's stack and the window
@@ -45,7 +46,16 @@ struct Session {
     ReadAlongTrack track;
     const std::function<std::optional<HeardWord>()>* heardWord = nullptr;
     std::vector<Rect> bars;
-    int barThickness = 3, barGap = 1;  // px, scaled for the DPI
+    // px, scaled for the DPI: the read-along bar (it touches the line box, so its gap is 0) and the hover /
+    // press / Drag frame (G3).
+    int barThickness = 3, barGap = 0, frameThickness = 2;  // (set from overlay_highlight.h when the Session starts)
+    // The source of every see-through mark (G3): a 1 x 1 bitmap in the accent colour. AlphaBlend stretches it
+    // over the rectangle with a constant alpha (the Picked fill and the frame use different ones), so no
+    // per-pixel alpha and no GDI+ are needed. Null if it could not be made: the marks are then left out and
+    // the areas are only un-dimmed.
+    HDC tintDc = nullptr;
+    HBITMAP tintBmp = nullptr;
+    HGDIOBJ tintOld = nullptr;
     OverlayStyle style;
     ControlBar bar;         // the Control bar above the Overlay; its windows belong to this Session
     int hoverTol = 8;       // the Block hover tolerance (FindBlockAt), scaled for the DPI
@@ -82,18 +92,42 @@ static RECT NormalizedDragRect(const Session& ss) {
     return r;
 }
 
-// Shows area `r` at full brightness (copied from the original Shot over the dimmed one) with a frame
-// of `thickness` px around it, drawn outwards.
-static void DrawHighlight(HDC dst, const Shot& s, RECT r, COLORREF colour, int thickness) {
+// A button press that moves less than this (in px, both ways) is a Click, not a Drag.
+static const LONG kClickSlop = 6;
+
+// True while the pressed button has not moved far enough to make a Drag: the gesture is still a Click on
+// whatever Block is under the mouse, so that Block keeps its hover frame (G3: "hover and press").
+static bool IsClickGesture(const Session& ss) {
+    return std::labs(ss.cur.x - ss.start.x) < kClickSlop && std::labs(ss.cur.y - ss.start.y) < kClickSlop;
+}
+
+// Shows area `r` at full brightness: copied from the original Shot over the dimmed one. Nothing is drawn
+// on it; the marks come after, see BlendFill and BlendFrame.
+static void Undim(HDC dst, const Shot& s, const RECT& r) {
     const int rw = r.right - r.left, rh = r.bottom - r.top;
     if (rw <= 0 || rh <= 0) return;
-    BitBlt(dst, r.left, r.top, rw, rh, s.origDc, r.left, r.top, SRCCOPY);  // un-dim
-    HBRUSH br = CreateSolidBrush(colour);
-    for (int i = 0; i < thickness; ++i) {
-        FrameRect(dst, &r, br);
-        InflateRect(&r, 1, 1);
+    BitBlt(dst, r.left, r.top, rw, rh, s.origDc, r.left, r.top, SRCCOPY);
+}
+
+// Blends the Session's accent over `r` with the constant opacity `alpha` (0..255, overlay_highlight.h). A
+// rectangle that reaches past the back buffer is clipped by the bitmap. A failed AlphaBlend leaves the area
+// as it was (un-dimmed), which is a fine fallback.
+static void BlendRect(const Session& ss, const RECT& r, int alpha) {
+    if (!ss.tintDc || r.right <= r.left || r.bottom <= r.top) return;
+    BLENDFUNCTION bf = {AC_SRC_OVER, 0, static_cast<BYTE>(alpha), 0};  // AlphaFormat 0: the constant alone
+    AlphaBlend(ss.backDc, r.left, r.top, r.right - r.left, r.bottom - r.top, ss.tintDc, 0, 0, 1, 1, bf);
+}
+
+// A Picked area: a soft see-through fill in the accent, no frame (the area itself is un-dimmed by the caller).
+static void BlendFill(const Session& ss, const RECT& r) { BlendRect(ss, r, overlay_highlight::kPickedFillAlpha); }
+
+// The hover / press / Drag mark: a see-through frame of the accent, `ss.frameThickness` px, drawn outside
+// `r` so the area it frames stays clear. The strips do not overlap, so the corners are not darker.
+static void BlendFrame(const Session& ss, const RECT& r) {
+    if (r.right <= r.left || r.bottom <= r.top) return;
+    for (const Rect& strip : overlay_highlight::FrameStrips(ToRect(r), ss.frameThickness)) {
+        BlendRect(ss, ToRECT(strip), overlay_highlight::kFrameAlpha);
     }
-    DeleteObject(br);
 }
 
 // A Block's box as it is highlighted: a little bigger, but never off the Shot.
@@ -107,9 +141,20 @@ static RECT HighlightRect(const Rect& box, const Shot& s) {
     return r;
 }
 
-// Paints the Overlay: the dimmed Shot, the areas already Picked, then the Drag rectangle or the Block
-// under the mouse. Everything is drawn into the back buffer first and copied in one go, so the
-// picture does not flicker.
+// The area the hover / press / Drag frame goes round now, or an empty RECT for none: the Drag rectangle
+// while the button is down and has moved far enough, else the Block under the mouse (once the Analysis is
+// done). A press that has not become a Drag yet keeps the Block's frame, since it is still a Click on it.
+static RECT FramedArea(const Session& ss) {
+    const Shot& s = *ss.shot;
+    if (ss.dragging && !IsClickGesture(ss)) return NormalizedDragRect(ss);
+    if (ss.hover >= 0 && ss.ready) return HighlightRect(ss.analysis.blocks[ss.hover].box, s);
+    return RECT{};
+}
+
+// Paints the Overlay (G3): the dimmed Shot; the Picked areas, the Block under the mouse and the Drag rectangle
+// un-dimmed; a soft accent fill on each Picked area; the read-along bar; and last the see-through accent
+// frame of the hover / press / Drag. Everything is drawn into the back buffer first and copied in one go, so
+// the picture does not flicker.
 static void PaintOverlay(HWND hwnd, Session& ss) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
@@ -117,11 +162,16 @@ static void PaintOverlay(HWND hwnd, Session& ss) {
 
     BitBlt(ss.backDc, 0, 0, s.w, s.h, s.dimDc, 0, 0, SRCCOPY);
 
-    for (const RECT& pr : ss.picked) DrawHighlight(ss.backDc, s, pr, ss.style.pickedColor, 2);
+    // Un-dim everything that is marked first, so a later un-dim cannot wipe an earlier fill (a hover over a
+    // Picked area keeps that area's fill).
+    const RECT framed = FramedArea(ss);
+    for (const RECT& pr : ss.picked) Undim(ss.backDc, s, pr);
+    Undim(ss.backDc, s, framed);
+    for (const RECT& pr : ss.picked) BlendFill(ss, pr);
 
-    // The word being read: a bar under it, over the Picked frames and under the hover / drag frame.
+    // The word being read: a bar under it, over the Picked fills and under the hover / drag frame.
     if (!ss.bars.empty()) {
-        HBRUSH bar = CreateSolidBrush(ss.style.hoverColor);
+        HBRUSH bar = CreateSolidBrush(ss.style.accent);
         for (const Rect& b : ss.bars) {
             // A word at the edge of the Shot: keep the bar on it.
             const RECT r = ToRECT(ClipToArea(b, s.w, s.h));
@@ -130,11 +180,7 @@ static void PaintOverlay(HWND hwnd, Session& ss) {
         DeleteObject(bar);
     }
 
-    if (ss.dragging) {
-        DrawHighlight(ss.backDc, s, NormalizedDragRect(ss), ss.style.hoverColor, 1);
-    } else if (ss.hover >= 0 && ss.ready) {
-        DrawHighlight(ss.backDc, s, HighlightRect(ss.analysis.blocks[ss.hover].box, s), ss.style.hoverColor, 2);
-    }
+    BlendFrame(ss, framed);
 
     BitBlt(hdc, 0, 0, s.w, s.h, ss.backDc, 0, 0, SRCCOPY);
     EndPaint(hwnd, &ps);
@@ -242,9 +288,7 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ss.dragging = false;
             ss.cur.x = GET_X_LPARAM(lp);
             ss.cur.y = GET_Y_LPARAM(lp);
-            const LONG dx = std::labs(ss.cur.x - ss.start.x);
-            const LONG dy = std::labs(ss.cur.y - ss.start.y);
-            if (dx < 6 && dy < 6) {
+            if (IsClickGesture(ss)) {
                 ss.result.kind = SelKind::Click;
                 ss.result.point = ss.cur;
             } else {
@@ -401,8 +445,9 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&ss));
     const int dpi = std::max(96, static_cast<int>(GetDpiForWindow(hwnd)));
     ss.hoverTol = ScaleForDpi(8, dpi);
-    ss.barThickness = ScaleForDpi(3, dpi);
-    ss.barGap = ScaleForDpi(1, dpi);
+    ss.barThickness = ScaleForDpi(overlay_highlight::kBarThickness, dpi);
+    ss.barGap = overlay_highlight::kBarGap;  // 0: the bar starts exactly at the bottom of the word's line box
+    ss.frameThickness = ScaleForDpi(overlay_highlight::kFrameThickness, dpi);
     // Read-along off: no heard-word source, so no bar is ever drawn and no timer is started below.
     ss.heardWord = style.readAlong ? &cb.heardWord : nullptr;
 
@@ -410,6 +455,33 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     ss.backDc = CreateCompatibleDC(winDc);
     ss.backBmp = CreateCompatibleBitmap(winDc, shot.w, shot.h);
     ss.backOld = SelectObject(ss.backDc, ss.backBmp);
+    // The accent as a 1 x 1 bitmap, the source of the see-through marks (see Session::tintDc). A top-down 32-bit
+    // DIB section with one pixel 0x00RRGGBB; the alpha byte is not used (AlphaFormat 0 in BlendRect).
+    {
+        BITMAPINFO bi = {};
+        bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+        bi.bmiHeader.biWidth = 1;
+        bi.bmiHeader.biHeight = -1;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        void* raw = nullptr;
+        ss.tintDc = CreateCompatibleDC(winDc);
+        ss.tintBmp = ss.tintDc ? CreateDIBSection(winDc, &bi, DIB_RGB_COLORS, &raw, nullptr, 0) : nullptr;
+        if (ss.tintBmp && raw) {
+            const COLORREF c = style.accent;
+            *static_cast<uint32_t*>(raw) = (static_cast<uint32_t>(GetRValue(c)) << 16) |
+                                           (static_cast<uint32_t>(GetGValue(c)) << 8) | GetBValue(c);
+            ss.tintOld = SelectObject(ss.tintDc, ss.tintBmp);
+        }
+        if (!ss.tintOld) {  // no marks, only un-dimmed areas (see Session::tintDc)
+            LogWarn("The Overlay's see-through marks could not be made; areas are only un-dimmed.");
+            if (ss.tintBmp) DeleteObject(ss.tintBmp);
+            if (ss.tintDc) DeleteDC(ss.tintDc);
+            ss.tintBmp = nullptr;
+            ss.tintDc = nullptr;
+        }
+    }
     ReleaseDC(hwnd, winDc);
 
     // Show the overlay WITHOUT taking focus: fullscreen games minimise themselves
@@ -506,6 +578,11 @@ OverlayResult RunOverlay(const Shot& shot, const Recognizer& recognize, JobQueue
     SelectObject(ss.backDc, ss.backOld);
     DeleteObject(ss.backBmp);
     DeleteDC(ss.backDc);
+    if (ss.tintDc) {
+        SelectObject(ss.tintDc, ss.tintOld);
+        DeleteObject(ss.tintBmp);
+        DeleteDC(ss.tintDc);
+    }
     DestroyWindow(hwnd);
     // Only now, with nothing of the Session left on screen, may another window of Lexia take focus.
     OverlayResult result;

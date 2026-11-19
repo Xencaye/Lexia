@@ -28,8 +28,10 @@ struct Selection {
 
 // How the Overlay and its Control bar look / what they tell the user.
 struct OverlayStyle {
-    COLORREF hoverColor = RGB(255, 200, 0);   // block under the mouse, area being dragged
-    COLORREF pickedColor = RGB(80, 200, 120); // areas already read
+    // G3: the one colour of the Overlay's marks (the Picked fill, the hover / press / Drag frame and the
+    // read-along bar): Lexia's accent for the light or dark theme in force when the Session starts
+    // (overlay_highlight.h AccentRgb; the App decides dark as the Settings window does). Fixed for the Session.
+    COLORREF accent = RGB(0x6E, 0x50, 0x4A);
     std::string pauseKey = "F7";              // shown in a tooltip (UTF-8); "" = the action has no key
     std::string speechKey = "F6";
     std::string interfaceLanguage = "en";     // the language of the Control bar (strings/)
@@ -71,7 +73,7 @@ struct OverlayCallbacks {
     std::function<void()> onHelp;
     std::function<SpeechState()> speechState;  // is anything being spoken or paused (the bar polls it)
     // The word that is heard now (Speaker::HeardWordNow), polled on a window timer (~30 ms) to draw the
-    // read-along bar: an underline bar in `OverlayStyle::hoverColor` under the word, for Readings Picked in
+    // read-along bar: an underline bar in `OverlayStyle::accent` under the word, for Readings Picked in
     // this Session. Empty function, or `OverlayStyle::readAlong` off = no read-along bar.
     std::function<std::optional<HeardWord>()> heardWord;
     // The Control bar's size or place changed: size, x, y (offsets from the monitor's corner). The

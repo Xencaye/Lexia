@@ -35,3 +35,13 @@ enum class SynthResult { Done, Cancelled, Failed };
 // repeated code points takes the next N alignments. Alignments missing at the end count as 0.
 std::vector<PhonemeTiming> PhonemeTimings(const std::vector<char32_t>& phonemes,
                                           const std::vector<int>& alignments);
+
+// The phonemes that belong to ONE chunk. libpiper (the pinned piper1-gpl, piper.cpp) never clears its list
+// of phoneme code points between sentences, so the Nth chunk's `phonemes` holds the groups of every earlier
+// sentence first and its own last, while its phoneme ids, its alignments and its audio are its own. Fed to
+// PhonemeTimings as they are, the alignments of this sentence would be taken for the earlier sentences'
+// phonemes and every word cut after the first sentence would be at the wrong place. `numIds` is the
+// chunk's `num_phoneme_ids`: the own phonemes are the last groups whose non-zero entries add up to it
+// (each id has one code point; the 0 separators have none). Returns `phonemes` unchanged when it holds no
+// more than `numIds` entries, or when `numIds` is 0 (unknown).
+std::vector<char32_t> OwnPhonemes(const std::vector<char32_t>& phonemes, size_t numIds);

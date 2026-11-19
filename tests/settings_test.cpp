@@ -131,8 +131,6 @@ TEST_CASE("ParseSettings: empty object gives the defaults and no notes") {
     CHECK(p.settings.language == "eng");
     CHECK(p.settings.speechRate == 0);
     CHECK(p.settings.speechVolume == 100);
-    CHECK(p.settings.hoverColor == d.hoverColor);
-    CHECK(p.settings.pickedColor == d.pickedColor);
 }
 
 TEST_CASE("ParseSettings: a full valid file is applied, with // comments allowed") {
@@ -140,8 +138,7 @@ TEST_CASE("ParseSettings: a full valid file is applied, with // comments allowed
         // my keys
         "hotkeys": {"read": "Ctrl+Alt+R", "pause": "F9", "speech": "F11", "switchLanguage": "Shift+F2"},
         "language": "bul",
-        "speech": {"rate": -3, "volume": 40},
-        "overlay": {"hoverColor": "#112233", "pickedColor": "abcdef"}
+        "speech": {"rate": -3, "volume": 40}
     })");
     CHECK(p.notes.empty());
     CHECK(p.settings.read.mods == (MOD_CONTROL | MOD_ALT));
@@ -153,8 +150,6 @@ TEST_CASE("ParseSettings: a full valid file is applied, with // comments allowed
     CHECK(p.settings.language == "bul");
     CHECK(p.settings.speechRate == -3);
     CHECK(p.settings.speechVolume == 40);
-    CHECK(p.settings.hoverColor == RGB(0x11, 0x22, 0x33));
-    CHECK(p.settings.pickedColor == RGB(0xAB, 0xCD, 0xEF));
 }
 
 TEST_CASE("ParseSettings: bad hotkey text -> note, default for that key only") {
@@ -216,16 +211,31 @@ TEST_CASE("ParseSettings: out-of-range or non-integer rate/volume -> note, defau
     }
 }
 
-TEST_CASE("ParseSettings: a bad colour -> note, default for that colour only") {
-    const Parsed p = Parse(R"({"overlay": {"hoverColor": "red", "pickedColor": "#000001"}})");
-    CHECK(p.notes.size() == 1);
-    CHECK(Mentions(p.notes, "overlay.hoverColor"));
-    CHECK(p.settings.hoverColor == Settings{}.hoverColor);
-    CHECK(p.settings.pickedColor == RGB(0x00, 0x00, 0x01));
+// G3: the Overlay's colours are gone (always the accent). A file of an older Lexia that still has them loads
+// with no note, whatever the values are, and a save keeps the keys (updates keep the user's data).
+TEST_CASE("ParseSettings: an old \"overlay\" object is accepted quietly and ignored") {
+    const Parsed good = Parse(R"({"overlay": {"hoverColor": "#112233", "pickedColor": "abcdef"}, "language": "bul"})");
+    CHECK(good.notes.empty());
+    CHECK(good.settings.language == "bul");  // the rest of the file still applies
 
-    CHECK(Mentions(Parse(R"({"overlay": {"pickedColor": "#12345"}})").notes, "overlay.pickedColor"));
-    CHECK(Mentions(Parse(R"({"overlay": {"pickedColor": "#12345G"}})").notes, "overlay.pickedColor"));
-    CHECK(Mentions(Parse(R"({"overlay": {"pickedColor": 123456}})").notes, "overlay.pickedColor"));
+    const Parsed bad = Parse(R"({"overlay": {"hoverColor": "red", "pickedColor": 123456}})");
+    CHECK(bad.notes.empty());
+    CHECK(bad.settings == Settings{});
+}
+
+TEST_CASE("UpdateSettingsText: the old overlay colours stay in the file after a save") {
+    std::string text = "{\n  \"language\": \"eng\",\n  \"overlay\": {\"hoverColor\": \"#112233\", \"pickedColor\": \"#ABCDEF\"}\n}\n";
+    std::string note;
+    REQUIRE(UpdateSettingsText(text, "language", "\"bul\"", note));
+    CHECK(text.find("\"hoverColor\": \"#112233\"") != std::string::npos);
+    CHECK(text.find("\"pickedColor\": \"#ABCDEF\"") != std::string::npos);
+    const Parsed p = Parse(text);
+    CHECK(p.notes.empty());
+    CHECK(p.settings.language == "bul");
+
+    // A file written whole by Lexia has no overlay object any more.
+    CHECK(SettingsToText(Settings{}).find("overlay") == std::string::npos);
+    CHECK(SettingsToText(Settings{}).find("hoverColor") == std::string::npos);
 }
 
 TEST_CASE("ParseSettings: an unknown Language id -> note, default Language") {
@@ -564,7 +574,7 @@ TEST_CASE("Settings: equality compares every value") {
     b.speechRate = 1;
     CHECK(a != b);
     b = a;
-    b.hoverColor = RGB(1, 2, 3);
+    b.readAlong = !a.readAlong;
     CHECK(a != b);
 
     // The same file parses to equal Settings: what the live reload relies on to skip no-ops.
@@ -1126,8 +1136,6 @@ TEST_CASE("MergeReloadedSettings: a value the file did not change keeps the in-f
     inForce.controlBar.x = 40;
     inForce.controlBar.y = 50;
     inForce.speechRate = 3;
-    inForce.hoverColor = RGB(1, 2, 3);
-    inForce.pickedColor = RGB(4, 5, 6);
 
     // An unrelated edit of the file (here: leftHanded).
     Settings fresh = lastRead;
@@ -1143,8 +1151,6 @@ TEST_CASE("MergeReloadedSettings: a value the file did not change keeps the in-f
     CHECK(next.controlBar.x == 40);
     CHECK(next.controlBar.y == 50);
     CHECK(next.speechRate == 3);
-    CHECK(next.hoverColor == RGB(1, 2, 3));
-    CHECK(next.pickedColor == RGB(4, 5, 6));
     CHECK(next.leftHanded);  // the value the user did edit is applied
 }
 

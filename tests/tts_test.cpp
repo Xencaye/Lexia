@@ -98,11 +98,11 @@ TEST_CASE("EncodeWav16: no samples is still a valid, empty WAV") {
 
 // ------------------------------------------------------------------ voices.json ---
 
-TEST_CASE("ParseVoiceList: reads language and name, ignores the other fields") {
+TEST_CASE("ParseVoiceList: reads language and name, ignores the other fields (also a per-Voice \"source\")") {
     std::string err;
     const auto v = ParseVoiceList(
         R"({"source":"x","voices":[
-            {"language":"en","name":"en_GB-cori-medium","ship":true,"onnxSha256":"AB"},
+            {"language":"en","name":"en_GB-cori-medium","source":"https://example.test/pinned","ship":true,"onnxSha256":"AB"},
             {"language":"bg","name":"bg_BG-sample-medium","ship":false}]})", &err);
     REQUIRE(v.size() == 2);
     CHECK(err.empty());
@@ -126,3 +126,39 @@ TEST_CASE("ParseVoiceList: bad input gives a one-line error") {
     CHECK(ParseVoiceList("{not json").empty());  // the error line is optional
 }
 
+
+TEST_CASE("OwnPhonemes: the first chunk is kept whole") {
+    // Two ids per group, as libpiper makes them: '^' (start + pad), 'a' (+ pad), '$'.
+    const std::vector<char32_t> ph = {U'^', U'^', 0, U'a', U'a', 0, U'$', 0};
+    CHECK(OwnPhonemes(ph, 5) == ph);
+}
+
+TEST_CASE("OwnPhonemes: a later chunk loses the groups of the earlier sentences") {
+    // libpiper does not clear its code points between sentences: sentence 2 comes after sentence 1's.
+    const std::vector<char32_t> first = {U'^', U'^', 0, U'a', U'a', 0, U'$', 0};
+    const std::vector<char32_t> second = {U'^', U'^', 0, U'b', U'b', 0, U'c', U'c', 0, U'$', 0};
+    std::vector<char32_t> all = first;
+    all.insert(all.end(), second.begin(), second.end());
+    CHECK(OwnPhonemes(all, 7) == second);  // ids of sentence 2: 2 + 2 + 2 + 1 = 7
+    // And a third sentence: everything before it goes.
+    const std::vector<char32_t> third = {U'^', U'^', 0, U'd', U'd', 0, U'$', 0};
+    std::vector<char32_t> all3 = all;
+    all3.insert(all3.end(), third.begin(), third.end());
+    CHECK(OwnPhonemes(all3, 5) == third);
+    // The timings of the own phonemes start at sample 0 with the first of the sentence's alignments.
+    const auto t = PhonemeTimings(OwnPhonemes(all, 7), {1, 2, 3, 4, 5, 6, 7});
+    REQUIRE(t.size() == 4);
+    CHECK(t[0].phoneme == U'^');
+    CHECK(t[0].startSample == 0);
+    CHECK(t[1].phoneme == U'b');
+    CHECK(t[1].startSample == 3);
+    CHECK(t[3].phoneme == U'$');
+    CHECK(t[3].lengthSamples == 7);
+}
+
+TEST_CASE("OwnPhonemes: an unknown id count or fewer code points than ids changes nothing") {
+    const std::vector<char32_t> ph = {U'^', U'^', 0, U'a', U'a', 0};
+    CHECK(OwnPhonemes(ph, 0) == ph);
+    CHECK(OwnPhonemes(ph, 99) == ph);
+    CHECK(OwnPhonemes({}, 3).empty());
+}

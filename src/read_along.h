@@ -127,3 +127,44 @@ public:
 private:
     std::map<uint64_t, std::vector<TextBlock>> readings_;
 };
+
+// ------------------------------------------------------------ the click-through layer ---
+// When the App keeps the read-along bar on the screen after a Session (the layer, G2), and what ends it. The
+// rules are here, pure, so a test can pin them down; `App` (app.cpp) asks these functions at each place it
+// starts or ends the layer, and keeps the Win32 work (making and destroying the window) to itself.
+
+// What the App knows when a Session has ended and it must decide whether to start the layer.
+struct ReadAlongLayerFacts {
+    bool styleReadAlong = false;    // the Session was run with the Read-along setting on (OverlayStyle::readAlong)
+    bool settingReadAlong = false;  // the Read-along setting is on now (it may have been turned off during the Session)
+    bool lexiaOn = false;           // Lexia is On
+    bool quitting = false;          // Quit was asked for
+    bool haveWindow = false;        // the App's message window exists (the layer's `onEnded` posts to it)
+    bool trackHasReadings = false;  // the Session Picked something (the track is not empty)
+    bool anyReadingActive = false;  // at least one of the track's Readings is still in the Reading queue
+};
+
+// True when the layer is to be started: the setting was on for the Session and is on now, Lexia is On and not
+// quitting, there is a window to post to, and a Reading of this Session is still queued, spoken or paused.
+// (Nothing to keep when everything was read already, or was Stopped.)
+bool ReadAlongLayerWanted(const ReadAlongLayerFacts& facts);
+
+// Something that happens while a layer may be up.
+enum class ReadAlongLayerEvent {
+    Stop,                // the Stop key or the Control bar's Stop: the Readings are gone
+    Quit,                // Lexia is quitting
+    RunEnded,            // App::Run is ending (the layer goes before the speech it follows)
+    NewSession,          // the next Session starts: the layer must not be in its Shot
+    NewLayer,            // a new layer replaces the old one: at most one exists
+    LexiaSwitched,       // On / Off: ends the layer when Lexia is now Off (the new state is `nowOn`)
+    ReadAlongSwitched,   // the Read-along setting changed, from the Settings window or settings.json: ends the
+                         // layer when it is now off (the new value is `nowOn`)
+};
+
+// Does `event` end the layer? Stop, Quit, RunEnded, NewSession and NewLayer always do. LexiaSwitched and
+// ReadAlongSwitched do when `nowOn` is false (turning something on leaves a layer that is up as it is).
+bool EndsReadAlongLayer(ReadAlongLayerEvent event, bool nowOn = true);
+
+// The layer says it has ended by itself (a posted message that may be stale: the layer it was for is gone and
+// a newer one runs). True = leave the layer alone, because it has not ended itself.
+bool KeepLayerOnEndedMessage(bool layerEnded);

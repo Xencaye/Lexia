@@ -281,36 +281,31 @@ bool ApplySheet(const std::string& name, SettingsUi& ui, Screen& screen) {
     VoicesPage& page = *static_cast<VoicesPage*>(ui.Current());
     VoiceEventSink& events = ui.VoiceEvents();
     constexpr uint64_t kMiB = 1024 * 1024;
-    const std::string amy = "en_US-amy-medium";
+    const std::string amy = "en_US-amy-medium";           // a Voice added from a file (the result sheets)
+    const std::string kristin = "en_US-kristin-medium";    // the first Voice of the download list
 
     if (name == "delete") {
         page.OpenDeleteSheet();
-    } else if (name == "catalogue" || name == "offline" || name == "downloading" || name == "done" || name == "failed" ||
+    } else if (name == "catalogue" || name == "downloading" || name == "done" || name == "failed" ||
                name == "failed-baddownload") {
         page.OpenDownloadSheet();
-        if (name == "offline") {
-            events.CatalogueFailed(VoiceProblem::Network);
-        } else {
-            events.CatalogueShown(SampleCatalogue());
-            if (name == "downloading") {
-                for (const CatalogueEntry& e : SampleCatalogue()) {
-                    if (e.name == amy) ui.Library().StartDownload(e);
-                }
-                events.DownloadProgress(amy, 12 * kMiB, 63 * kMiB);
-            } else if (name == "done") {
-                events.DownloadDone(amy);
-            } else if (name == "failed") {
-                events.DownloadFailed(amy, ProblemFacts{VoiceProblem::Network, {}, {}});
-            } else if (name == "failed-baddownload") {
-                events.DownloadFailed(amy, ProblemFacts{VoiceProblem::BadDownload, {}, {}});
+        events.CatalogueShown(SampleCatalogue());
+        if (name == "downloading") {
+            for (const CatalogueEntry& e : SampleCatalogue()) {
+                if (e.name == kristin) ui.Library().StartDownload(e);
             }
+            events.DownloadProgress(kristin, 12 * kMiB, 63 * kMiB);
+        } else if (name == "done") {
+            events.DownloadDone(kristin);
+        } else if (name == "failed") {
+            events.DownloadFailed(kristin, ProblemFacts{VoiceProblem::Network, {}, {}});
+        } else if (name == "failed-baddownload") {
+            events.DownloadFailed(kristin, ProblemFacts{VoiceProblem::BadDownload, {}, {}});
         }
     } else if (name == "added") {
         events.VoiceAdded({amy, "eng"});
     } else if (name == "refused") {
         events.VoiceRefused(ProblemFacts{VoiceProblem::UnsupportedLanguage, "German", "low"});
-    } else if (name == "refused-notmedium") {
-        events.VoiceRefused(ProblemFacts{VoiceProblem::NotMedium, "German", "low"});
     } else if (name == "deleteFailed") {
         events.VoiceDeleteFailed("en_GB-alba-medium", VoiceProblem::CannotWrite);
     } else if (name == "presetSaved") {

@@ -25,7 +25,9 @@
 #include "layout.h"
 #include "log.h"
 #include "overlay.h"
+#include "overlay_highlight.h"
 #include "recognize.h"
+#include "win32_geom.h"
 #include "version.h"
 #include "strings/string_ids.h"
 #include "strings/strings.h"
@@ -115,8 +117,9 @@ LRESULT CALLBACK App::WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         app->OpenSettingsWindow();
         return 0;
     }
-    if (app && msg == QuitMessage()) {  // the installer (Setup or the uninstaller) asks Lexia to end
-        LogInfo("The installer asked Lexia to quit (Lexia.Quit).");
+    if (app && msg == QuitMessage()) {  // another program (see QuitMessage in instance.h) asks Lexia to end
+        // The sender is not known: Setup, the uninstaller or scripts/close_lexia.ps1 all post the same message.
+        LogInfo("Lexia.Quit received from outside (Setup, the uninstaller or scripts/close_lexia.ps1); quitting.");
         app->Quit();  // the same clean end as the tray's Quit: speech stops, keys are freed, the icon goes
         return 0;
     }
@@ -146,8 +149,9 @@ bool App::CreateMessageWindow() {
     // again") from a program that is not elevated: UIPI drops registered messages unless they are let through.
     // Harmless when Lexia is not elevated.
     ChangeWindowMessageFilterEx(window_, OpenSettingsMessage(), MSGFLT_ALLOW, nullptr);
-    // Lexia.Quit too, so that Setup (not elevated) can close an elevated Lexia. It can only end Lexia cleanly,
-    // which any process of the same user can already do to a non-elevated Lexia; nothing else comes in.
+    // Lexia.Quit too, so that Setup or scripts/close_lexia.ps1 (not elevated) can close an elevated Lexia.
+    // It can only end Lexia cleanly, which any process of the same user can already do to a non-elevated
+    // Lexia; nothing else comes in.
     ChangeWindowMessageFilterEx(window_, QuitMessage(), MSGFLT_ALLOW, nullptr);
     ChangeWindowMessageFilterEx(window_, RegisterWindowMessageW(L"TaskbarCreated"), MSGFLT_ALLOW, nullptr);
     return true;
@@ -304,7 +308,7 @@ int App::Run() {
         }
     }
 
-    EndReadAlongLayer(/*flush=*/false);  // its window is gone before the speech it follows
+    EndReadAlongLayerFor(ReadAlongLayerEvent::RunEnded);  // its window is gone before the speech it follows
     speaker_.Stop();
     UnregisterKeys();
     settingsWindow_.reset();  // the window and its Direct2D resources go before COM is shut down
@@ -313,14 +317,14 @@ int App::Run() {
 }
 
 void App::Quit() {
-    EndReadAlongLayer(/*flush=*/false);  // nothing of Lexia stays on the screen after Quit
+    EndReadAlongLayerFor(ReadAlongLayerEvent::Quit);  // nothing of Lexia stays on the screen after Quit
     quit_ = true;  // not only PostQuitMessage: a key press already queued must not open a Session
     PostQuitMessage(0);
 }
 
 void App::Stop() {
     speaker_.Stop();
-    EndReadAlongLayer(/*flush=*/false);  // it would end by itself within a tick (no Reading is left); not later
+    EndReadAlongLayerFor(ReadAlongLayerEvent::Stop);  // it would end by itself within a tick (no Reading is left); not later
 }
 
 void App::Skip() { speaker_.Skip(); }
@@ -360,7 +364,7 @@ void App::ArmSpeechKeyTimer(long long ms) {
 void App::SetOn(bool on) {
     if (on == settings_.enabled) return;
     settings_.enabled = on;
-    if (!on) EndReadAlongLayer(/*flush=*/false);  // Off: no mark of Lexia is left on the screen
+    EndReadAlongLayerFor(ReadAlongLayerEvent::LexiaSwitched, on);  // Off: no mark of Lexia is left on the screen
     UnregisterKeys();
     RegisterKeys();  // retries a key that was taken before; Off takes none
     LogInfo(on ? "Lexia is On." : "Lexia is Off: no keys are taken until it is turned on.");
@@ -489,7 +493,7 @@ void App::HandlePageMessage(const PageMessage& m) {
     case PageMessageType::SetLeftHanded: SetBoolSetting("leftHanded", m.on, settings_.leftHanded, fileSettings_.leftHanded); break;  // read at the next Session
     case PageMessageType::SetReadAlong:
         SetBoolSetting("readAlong", m.on, settings_.readAlong, fileSettings_.readAlong);
-        if (!m.on) EndReadAlongLayer(/*flush=*/false);  // turned off while a mark is up: it goes now
+        EndReadAlongLayerFor(ReadAlongLayerEvent::ReadAlongSwitched, m.on);  // turned off while a mark is up: it goes now
         break;
     case PageMessageType::SetMasterVolume: SetMasterVolume(static_cast<int>(std::lround(m.value))); break;
     case PageMessageType::OpenLink: OpenLink(m.link); break;
@@ -818,7 +822,7 @@ void App::ApplySettings(const Settings& wanted) {
         RegisterKeys();
     }
 
-    if (!s.readAlong) EndReadAlongLayer(/*flush=*/false);  // edited off in settings.json
+    EndReadAlongLayerFor(ReadAlongLayerEvent::ReadAlongSwitched, s.readAlong);  // edited off in settings.json
     ApplyWindowTheme();
     PushState();
 }
@@ -945,7 +949,7 @@ void App::OpenOverlay() {
     // The read-along layer of the last Session must be gone, and the screen redrawn without it, before the
     // Shot is taken: it would be in the picture, and its bar would be read as part of the screen. DwmFlush
     // waits for the next composed frame (the window is destroyed first).
-    EndReadAlongLayer(/*flush=*/true);
+    EndReadAlongLayerFor(ReadAlongLayerEvent::NewSession, true, /*flush=*/true);
     speaker_.SessionStarted();  // speech goes on if it is playing; a paused Reading is dropped
 
     const RECT mon = ActiveMonitorRect();
@@ -959,8 +963,10 @@ void App::OpenOverlay() {
     LogInfo("\n[overlay on monitor at ", shot.ox, ",", shot.oy, "  ", shot.w, "x", shot.h, "]");
 
     OverlayStyle style;
-    style.hoverColor = settings_.hoverColor;
-    style.pickedColor = settings_.pickedColor;
+    // G3: the Overlay's marks and the read-along bar are Lexia's accent. "Dark" is decided as for the Settings
+    // window and the Control bar (the theme setting, "system" = Windows' app mode: IsDarkTheme), once per
+    // Session; the layer after the Session gets the same colour.
+    style.accent = ToColorRef(overlay_highlight::AccentRgb(IsDarkTheme(settings_.theme, SystemUsesLightTheme())));
     style.pauseKey = settings_.pause.IsBound() ? settings_.pause.text : std::string();  // "" = no key: the tooltip shows the word
     style.speechKey = settings_.speech.IsBound() ? settings_.speech.text : std::string();
     style.interfaceLanguage = settings_.interfaceLanguage;
@@ -1016,20 +1022,31 @@ void App::OpenOverlay() {
 
     // Read-along on (G2): if a Reading of this Session is still being read, a
     // click-through layer goes on drawing the bar under the heard word. The Control bar does not stay.
-    if (style.readAlong && settings_.readAlong && settings_.enabled && !quit_) StartReadAlongLayer(mon, std::move(result.track));
+    // StartReadAlongLayer asks ReadAlongLayerWanted (the setting, On, Quit, the Readings still queued).
+    StartReadAlongLayer(mon, std::move(result.track), style.readAlong, style.accent);
 }
 
-// Starts the read-along layer over monitor `mon` for the Readings of `track`, if any of them is still in
-// the Reading queue. At most one layer exists: a new one replaces the old.
-void App::StartReadAlongLayer(const RECT& mon, ReadAlongTrack track) {
-    EndReadAlongLayer(/*flush=*/false);
-    if (!window_ || track.Empty()) return;
+// Starts the read-along layer over monitor `mon` for the Readings of `track`, if ReadAlongLayerWanted says
+// so (read_along.h: the Session was run with the setting on and it is on now, Lexia is On and not quitting,
+// and a Reading of the track is still in the Reading queue). At most one layer exists: a new one replaces
+// the old. `accent` is the Session's own bar colour (OverlayStyle::accent), so the bar does not change colour
+// when the Overlay ends.
+void App::StartReadAlongLayer(const RECT& mon, ReadAlongTrack track, bool styleReadAlong, COLORREF accent) {
+    EndReadAlongLayerFor(ReadAlongLayerEvent::NewLayer);
     auto isActive = [this](uint64_t id) { return speaker_.HasReading(id); };
-    if (!track.AnyActive(isActive)) return;  // everything was read already (or Stopped): nothing to keep
+    ReadAlongLayerFacts facts;
+    facts.styleReadAlong = styleReadAlong;
+    facts.settingReadAlong = settings_.readAlong;
+    facts.lexiaOn = settings_.enabled;
+    facts.quitting = quit_;
+    facts.haveWindow = window_ != nullptr;
+    facts.trackHasReadings = !track.Empty();
+    facts.anyReadingActive = track.AnyActive(isActive);  // false when everything was read already (or Stopped)
+    if (!ReadAlongLayerWanted(facts)) return;
 
     ReadAlongLayerConfig cfg;
     cfg.monitor = mon;
-    cfg.color = settings_.hoverColor;  // the colour of the Session's own read-along bar
+    cfg.color = accent;  // the colour of the Session's own read-along bar
     cfg.title = Utf8ToWide(strings::Text(settings_.interfaceLanguage, strings::id::kReadAlongLayerName));
     cfg.track = std::move(track);
     cfg.heardWord = [this]() { return speaker_.HeardWordNow(); };
@@ -1048,7 +1065,13 @@ void App::StartReadAlongLayer(const RECT& mon, ReadAlongTrack track) {
 // The layer says it has ended (posted by its onEnded): drop it. A stale message (the layer it was for
 // is gone and a newer one runs) finds a layer that has not ended and leaves it alone.
 void App::OnReadAlongLayerEnded() {
-    if (readAlongLayer_ && readAlongLayer_->Ended()) readAlongLayer_.reset();
+    if (readAlongLayer_ && !KeepLayerOnEndedMessage(readAlongLayer_->Ended())) readAlongLayer_.reset();
+}
+
+// Removes the layer if `event` ends it: the one place where App asks EndsReadAlongLayer (read_along.h), so the
+// rule "which events end the layer" is the tested one.
+void App::EndReadAlongLayerFor(ReadAlongLayerEvent event, bool nowOn, bool flush) {
+    if (EndsReadAlongLayer(event, nowOn)) EndReadAlongLayer(flush);
 }
 
 // Removes the read-along layer if there is one. `flush`: wait until the system has drawn the screen

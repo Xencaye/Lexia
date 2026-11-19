@@ -73,7 +73,6 @@ class RepaintingSink : public VoiceEventSink {
 public:
     RepaintingSink(VoiceEventSink& inner, std::function<void()> repaint) : inner_(inner), repaint_(std::move(repaint)) {}
     void CatalogueShown(std::vector<CatalogueEntry> voices) override { inner_.CatalogueShown(std::move(voices)); repaint_(); }
-    void CatalogueFailed(VoiceProblem problem) override { inner_.CatalogueFailed(problem); repaint_(); }
     void DownloadProgress(const std::string& name, uint64_t done, uint64_t total) override { inner_.DownloadProgress(name, done, total); repaint_(); }
     void DownloadDone(const std::string& name) override { inner_.DownloadDone(name); repaint_(); }
     void DownloadFailed(const std::string& name, const ProblemFacts& facts) override { inner_.DownloadFailed(name, facts); repaint_(); }

@@ -45,7 +45,8 @@
 #define AppName "Lexia"
 #define AppExe "lexia.exe"
 ; The mutex of a running Lexia (src/instance.cpp: Local\Lexia.SingleInstance, the session namespace) and the
-; class of its hidden App window (src/instance.h, kAppWindowClass), which Setup posts Lexia.Quit to.
+; class of its hidden App window (src/instance.h, kAppWindowClass), which Setup (and scripts/close_lexia.ps1
+; before a build) posts Lexia.Quit to.
 #define MutexName "Lexia.SingleInstance"
 #define AppWindowClass "LexiaApp"
 
@@ -116,7 +117,7 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 ; {app}\ui held the HTML Settings window of Lexia 0.5, which 0.6 replaced with a native one (ADR-0009):
 ; an update of 0.5 removes it.
 Type: filesandordirs; Name: "{app}\ui"
-; {app}\voices is NOT emptied (B9): an update keeps the Voices that this version no longer ships (Cori and Mike of
+; {app}\voices is NOT emptied (B9): an update keeps the Voices that this version no longer ships (LJ Speech, Mike and Norman, of
 ; the 0.7 test builds), because Lexia adopts them into the person's own Voices folder at its next start
 ; (AdoptRetiredVoices).
 ; The Voices that this version ships are overwritten by [Files] above. The uninstaller still removes {app}.

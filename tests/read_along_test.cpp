@@ -3,10 +3,14 @@
 // UTF-8 escapes so the test does not depend on how the editor saved it.
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
 #include <string>
 #include <vector>
 
 #include "read_along.h"
+#include "stretch.h"
 
 namespace {
 
@@ -430,12 +434,16 @@ TEST_CASE("Read-along: the track gives bars for the Readings it knows and no oth
     CHECK(track.Knows(7));
     CHECK_FALSE(track.Knows(9));
 
-    const std::vector<Rect> bars = track.Bars(HeardWord{7, 0, {4, 7}}, 3, 1);
+    // G3: the bar touches the line box (gap 0, what the Overlay and the layer use): it starts at the box bottom.
+    const std::vector<Rect> bars = track.Bars(HeardWord{7, 0, {4, 7}}, 3, 0);
     REQUIRE(bars.size() == 1);
     CHECK(bars[0].left == 40);
     CHECK(bars[0].right == 70);
-    CHECK(bars[0].top == 11);
-    CHECK(bars[0].bottom == 14);
+    CHECK(bars[0].top == 10);  // the Line's bottom
+    CHECK(bars[0].bottom == 13);
+    // The default gap is 0 too; a gap moves the bar down by exactly that much.
+    CHECK(track.Bars(HeardWord{7, 0, {4, 7}}, 3)[0].top == 10);
+    CHECK(track.Bars(HeardWord{7, 0, {4, 7}}, 3, 1)[0].top == 11);
 
     // The second Block of Reading 8.
     const std::vector<Rect> second = track.Words(HeardWord{8, 1, {3, 5}});
@@ -484,4 +492,401 @@ TEST_CASE("Read-along: SameRects compares sizes and every edge") {
     CHECK_FALSE(SameRects(a, {R(1, 2, 3, 4)}));
     CHECK_FALSE(SameRects(a, {R(1, 2, 3, 4), R(5, 6, 7, 9)}));
     CHECK_FALSE(SameRects({R(1, 2, 3, 4)}, {R(2, 2, 3, 4)}));
+}
+
+// =============================================================== more edges ===
+// The cases below pin the edges of the rules above: every punctuation phoneme, the odd timings a chunk may
+// carry, the mirror of SpeakStretches, the sentence rules for the marks a real text holds, and the
+// degenerate Rects and Lines.
+
+TEST_CASE("Read-along: every punctuation phoneme is silent for the read-along; a Cyrillic letter is spoken") {
+    // The list in IsSpokenPhoneme: ASCII punctuation, then the dashes, the ellipsis, the curly quotes and
+    // the guillemets that espeak-ng may put in a phoneme string.
+    const char32_t punctuation[] = {U',',   U'.',   U';',   U':',   U'!',   U'?',   U'-',
+                                    U'"',   U'\'',  U'(',   U')',   0x2013, 0x2014, 0x2026,
+                                    0x2018, 0x2019, 0x201C, 0x201D, 0x00AB, 0x00BB};
+    for (char32_t p : punctuation) {
+        INFO("phoneme U+" << static_cast<unsigned>(p));
+        CHECK_FALSE(IsSpokenPhoneme(p));
+    }
+    CHECK(IsSpokenPhoneme(0x0430));  // Cyrillic small a: a sound, not a mark
+}
+
+TEST_CASE("Read-along: CutIntoWords gives nothing for a sample rate that is not positive") {
+    SpeechChunk c = MakeChunk({2, 2});
+    REQUIRE_FALSE(c.samples.empty());
+    c.sampleRate = 0;
+    CHECK(CutIntoWords(c).empty());
+    c.sampleRate = -22050;
+    CHECK(CutIntoWords(c).empty());
+}
+
+TEST_CASE("Read-along: CutIntoWords ignores a space that lies at or past the end of the audio, or before its start") {
+    SpeechChunk c;
+    c.sampleRate = 100;
+    c.samples.assign(40, 0.f);
+    // A space exactly at the end, one beyond it and one with a negative start: none of them cuts.
+    c.phonemes = {{U'a', 0, 10}, {U' ', 40, 5}, {U' ', 90, 5}, {U' ', -3, 5}};
+    const std::vector<WordPiece> p = CutIntoWords(c);
+    REQUIRE(p.size() == 1);
+    CHECK(p[0].begin == 0);
+    CHECK(p[0].end == 40);
+    CHECK(p[0].phonemes == 1);
+}
+
+TEST_CASE("Read-along: a spoken phoneme with a negative start counts in the first piece") {
+    SpeechChunk c;
+    c.sampleRate = 100;
+    c.samples.assign(40, 0.f);
+    c.phonemes = {{U'a', -5, 10}, {U' ', 20, 5}, {U'b', 20, 10}};
+    const std::vector<WordPiece> p = CutIntoWords(c);
+    REQUIRE(p.size() == 2);
+    CHECK(p[0].phonemes == 1);  // the 'a' that "started" before the audio
+    CHECK(p[1].phonemes == 1);
+}
+
+TEST_CASE("Read-along: SpokenStretchRanges mirrors the non-blank stretches of SplitIntoStretches") {
+    // Runs of two or more words of one script are stretches of their own: Latin, Cyrillic, Latin.
+    const std::string text =
+        "one two \xD0\xBD\xD0\xB5 \xD0\xB4\xD0\xB0 five six";  // "one two <ne> <da> five six" in Cyrillic
+    const std::vector<TextRange> ranges = SpokenStretchRanges(text);
+    REQUIRE(ranges.size() == 3);
+    CHECK(ranges[0].start == 0);
+    CHECK(ranges[0].end == ranges[1].start);
+    CHECK(ranges[1].end == ranges[2].start);
+    CHECK(ranges[2].end == text.size());
+
+    // The test computes the offsets itself, from the split the speech uses, so a change in either side shows.
+    std::vector<size_t> starts;
+    size_t offset = 0;
+    for (const Stretch& s : SplitIntoStretches(text)) {
+        if (!Trim(s.text).empty()) starts.push_back(offset);
+        offset += s.text.size();
+    }
+    REQUIRE(starts.size() == ranges.size());
+    for (size_t i = 0; i < starts.size(); ++i) CHECK(ranges[i].start == starts[i]);
+    CHECK(ranges[1].start == std::string("one two ").size());
+}
+
+TEST_CASE("Read-along: a text of only spaces has no stretch to speak") {
+    CHECK(SpokenStretchRanges("    ").empty());
+    CHECK(SpokenStretchRanges(" \t \n").empty());
+}
+
+TEST_CASE("Read-along: an ellipsis glued to a word, or four dots, is a pause inside the sentence") {
+    const std::string glued = "Wait\xE2\x80\xA6 what now.";  // Wait<U+2026> what now.
+    CHECK(Cuts(glued, SpokenWordRanges(glued, 0, {1, 1, 1})) == Words{"Wait", "what", "now"});
+    const std::string dots = "Wait.... what now.";
+    CHECK(Cuts(dots, SpokenWordRanges(dots, 0, {1, 1, 1})) == Words{"Wait", "what", "now"});
+}
+
+TEST_CASE("Read-along: a full stop inside curly quotes ends the sentence") {
+    // He said <U+201C>stop.<U+201D> then left.
+    const std::string text = "He said \xE2\x80\x9Cstop.\xE2\x80\x9D then left.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1, 1})) == Words{"He", "said", "stop"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1})) == Words{"then", "left"});
+}
+
+TEST_CASE("Read-along: CR LF after a full stop ends the sentence; a tab separates words") {
+    const std::string text = "Line one.\r\nline two.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1, 1})) == Words{"Line", "one"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1})) == Words{"line", "two"});
+
+    const std::string tabbed = "alpha\tbeta gamma.";
+    CHECK(Cuts(tabbed, SpokenWordRanges(tabbed, 0, {1, 1, 1})) == Words{"alpha", "beta", "gamma"});
+}
+
+TEST_CASE("Read-along: a Latin-1 or Cyrillic lower-case word after a full stop does not end the sentence") {
+    // "Mr." before a lower-case e-acute (U+00E9): one sentence of four words.
+    const std::string latin1 = "See Mr. \xC3\xA9"
+                               "mile now.";
+    CHECK(Cuts(latin1, SpokenWordRanges(latin1, 0, {1, 1, 1, 1})) ==
+          Words{"See", "Mr",
+                "\xC3\xA9"
+                "mile",
+                "now"});
+
+    const std::string da = "\xD0\x94\xD0\xB0";       // capital De, small a
+    const std::string daLower = "\xD0\xB4\xD0\xB0";  // all small
+    const std::string ne = "\xD0\xBD\xD0\xB5";       // small en, small e
+    const std::string neCap = "\xD0\x9D\xD0\xB5";    // capital En, small e
+    // "Da ne. da ne." (Cyrillic): the full stop is followed by a lower-case Cyrillic word, so it goes on.
+    const std::string lower = da + " " + ne + ". " + daLower + " " + ne + ".";
+    CHECK(Cuts(lower, SpokenWordRanges(lower, 0, {1, 1, 1, 1})) == Words{da, ne, daLower, ne});
+    // "Da ne. Ne da." (Cyrillic): a capital follows, so the sentence ends there.
+    const std::string capital = da + " " + ne + ". " + neCap + " " + daLower + ".";
+    CHECK(Cuts(capital, SpokenWordRanges(capital, 0, {1, 1})) == Words{da, ne});
+    CHECK(Cuts(capital, SpokenWordRanges(capital, 1, {1, 1})) == Words{neCap, daLower});
+}
+
+TEST_CASE("Read-along: a run of marks with no word is not a sentence of its own") {
+    const std::string text = "One. !!! Two three.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1})) == Words{"One"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1})) == Words{"Two", "three"});
+}
+
+TEST_CASE("Read-along: ?! ends a sentence, also inside a bracket") {
+    const std::string text = "Wait?! then go.";
+    CHECK(Cuts(text, SpokenWordRanges(text, 0, {1})) == Words{"Wait"});
+    CHECK(Cuts(text, SpokenWordRanges(text, 1, {1, 1})) == Words{"then", "go"});
+
+    const std::string bracket = "(Why?) then go.";
+    CHECK(Cuts(bracket, SpokenWordRanges(bracket, 0, {1})) == Words{"Why"});
+    CHECK(Cuts(bracket, SpokenWordRanges(bracket, 1, {1, 1})) == Words{"then", "go"});
+}
+
+TEST_CASE("Read-along: three spoken words on one text word all land on it") {
+    const std::string text = "USA";  // said "U S A"
+    const std::vector<TextRange> r = SpokenWordRanges(text, 0, {1, 1, 1});
+    CHECK(Cuts(text, r) == Words{"USA", "USA", "USA"});
+}
+
+TEST_CASE("Read-along: phoneme counts of zero or less are taken as one in the proportional mapping") {
+    const std::string text = "alpha beta gamma delta";
+    const std::vector<TextRange> r = SpokenWordRanges(text, 0, {0, -3, 2});  // 3 spoken, 4 text words
+    REQUIRE(r.size() == 3);
+    size_t last = 0;
+    for (const TextRange& x : r) {
+        CHECK_FALSE(x.Empty());
+        CHECK(x.end <= text.size());
+        CHECK(x.start >= last);  // never back
+        last = x.start;
+    }
+}
+
+TEST_CASE("Read-along: a range that is only the space between two Lines has no box") {
+    const TextBlock b = BlockOf({Line(R(0, 0, 30, 10), "a b"), Line(R(0, 20, 30, 30), "c d")}, "a b c d");
+    CHECK(WordBoxes(b, {3, 4}).empty());
+}
+
+TEST_CASE("Read-along: a range over three Lines has three boxes, the middle one the whole Line") {
+    const TextBlock b = BlockOf({Line(R(0, 0, 50, 10), "aa bb"), Line(R(0, 20, 50, 30), "cc dd"),
+                                 Line(R(0, 40, 50, 50), "ee ff")},
+                                "aa bb cc dd ee ff");
+    const std::vector<Rect> w = WordBoxes(b, {3, 14});  // "bb cc dd ee"
+    REQUIRE(w.size() == 3);
+    CHECK(w[0].top == 0);
+    CHECK(w[0].left == 30);  // 3 of 5 characters in
+    CHECK(w[0].right == 50);
+    CHECK(w[1].top == 20);
+    CHECK(w[1].left == 0);  // the whole Line
+    CHECK(w[1].right == 50);
+    CHECK(w[2].top == 40);
+    CHECK(w[2].left == 0);
+    CHECK(w[2].right == 20);  // 2 of 5 characters
+}
+
+TEST_CASE("Read-along: a Line that ends in a hyphen but is joined with a space keeps its hyphen") {
+    // layout.cpp keeps the '-' and puts a space when the next Line starts in upper case ("self-" "Esteem").
+    const TextBlock b = BlockOf({Line(R(0, 0, 50, 10), "self-"), Line(R(0, 20, 60, 30), "Esteem")}, "self- Esteem");
+    const std::vector<Rect> first = WordBoxes(b, {0, 5});
+    REQUIRE(first.size() == 1);
+    CHECK(first[0].top == 0);
+    CHECK(first[0].left == 0);
+    CHECK(first[0].right == 50);
+    const std::vector<Rect> second = WordBoxes(b, {6, 12});
+    REQUIRE(second.size() == 1);
+    CHECK(second[0].top == 20);
+    CHECK(second[0].left == 0);
+    CHECK(second[0].right == 60);
+}
+
+TEST_CASE("Read-along: a last Line that ends in a hyphen the text lacks gives no box") {
+    // Only a Line that is not the last may lose its '-' to a join, so these Lines do not make up the text.
+    const TextBlock b = BlockOf({Line(R(0, 0, 50, 10), "word-")}, "word");
+    CHECK(WordBoxes(b, {0, 4}).empty());
+}
+
+TEST_CASE("Read-along: a Line of no width gives no box") {
+    const TextBlock b = BlockOf({Line(R(10, 0, 10, 10), "abc")}, "abc");
+    CHECK(WordBoxes(b, {0, 3}).empty());
+}
+
+TEST_CASE("Read-along: one character on a Line narrower than its text is still a pixel wide") {
+    const TextBlock b = BlockOf({Line(R(0, 0, 5, 10), "abcdefghij")}, "abcdefghij");  // 10 characters in 5 px
+    const std::vector<Rect> w = WordBoxes(b, {2, 3});
+    REQUIRE(w.size() == 1);
+    CHECK(w[0].right - w[0].left >= 1);
+    CHECK(w[0].left >= 0);
+    CHECK(w[0].right <= 5);  // and inside the Line
+}
+
+TEST_CASE("Read-along: a thickness below one is one pixel") {
+    const Rect bar = UnderlineBar(R(0, 0, 5, 5), -4);
+    CHECK(bar.bottom - bar.top == 1);
+    const Rect gapped = UnderlineBar(R(0, 0, 5, 5), -4, 2);
+    CHECK(gapped.top == 7);
+    CHECK(gapped.bottom == 8);
+}
+
+TEST_CASE("Read-along: ClipToArea gives an empty Rect for one wholly outside, or for an empty area") {
+    auto isEmpty = [](const Rect& r) { return r.left == 0 && r.top == 0 && r.right == 0 && r.bottom == 0; };
+    CHECK(isEmpty(ClipToArea(R(-20, 10, -5, 20), 100, 100)));  // wholly to the left
+    CHECK(isEmpty(ClipToArea(R(10, -20, 50, -5), 100, 100)));  // wholly above
+    CHECK(isEmpty(ClipToArea(R(10, 10, 50, 50), 0, 100)));     // an area of no width
+    CHECK(isEmpty(ClipToArea(R(10, 10, 50, 50), 100, 0)));     // an area of no height
+    const Rect same = ClipToArea(R(0, 0, 100, 80), 100, 80);   // the area itself stays as it is
+    CHECK(same.left == 0);
+    CHECK(same.top == 0);
+    CHECK(same.right == 100);
+    CHECK(same.bottom == 80);
+}
+
+TEST_CASE("Read-along: SameRects sees a change of one edge, and a change of order") {
+    CHECK_FALSE(SameRects({R(1, 2, 3, 4)}, {R(1, 3, 3, 4)}));  // top only
+    CHECK_FALSE(SameRects({R(1, 2, 3, 4)}, {R(1, 2, 3, 5)}));  // bottom only
+    CHECK_FALSE(SameRects({R(1, 2, 3, 4)}, {R(1, 2, 4, 4)}));  // right only
+    CHECK_FALSE(SameRects({R(1, 2, 3, 4), R(5, 6, 7, 8)}, {R(5, 6, 7, 8), R(1, 2, 3, 4)}));  // same Rects, other order
+}
+
+TEST_CASE("Read-along: adding a Reading again replaces its Blocks") {
+    ReadAlongTrack track;
+    track.Add(7, {BlockOf({Line(R(0, 0, 70, 10), "one two")}, "one two"),
+                  BlockOf({Line(R(0, 50, 70, 60), "three four")}, "three four")});
+    REQUIRE(track.Words(HeardWord{7, 1, {0, 5}}).size() == 1);  // Block 1 exists
+    track.Add(7, {BlockOf({Line(R(0, 100, 70, 110), "xx yy")}, "xx yy")});
+    const std::vector<Rect> w = track.Words(HeardWord{7, 0, {0, 2}});
+    REQUIRE(w.size() == 1);
+    CHECK(w[0].top == 100);                               // the new Block 0
+    CHECK(track.Words(HeardWord{7, 1, {0, 5}}).empty());  // the old Block 1 is gone
+}
+
+TEST_CASE("Read-along: a hyphen-joined word has two bars, each under its own Line") {
+    ReadAlongTrack track;
+    // "an inter-" + "national word" = "an international word" (see the hyphen test above).
+    track.Add(3, {BlockOf({Line(R(0, 0, 90, 10), "an inter-"), Line(R(0, 20, 130, 30), "national word")},
+                          "an international word")});
+    const std::vector<Rect> bars = track.Bars(HeardWord{3, 0, {3, 16}}, 3, 1);
+    REQUIRE(bars.size() == 2);
+    CHECK(bars[0].left == 30);
+    CHECK(bars[0].right == 90);
+    CHECK(bars[0].top == 11);  // under the first Line (bottom 10 + gap 1)
+    CHECK(bars[0].bottom == 14);
+    CHECK(bars[1].left == 0);
+    CHECK(bars[1].right == 80);
+    CHECK(bars[1].top == 31);  // under the second Line (bottom 30 + gap 1)
+    CHECK(bars[1].bottom == 34);
+}
+
+TEST_CASE("Read-along: an empty range has no boxes in the track") {
+    ReadAlongTrack track;
+    track.Add(7, {BlockOf({Line(R(0, 0, 70, 10), "one two")}, "one two")});
+    CHECK(track.Words(HeardWord{7, 0, {3, 3}}).empty());
+    CHECK(track.Words(HeardWord{7, 0, TextRange{}}).empty());
+    CHECK(track.Bars(HeardWord{7, 0, {3, 3}}, 3, 1).empty());
+}
+
+TEST_CASE("Read-along: AnyActive is false after Clear, whatever the queue says") {
+    ReadAlongTrack track;
+    track.Add(7, {BlockOf({Line(R(0, 0, 70, 10), "one two")}, "one two")});
+    const std::function<bool(uint64_t)> always = [](uint64_t) { return true; };
+    CHECK(track.AnyActive(always));
+    track.Clear();
+    CHECK_FALSE(track.AnyActive(always));
+}
+
+
+TEST_CASE("Read-along: more spoken words than text words give every text word a turn") {
+    // "In 2024 the old mill" as Piper says it: in, two, thousand, and, twenty, four, the, old, mill. A walk by
+    // the middle of each spoken word skipped "old"; the grouping puts one text word on each run of words.
+    const std::string text = "In 2024 the old mill";
+    const std::vector<TextRange> r = SpokenWordRanges(text, 0, {2, 4, 8, 2, 7, 4, 3, 5, 4});
+    REQUIRE(r.size() == 9);
+    // Which spoken word starts the next text word is an estimate from the phoneme and letter shares, so only the
+    // order and the coverage are exact: every text word is marked, in order, the first one first and the last one last.
+    Words distinct;
+    for (const std::string& w : Cuts(text, r)) {
+        if (distinct.empty() || distinct.back() != w) distinct.push_back(w);
+    }
+    CHECK(distinct == Words{"In", "2024", "the", "old", "mill"});
+}
+
+TEST_CASE("Read-along: with more spoken words than text words no text word is skipped and none goes back") {
+    const std::string text = "A short text, with 12 words in it; and some more.";
+    const size_t textWords = 11;  // A short text with 12 words in it and some more: one sentence ("it;" does not end one)
+    for (size_t spoken = textWords + 1; spoken < 40; ++spoken) {
+        // Uneven phoneme counts: one long spoken word (a number), the others short.
+        std::vector<int> counts(spoken, 3);
+        counts[spoken / 2] = 9;
+        const std::vector<TextRange> r = SpokenWordRanges(text, 0, counts);
+        REQUIRE(r.size() == spoken);
+        // The distinct text words in the order they are marked: each starts where the one before it ended or later,
+        // and, counted by their start, they are all the words of the sentence.
+        std::vector<TextRange> distinct;
+        for (const TextRange& x : r) {
+            if (distinct.empty() || x.start != distinct.back().start) distinct.push_back(x);
+        }
+        CHECK(distinct.size() == textWords);  // no text word was skipped
+        for (size_t i = 1; i < distinct.size(); ++i) CHECK(distinct[i].start > distinct[i - 1].start);  // none went back
+        CHECK(Cut(text, r.front()) == "A");
+        CHECK(Cut(text, r.back()) == "more");
+    }
+}
+
+TEST_CASE("Read-along: four spoken words on three text words skip none") {
+    const std::string text = "alpha beta gamma";
+    const Words heard = Cuts(text, SpokenWordRanges(text, 0, {4, 4, 2, 2}));
+    REQUIRE(heard.size() == 4);
+    CHECK(heard.front() == "alpha");
+    CHECK(heard.back() == "gamma");
+    // "beta" is heard: the second text word has a spoken word of its own.
+    CHECK(std::count(heard.begin(), heard.end(), std::string("beta")) >= 1);
+}
+
+// ------------------------------------------------------- the click-through layer's rules ---
+
+namespace {
+
+// Facts for which the layer is wanted; a test turns one off.
+ReadAlongLayerFacts AllTrue() {
+    ReadAlongLayerFacts f;
+    f.styleReadAlong = f.settingReadAlong = f.lexiaOn = f.haveWindow = f.trackHasReadings = f.anyReadingActive = true;
+    f.quitting = false;
+    return f;
+}
+
+}  // namespace
+
+TEST_CASE("Read-along layer: it is wanted only when every condition holds") {
+    CHECK(ReadAlongLayerWanted(AllTrue()));
+    struct Case {
+        const char* what;
+        void (*spoil)(ReadAlongLayerFacts&);
+    };
+    const Case cases[] = {
+        {"the Session was run without Read-along", [](ReadAlongLayerFacts& f) { f.styleReadAlong = false; }},
+        {"the setting was turned off during the Session", [](ReadAlongLayerFacts& f) { f.settingReadAlong = false; }},
+        {"Lexia is Off", [](ReadAlongLayerFacts& f) { f.lexiaOn = false; }},
+        {"Lexia is quitting", [](ReadAlongLayerFacts& f) { f.quitting = true; }},
+        {"there is no window to post to", [](ReadAlongLayerFacts& f) { f.haveWindow = false; }},
+        {"nothing was Picked", [](ReadAlongLayerFacts& f) { f.trackHasReadings = false; }},
+        {"every Reading is done", [](ReadAlongLayerFacts& f) { f.anyReadingActive = false; }},
+    };
+    for (const Case& c : cases) {
+        ReadAlongLayerFacts f = AllTrue();
+        c.spoil(f);
+        CHECK_MESSAGE(!ReadAlongLayerWanted(f), c.what);
+    }
+    CHECK_FALSE(ReadAlongLayerWanted(ReadAlongLayerFacts{}));  // no fact true: not wanted
+}
+
+TEST_CASE("Read-along layer: which events end it") {
+    // These end it whatever the flag says.
+    for (const ReadAlongLayerEvent e : {ReadAlongLayerEvent::Stop, ReadAlongLayerEvent::Quit, ReadAlongLayerEvent::RunEnded,
+                                        ReadAlongLayerEvent::NewSession, ReadAlongLayerEvent::NewLayer}) {
+        CHECK(EndsReadAlongLayer(e));
+        CHECK(EndsReadAlongLayer(e, true));
+        CHECK(EndsReadAlongLayer(e, false));
+    }
+    // Turning Lexia Off ends it; turning it On does not.
+    CHECK(EndsReadAlongLayer(ReadAlongLayerEvent::LexiaSwitched, false));
+    CHECK_FALSE(EndsReadAlongLayer(ReadAlongLayerEvent::LexiaSwitched, true));
+    // The Read-along setting turned off (the page or settings.json) ends it; turned on does not.
+    CHECK(EndsReadAlongLayer(ReadAlongLayerEvent::ReadAlongSwitched, false));
+    CHECK_FALSE(EndsReadAlongLayer(ReadAlongLayerEvent::ReadAlongSwitched, true));
+}
+
+TEST_CASE("Read-along layer: a posted 'ended' message deletes only a layer that has ended") {
+    CHECK(KeepLayerOnEndedMessage(false));  // a newer layer that runs: the stale message leaves it alone
+    CHECK_FALSE(KeepLayerOnEndedMessage(true));
 }

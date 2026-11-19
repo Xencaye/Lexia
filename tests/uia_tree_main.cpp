@@ -16,6 +16,13 @@
 // It needs an interactive desktop: UI Automation reaches a window through its window station. In a service
 // session (the window station is not "WinSta0") there is none: the test then says so and exits 0 (SKIP).
 // Exit code: 0 = passed or skipped, 1 = a check failed, 2 = the window could not be made.
+//
+// Waiting (R49): every check that depends on something that happens later (a queued action, a UIA event, a window
+// state change, a page that is built) waits for its CONDITION with WaitUntil (polls every 20 ms, up to 5 s), never for
+// a fixed time: a slow or busy machine just waits longer, a fast one is quicker. No check needs the window to be the
+// foreground window or to have the real keyboard focus: the Master volume focus event follows the widget focus of
+// the tree (not ::GetFocus), and the window is only minimised and restored (restored without activation, so the test
+// never takes the foreground from the person who runs it).
 #include <windows.h>
 
 #include <UIAutomationClient.h>
@@ -28,7 +35,7 @@
 #include <cstdio>
 #include <functional>
 #include <future>
-#include <map>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
@@ -46,7 +53,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 
-const UINT kRunOnUi = WM_APP + 100;  // thread message: lParam = std::function<void()>*
+const UINT kRunOnUi = WM_APP + 100;  // message to the helper window: lParam = std::shared_ptr<UiJob>* (heap)
 
 std::mutex g_mutex;
 std::vector<PageMessage> g_commands;  // what the window's onCommand received (UI thread writes, client reads)
@@ -88,35 +95,97 @@ const char* TypeName(int t) {
 
 // ---- the window's thread
 
-DWORD g_uiThread = 0;
+// A message-only window on the window's thread. OnUi posts to it with PostMessageW instead of posting a thread
+// message (PostThreadMessageW with no window): a thread message is dropped when the thread is inside a modal loop
+// (COM's STA wait during a UIA call or event, a system loop ...), because DispatchMessage gets a message with no
+// window and discards it, so the waiter below would wait for ever. A message to a window is dispatched by every
+// modal loop that pumps.
+HWND g_uiHelper = nullptr;
+const UINT kQuitUi = WM_APP + 101;  // asks the helper window's thread to leave its message loop
 
-// Runs `fn` on the window's thread and waits for it.
-void OnUi(std::function<void()> fn) {
+// What one OnUi call shares with the job it posts. Held by a shared_ptr that the job also owns, so a job that runs
+// late (after OnUi gave up) still touches live memory only.
+struct UiJob {
+    std::function<void()> fn;
     std::promise<void> done;
-    std::future<void> wait = done.get_future();
-    std::function<void()> job = [&] {
-        fn();
-        done.set_value();
-    };
-    PostThreadMessageW(g_uiThread, kRunOnUi, 0, reinterpret_cast<LPARAM>(&job));
-    wait.wait();
+    std::atomic<bool> abandoned{false};  // set when the waiter timed out: a late run skips `fn` (its captures may be gone)
+};
+
+LRESULT CALLBACK UiHelperProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    if (msg == kRunOnUi) {
+        // lParam = a heap std::shared_ptr<UiJob>* made by OnUi; this side deletes it.
+        std::unique_ptr<std::shared_ptr<UiJob>> holder(reinterpret_cast<std::shared_ptr<UiJob>*>(lp));
+        UiJob& job = **holder;
+        if (!job.abandoned.load()) job.fn();
+        job.done.set_value();
+        return 0;
+    }
+    if (msg == kQuitUi) {
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
-// Waits (up to 3 s) until a command that `pred` accepts has arrived; returns it.
+// Makes the helper window; call on the window's thread before the client starts.
+bool CreateUiHelper() {
+    WNDCLASSW wc = {};
+    wc.lpfnWndProc = UiHelperProc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"LexiaUiaTestHelper";
+    RegisterClassW(&wc);
+    g_uiHelper = CreateWindowExW(0, wc.lpszClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
+    return g_uiHelper != nullptr;
+}
+
+// Runs `fn` on the window's thread and waits for it (at most 30 s). A job that cannot be posted or does not run in
+// time is a failed check and OnUi returns without waiting further; the job state lives on the heap and is shared
+// with the posted message, so a late run never touches freed memory (and skips `fn`, whose captures may be gone).
+void OnUi(std::function<void()> fn) {
+    auto job = std::make_shared<UiJob>();
+    job->fn = std::move(fn);
+    std::future<void> wait = job->done.get_future();
+    auto* holder = new std::shared_ptr<UiJob>(job);  // owned by the message until the helper window's proc takes it
+    if (!PostMessageW(g_uiHelper, kRunOnUi, 0, reinterpret_cast<LPARAM>(holder))) {
+        const DWORD err = GetLastError();
+        delete holder;
+        std::printf("  FAIL: OnUi could not post (error %lu)\n", static_cast<unsigned long>(err));
+        ++g_checks;
+        g_failures.push_back("OnUi could not post");
+        return;
+    }
+    if (wait.wait_for(std::chrono::seconds(30)) != std::future_status::ready) {
+        job->abandoned = true;
+        std::printf("  FAIL: OnUi timed out after 30 s: the window thread did not run the job\n");
+        ++g_checks;
+        g_failures.push_back("OnUi timed out");
+    }
+}
+
+// Polls `pred` every 20 ms until it is true or `timeoutMs` has passed; returns the last answer. Called from the
+// client thread only (the window's thread pumps messages, so the thing waited for can happen meanwhile; this
+// thread owns no window and needs no pump). The deadline is generous (5 s) on purpose: it is a "never", not a pace.
+bool WaitUntil(const std::function<bool()>& pred, int timeoutMs = 5000) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    for (;;) {
+        if (pred()) return true;
+        if (std::chrono::steady_clock::now() >= deadline) return false;
+        Sleep(20);
+    }
+}
+
+// Waits until a command that `pred` accepts has arrived; returns it in `out`.
 bool WaitCommand(const std::function<bool(const PageMessage&)>& pred, PageMessage& out) {
-    for (int i = 0; i < 60; ++i) {
-        {
-            std::lock_guard<std::mutex> lock(g_mutex);
-            for (const PageMessage& m : g_commands) {
-                if (pred(m)) {
-                    out = m;
-                    return true;
-                }
+    return WaitUntil([&] {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        for (const PageMessage& m : g_commands) {
+            if (pred(m)) {
+                out = m;
+                return true;
             }
         }
-        Sleep(50);
-    }
-    return false;
+        return false;
+    });
 }
 
 void ClearCommands() {
@@ -221,16 +290,42 @@ void CheckIds(const char* page, const std::vector<Node>& tree) {
     }
 }
 
-void ShowPage(nui::Page page, SettingsWindow& w) {
+// The frame's link that belongs to a page (every page has one).
+const char* NavLinkId(nui::Page page) {
+    switch (page) {
+        case nui::Page::Home: return strings::id::kWindowNavHome;
+        case nui::Page::Voices: return strings::id::kWindowNavVoices;
+        case nui::Page::Settings: return strings::id::kWindowNavSettings;
+        case nui::Page::Report: return strings::id::kWindowNavReport;
+        case nui::Page::Help: return strings::id::kWindowNavHelp;
+        case nui::Page::About: return strings::id::kWindowNavAbout;
+    }
+    return strings::id::kWindowNavHome;
+}
+
+// Shows a page on the window's thread, then waits until a client SEES it: the frame's link of that page is
+// selected in the UIA tree (the page's own widgets are built in the same call, so the tree is whole by then). Not a
+// fixed sleep: a busy machine only takes longer. A page that never shows up is a failed check of its own.
+void ShowPage(Client& c, nui::Page page, SettingsWindow& w) {
     OnUi([&] { w.ShowPage(page); });
-    Sleep(150);  // let the window thread settle (the structure changed)
+    const std::string link = T(NavLinkId(page));
+    const bool seen = WaitUntil([&] {
+        std::vector<Node> tree = TreeOf(c);
+        const Node* n = Find(tree, link, UIA_HyperlinkControlTypeId);
+        if (!n) return false;
+        auto item = Pattern<IUIAutomationSelectionItemPattern>(n->el.Get(), UIA_SelectionItemPatternId);
+        BOOL selected = FALSE;
+        if (item) item->get_CurrentIsSelected(&selected);
+        return selected != FALSE;
+    });
+    Check(seen, std::string("the ") + nui::PageName(page) + " page is offered (its frame link is selected)");
 }
 
 // ---- the checks
 
 void ControlsOfAllPages(Client& c, SettingsWindow& w) {
     // Home
-    ShowPage(nui::Page::Home, w);
+    ShowPage(c, nui::Page::Home, w);
     {
         std::vector<Node> tree = TreeOf(c);
         Dump("Home", tree);
@@ -296,7 +391,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
     }
 
     // Voices
-    ShowPage(nui::Page::Voices, w);
+    ShowPage(c, nui::Page::Voices, w);
     {
         std::vector<Node> tree = TreeOf(c);
         Dump("Voices", tree);
@@ -330,7 +425,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
     }
 
     // Settings
-    ShowPage(nui::Page::Settings, w);
+    ShowPage(c, nui::Page::Settings, w);
     {
         std::vector<Node> tree = TreeOf(c);
         Dump("Settings", tree);
@@ -365,7 +460,7 @@ void ControlsOfAllPages(Client& c, SettingsWindow& w) {
 
     // Report, Help, About
     for (nui::Page p : {nui::Page::Report, nui::Page::Help, nui::Page::About}) {
-        ShowPage(p, w);
+        ShowPage(c, p, w);
         std::vector<Node> tree = TreeOf(c);
         Dump(nui::PageName(p), tree);
         CheckIds(nui::PageName(p), tree);
@@ -383,7 +478,7 @@ void Actions(Client& c, SettingsWindow& w) {
     PageMessage m;
 
     // Invoke / Toggle the power button -> SetOn.
-    ShowPage(nui::Page::Home, w);
+    ShowPage(c, nui::Page::Home, w);
     {
         std::vector<Node> tree = TreeOf(c);
         const Node* power = Find(tree, T(strings::id::kWindowHomePower), UIA_ButtonControlTypeId);
@@ -417,7 +512,7 @@ void Actions(Client& c, SettingsWindow& w) {
     }
 
     // A Voice slider.
-    ShowPage(nui::Page::Voices, w);
+    ShowPage(c, nui::Page::Voices, w);
     {
         std::vector<Node> tree = TreeOf(c);
         const Node* speed = Find(tree, T(strings::id::kWindowVoiceSpeed), UIA_SliderControlTypeId);
@@ -435,22 +530,28 @@ void Actions(Client& c, SettingsWindow& w) {
         if (voice) {
             auto ec = Pattern<IUIAutomationExpandCollapsePattern>(voice->el.Get(), UIA_ExpandCollapsePatternId);
             Check(ec && SUCCEEDED(ec->Expand()), "Actions: Expand on the Voice choice succeeds");
-            Sleep(200);
+            // Expand / Collapse are queued for the window's thread: wait until the state shows it.
             ExpandCollapseState st = ExpandCollapseState_Collapsed;
-            if (ec) ec->get_CurrentExpandCollapseState(&st);
-            Check(st == ExpandCollapseState_Expanded, "Actions: the Voice choice is expanded");
-            std::vector<Node> open = TreeOf(c);
-            Check(Find(open, "LJ Speech (Medium)", UIA_ListItemControlTypeId) != nullptr,
+            auto stateIs = [&](ExpandCollapseState want) {
+                return WaitUntil([&] {
+                    if (ec) ec->get_CurrentExpandCollapseState(&st);
+                    return ec && st == want;
+                });
+            };
+            Check(stateIs(ExpandCollapseState_Expanded), "Actions: the Voice choice is expanded");
+            std::vector<Node> open;
+            Check(WaitUntil([&] {
+                      open = TreeOf(c);
+                      return Find(open, "Cori (Medium)", UIA_ListItemControlTypeId) != nullptr;
+                  }),
                   "Actions: the open list offers its rows");
             Check(ec && SUCCEEDED(ec->Collapse()), "Actions: Collapse succeeds");
-            Sleep(200);
-            if (ec) ec->get_CurrentExpandCollapseState(&st);
-            Check(st == ExpandCollapseState_Collapsed, "Actions: the Voice choice is collapsed again");
+            Check(stateIs(ExpandCollapseState_Collapsed), "Actions: the Voice choice is collapsed again");
         }
     }
 
     // A switch.
-    ShowPage(nui::Page::Settings, w);
+    ShowPage(c, nui::Page::Settings, w);
     {
         std::vector<Node> tree = TreeOf(c);
         const Node* sw = Find(tree, T(strings::id::kWindowSettingsRunAtStartup), UIA_ButtonControlTypeId);
@@ -489,7 +590,7 @@ void WindowButtons(Client& c, SettingsWindow& w) {
           "WindowButtons: the window is 800 x 600 DIPs");
 
     for (nui::Page page : {nui::Page::Home, nui::Page::Voices, nui::Page::Settings}) {
-        ShowPage(page, w);
+        ShowPage(c, page, w);
         std::vector<Node> tree = TreeOf(c);
         const Node* minimise = Find(tree, T(strings::id::kWindowMinimise), UIA_ButtonControlTypeId);
         const Node* close = Find(tree, T(strings::id::kWindowClose), UIA_ButtonControlTypeId);
@@ -510,7 +611,7 @@ void WindowButtons(Client& c, SettingsWindow& w) {
 
     // Invoke on minimise minimises the window (a posted WM_SYSCOMMAND). Close is NOT invoked here: it would end the
     // window before the checks that come after this one (the end of the test destroys it itself).
-    ShowPage(nui::Page::Home, w);
+    ShowPage(c, nui::Page::Home, w);
     std::vector<Node> tree = TreeOf(c);
     const Node* minimise = Find(tree, T(strings::id::kWindowMinimise), UIA_ButtonControlTypeId);
     ClearCommands();
@@ -518,28 +619,26 @@ void WindowButtons(Client& c, SettingsWindow& w) {
         Check(!IsIconic(hwnd), "WindowButtons: the window is not minimised before the test");
         auto invoke = Pattern<IUIAutomationInvokePattern>(minimise->el.Get(), UIA_InvokePatternId);
         Check(invoke && SUCCEEDED(invoke->Invoke()), "WindowButtons: Invoke on minimise succeeds");
-        bool iconic = false;
-        for (int i = 0; i < 60 && !iconic; ++i) {
-            iconic = IsIconic(hwnd) != FALSE;
-            if (!iconic) Sleep(50);
-        }
-        Check(iconic, "WindowButtons: Invoke on minimise minimises the window");
-        // Back to normal for the checks that follow.
-        OnUi([&] { ShowWindow(hwnd, SW_RESTORE); });
-        for (int i = 0; i < 60 && IsIconic(hwnd); ++i) Sleep(50);
-        Check(!IsIconic(hwnd), "WindowButtons: the window can be restored");
+        // The Invoke posts WM_SYSCOMMAND SC_MINIMIZE to the window's thread: wait for the window state itself
+        // (IsIconic), not for a time. Nothing here needs the foreground: a minimise works for any window.
+        Check(WaitUntil([&] { return IsIconic(hwnd) != FALSE; }),
+              "WindowButtons: Invoke on minimise minimises the window");
+        // Back to normal for the checks that follow. SW_SHOWNOACTIVATE restores without activating, so the test
+        // never takes the foreground from the person who runs it (SW_RESTORE would).
+        OnUi([&] { ShowWindow(hwnd, SW_SHOWNOACTIVATE); });
+        Check(WaitUntil([&] { return IsIconic(hwnd) == FALSE; }), "WindowButtons: the window can be restored");
     }
     // Neither button sent the App anything (they are the window's own).
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         Check(g_commands.empty(), "WindowButtons: the window buttons send no PageMessage");
     }
-    ShowPage(nui::Page::Home, w);
+    ShowPage(c, nui::Page::Home, w);
 }
 
 // ---- events: a focus change and a property change reach a client's handlers
 
-class FocusHandler : public IUIAutomationFocusChangedEventHandler {
+class FocusHandler final : public IUIAutomationFocusChangedEventHandler {
 public:
     STDMETHODIMP_(ULONG) AddRef() override { return static_cast<ULONG>(InterlockedIncrement(&refs_)); }
     STDMETHODIMP_(ULONG) Release() override {
@@ -562,17 +661,16 @@ public:
         names.push_back(name);
         return S_OK;
     }
+    // Waits (up to 5 s) until the handler has been told that `name` has the focus. UIA delivers the event on its
+    // own thread, after the provider raised it, so how long that takes depends on the load.
     bool Saw(const std::string& name) {
-        for (int i = 0; i < 60; ++i) {
-            {
-                std::lock_guard<std::mutex> lock(m);
-                for (const std::string& n : names) {
-                    if (n == name) return true;
-                }
+        return WaitUntil([&] {
+            std::lock_guard<std::mutex> lock(m);
+            for (const std::string& n : names) {
+                if (n == name) return true;
             }
-            Sleep(50);
-        }
-        return false;
+            return false;
+        });
     }
     std::mutex m;
     std::vector<std::string> names;
@@ -581,7 +679,7 @@ private:
     LONG refs_ = 1;
 };
 
-class PropertyHandler : public IUIAutomationPropertyChangedEventHandler {
+class PropertyHandler final : public IUIAutomationPropertyChangedEventHandler {
 public:
     STDMETHODIMP_(ULONG) AddRef() override { return static_cast<ULONG>(InterlockedIncrement(&refs_)); }
     STDMETHODIMP_(ULONG) Release() override {
@@ -604,17 +702,15 @@ public:
         changes.push_back({name, newValue.vt == VT_I4 ? newValue.lVal : -1});
         return S_OK;
     }
+    // As FocusHandler::Saw: waits (up to 5 s) for the property change of `name` to `value`.
     bool Saw(const std::string& name, long value) {
-        for (int i = 0; i < 60; ++i) {
-            {
-                std::lock_guard<std::mutex> lock(m);
-                for (const auto& c : changes) {
-                    if (c.first == name && c.second == value) return true;
-                }
+        return WaitUntil([&] {
+            std::lock_guard<std::mutex> lock(m);
+            for (const auto& c : changes) {
+                if (c.first == name && c.second == value) return true;
             }
-            Sleep(50);
-        }
-        return false;
+            return false;
+        });
     }
     std::mutex m;
     std::vector<std::pair<std::string, long>> changes;
@@ -631,10 +727,15 @@ void Events(Client& c, SettingsWindow& w) {
     PROPERTYID ids[] = {UIA_ToggleToggleStatePropertyId};
     c.uia->AddPropertyChangedEventHandlerNativeArray(root.Get(), TreeScope_Subtree, nullptr, props, ids, 1);
 
+    // The window raises events only while UIA says a client listens (UiaClientsAreListening, which is process
+    // wide, so the test can ask it). UIA registers the handlers on its own thread, so on a busy machine the
+    // provider side may not know yet when AddFocusChangedEventHandler returns: wait until it does. Without this
+    // the page switches below could run before the window listens, and the "first look" would be lost.
+    Check(WaitUntil([] { return UiaClientsAreListening() != FALSE; }),
+          "Events: the window sees that a client listens to events");
     // The first Update after a client starts to listen only takes a look; this page switch is that look.
-    ShowPage(nui::Page::Voices, w);
-    ShowPage(nui::Page::Home, w);
-    Sleep(300);
+    ShowPage(c, nui::Page::Voices, w);
+    ShowPage(c, nui::Page::Home, w);
     std::vector<Node> tree = TreeOf(c);
     const Node* vol = Find(tree, T(strings::id::kWindowVolume), UIA_SliderControlTypeId);
     Check(vol != nullptr, "Events: the Master volume");
@@ -654,7 +755,7 @@ void Events(Client& c, SettingsWindow& w) {
 
 // Returns the element of the open sheet (kept by the caller for the late-call check).
 ComPtr<IUIAutomationElement> SheetAndModality(Client& c, SettingsWindow& w) {
-    ShowPage(nui::Page::Voices, w);
+    ShowPage(c, nui::Page::Voices, w);
     std::vector<Node> before = TreeOf(c);
     const Node* del = Find(before, T(strings::id::kWindowVoiceDelete), UIA_ButtonControlTypeId);
     Check(del != nullptr, "Sheet: the Delete button");
@@ -665,17 +766,25 @@ ComPtr<IUIAutomationElement> SheetAndModality(Client& c, SettingsWindow& w) {
     Check(enabled, "Sheet: Delete is enabled for the user's Voice");
     auto invoke = Pattern<IUIAutomationInvokePattern>(del->el.Get(), UIA_InvokePatternId);
     Check(invoke && SUCCEEDED(invoke->Invoke()), "Sheet: Invoke on Delete succeeds");
-    Sleep(300);
-
-    std::vector<Node> tree = TreeOf(c);
+    // The Invoke is queued for the window's thread: wait until the sheet is in the tree (the top Window that names
+    // the Voice).
+    auto findSheet = [](const std::vector<Node>& nodes) -> const Node* {
+        const Node* found = nullptr;
+        for (const Node& n : nodes) {
+            if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("Alba (Medium)") != std::string::npos) {
+                found = &n;
+            }
+        }
+        return found;
+    };
+    std::vector<Node> tree;
+    WaitUntil([&] {
+        tree = TreeOf(c);
+        return findSheet(tree) != nullptr;
+    });
     Dump("Voices with the Delete voice sheet", tree);
     CheckIds("Sheet", tree);
-    const Node* sheet = nullptr;
-    for (const Node& n : tree) {
-        if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("Alba (Medium)") != std::string::npos) {
-            sheet = &n;
-        }
-    }
+    const Node* sheet = findSheet(tree);
     Check(sheet != nullptr, "Sheet: a Window (dialog) that names the Voice is offered");
     Check(Find(tree, T(strings::id::kWindowVoiceSpeed), UIA_SliderControlTypeId) == nullptr,
           "Sheet: the Speed slider of the page beneath is no longer offered");
@@ -703,23 +812,26 @@ ComPtr<IUIAutomationElement> SheetAndModality(Client& c, SettingsWindow& w) {
         // Close through the Window pattern: the page is offered again.
         if (window) {
             Check(SUCCEEDED(window->Close()), "Sheet: Close succeeds");
-            Sleep(300);
-            std::vector<Node> after = TreeOf(c);
-            Check(Find(after, T(strings::id::kWindowVoiceSpeed), UIA_SliderControlTypeId) != nullptr,
+            // Close is queued too: wait until the page beneath is offered again.
+            std::vector<Node> after;
+            Check(WaitUntil([&] {
+                      after = TreeOf(c);
+                      return Find(after, T(strings::id::kWindowVoiceSpeed), UIA_SliderControlTypeId) != nullptr;
+                  }),
                   "Sheet: the page is offered again after Close");
             // Open it again for the late-call check.
             const Node* del2 = Find(after, T(strings::id::kWindowVoiceDelete), UIA_ButtonControlTypeId);
             if (del2) {
                 auto inv2 = Pattern<IUIAutomationInvokePattern>(del2->el.Get(), UIA_InvokePatternId);
                 if (inv2) inv2->Invoke();
-                Sleep(300);
-                std::vector<Node> again = TreeOf(c);
-                sheetEl = nullptr;
-                for (const Node& n : again) {
-                    if (n.type == UIA_WindowControlTypeId && n.depth == 0 && n.name.find("Alba (Medium)") != std::string::npos) {
-                        sheetEl = n.el;
-                    }
-                }
+                std::vector<Node> again;
+                WaitUntil([&] {
+                    again = TreeOf(c);
+                    return findSheet(again) != nullptr;
+                });
+                const Node* reopened = findSheet(again);
+                Check(reopened != nullptr, "Sheet: the Delete voice sheet opens again");
+                sheetEl = reopened ? reopened->el : nullptr;
             }
         }
     }
@@ -754,7 +866,10 @@ int RunClient(HWND hwnd, SettingsWindow* window) {
     ComPtr<IUIAutomationElement> held = SheetAndModality(c, *window);
 
     // A slider element held across the destruction too.
-    ShowPage(nui::Page::Voices, *window);
+    // The Delete voice sheet is still open here and modal, so the frame's links are NOT offered: the page switch
+    // is only posted, without the wait for the page's link that ShowPage(c, ...) does. Nothing below needs the
+    // page; the held elements are read straight from the sheet.
+    OnUi([&] { window->ShowPage(nui::Page::Voices); });
     ComPtr<IUIAutomationElement> heldSlider;
     // (the sheet is open on the Voices page: take the element from the sheet's tree instead)
     if (held) {
@@ -765,8 +880,7 @@ int RunClient(HWND hwnd, SettingsWindow* window) {
 
     // Destroy the window; every element we still hold must now fail cleanly.
     OnUi([&] { DestroyWindow(hwnd); });
-    for (int i = 0; i < 40 && !g_destroyed; ++i) Sleep(50);
-    Check(g_destroyed, "the window was destroyed");
+    Check(WaitUntil([] { return g_destroyed.load(); }), "the window was destroyed");
     for (ComPtr<IUIAutomationElement> el : {held, heldSlider, root}) {
         if (!el) continue;
         BSTR name = nullptr;
@@ -784,7 +898,6 @@ int RunClient(HWND hwnd, SettingsWindow* window) {
         SysFreeString(name);
         Check(r == static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE), "the held sheet element fails with UIA_E_ELEMENTNOTAVAILABLE");
     }
-    PostThreadMessageW(g_uiThread, WM_QUIT, 0, 0);
     return 0;
 }
 
@@ -807,6 +920,9 @@ bool InteractiveDesktop(std::string& why) {
 }  // namespace
 
 int main() {
+    // Unbuffered output: when stdout is a pipe or a file (ctest) the C runtime would hold the lines back, and a run
+    // that hangs or is killed at ctest's timeout would show nothing about where it stopped.
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
     std::string why;
     if (!InteractiveDesktop(why)) {
         std::printf("SKIP uia_tree: no interactive desktop: %s\n", why.c_str());
@@ -815,7 +931,6 @@ int main() {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     // Pixels, not virtualised coordinates: the same as the shipped exe's manifest.
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    g_uiThread = GetCurrentThreadId();
 
     SettingsWindow::Options options;
     options.title = L"Lexia (UI Automation test)";
@@ -836,22 +951,31 @@ int main() {
         return 2;
     }
     const HWND hwnd = window->Handle();
+    // The helper window that OnUi posts to, made on this thread before the client starts.
+    if (!CreateUiHelper()) {
+        std::printf("FAIL: the helper window could not be made\n");
+        return 2;
+    }
     // The sample state and an empty message queue first, then the client.
     MSG msg;
     PeekMessageW(&msg, nullptr, WM_USER, WM_USER, PM_NOREMOVE);  // makes the thread's queue
 
     int clientResult = 0;
-    std::thread client([&] { clientResult = RunClient(hwnd, window.get()); });
+    std::thread client([&] {
+        clientResult = RunClient(hwnd, window.get());
+        // Ends the main thread's loop on EVERY way out of RunClient (also its early returns, which would otherwise
+        // leave GetMessageW waiting for ever). Through the helper window: a thread-level WM_QUIT could be lost in a
+        // modal loop, a window message is not.
+        PostMessageW(g_uiHelper, kQuitUi, 0, 0);
+    });
 
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
-        if (!msg.hwnd && msg.message == kRunOnUi) {
-            (*reinterpret_cast<std::function<void()>*>(msg.lParam))();
-            continue;
-        }
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
     client.join();
+    DestroyWindow(g_uiHelper);  // before the Settings window goes (no job can arrive any more: the client is done)
+    g_uiHelper = nullptr;
     window.reset();
 
     std::printf("\n%d checks, %zu failed\n", g_checks, g_failures.size());

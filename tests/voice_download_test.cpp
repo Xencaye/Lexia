@@ -43,14 +43,17 @@ std::string ReadText(const fs::path& file) {
 
 const std::string kConfig = "{\"audio\": {\"quality\": \"medium\"}, \"language\": {\"code\": \"en_US\", \"name_english\": \"English\"}}";
 const std::string kModel(5000, 'M');
+// Where the fake server's files are: an https base, as the compiled-in list has (download_list.cpp).
+const std::string kBase = "https://huggingface.co/rhasspy/piper-voices/resolve/0123456789abcdef0123456789abcdef01234567/";
 
-// A Voice the fake server has, with the catalogue entry that describes it.
+// A Voice the fake server has, with the list entry that describes it.
 CatalogueVoice AmyEntry(const std::string& model = kModel, const std::string& config = kConfig) {
     CatalogueVoice v;
     v.name = "en_US-amy-medium";
     v.languageCode = "en_US";
     v.languageName = "English";
     v.quality = "medium";
+    v.baseUrl = kBase;
     v.model = {"en/en_US/amy/medium/en_US-amy-medium.onnx", model.size(), Md5OfText(model)};
     v.config = {"en/en_US/amy/medium/en_US-amy-medium.onnx.json", config.size(), Md5OfText(config)};
     return v;
@@ -90,27 +93,12 @@ struct FakeServer {
 
 FakeServer AmyServer(const std::string& model = kModel, const std::string& config = kConfig) {
     FakeServer s;
-    s.files[std::string(kVoiceRepoUrl) + "en/en_US/amy/medium/en_US-amy-medium.onnx"] = model;
-    s.files[std::string(kVoiceRepoUrl) + "en/en_US/amy/medium/en_US-amy-medium.onnx.json"] = config;
+    s.files[kBase + "en/en_US/amy/medium/en_US-amy-medium.onnx"] = model;
+    s.files[kBase + "en/en_US/amy/medium/en_US-amy-medium.onnx.json"] = config;
     return s;
 }
 
 }  // namespace
-
-TEST_CASE("kVoiceRepoUrl: the catalogue is fetched over HTTPS from the rhasspy/piper-voices repository") {
-    const std::string url = kVoiceRepoUrl;
-    CHECK(url.rfind("https://huggingface.co/rhasspy/piper-voices/", 0) == 0);
-    CHECK(url.back() == '/');
-}
-
-TEST_CASE("kVoiceRepoUrl: pinned to one commit, not a branch that can move") {
-    const std::string prefix = "https://huggingface.co/rhasspy/piper-voices/resolve/";
-    const std::string url = kVoiceRepoUrl;
-    REQUIRE(url.rfind(prefix, 0) == 0);
-    const std::string revision = url.substr(prefix.size(), url.size() - prefix.size() - 1);
-    CHECK(revision.size() == 40);
-    CHECK(revision.find_first_not_of("0123456789abcdef") == std::string::npos);
-}
 
 TEST_CASE("DownloadVoice: fetches both files, checks them and moves them into the folder") {
     TempDir dir;
@@ -179,7 +167,7 @@ TEST_CASE("DownloadVoice: a file of the wrong size is a BadDownload") {
     CHECK(fs::is_empty(dir.path));
 }
 
-TEST_CASE("DownloadVoice: a server that sends more than the catalogue says is stopped") {
+TEST_CASE("DownloadVoice: a server that sends more than the list says is stopped") {
     TempDir dir;
     FakeServer server = AmyServer(kModel + "extra");
     const VoiceOutcome r = DownloadVoice(AmyEntry(), server.Fn(), nullptr, dir.path);
@@ -205,46 +193,34 @@ TEST_CASE("DownloadVoice: a Voice Lexia would not accept is refused before anyth
     const VoiceOutcome r = DownloadVoice(german, server.Fn(), nullptr, dir.path);
     CHECK(r.problem == VoiceProblem::UnsupportedLanguage);
     CHECK(r.languageName == "German");
+    CatalogueVoice odd = AmyEntry();
+    odd.quality = "ultra";  // not one of Piper's qualities (a Low or High Voice is fine: a later entry may be one)
+    CHECK(DownloadVoice(odd, server.Fn(), nullptr, dir.path).problem == VoiceProblem::UnknownQuality);
     CatalogueVoice low = AmyEntry();
     low.quality = "low";
-    CHECK(DownloadVoice(low, server.Fn(), nullptr, dir.path).problem == VoiceProblem::NotMedium);
-    CHECK(server.asked.empty());
+    CHECK(DownloadVoice(low, server.Fn(), nullptr, dir.path).ok());
 }
 
-TEST_CASE("DownloadVoice: the downloaded config is checked too, whatever the catalogue said") {
+TEST_CASE("DownloadVoice: a base URL that is not https is refused with no request, whatever the files say") {
+    TempDir dir;
+    FakeServer server = AmyServer();
+    for (const std::string base : {std::string("http://huggingface.co/rhasspy/piper-voices/resolve/abc/"), std::string("ftp://example.test/"),
+                                   std::string(), std::string("//example.test/")}) {
+        CatalogueVoice v = AmyEntry();
+        v.baseUrl = base;
+        const VoiceOutcome r = DownloadVoice(v, server.Fn(), nullptr, dir.path);
+        CHECK(r.problem == VoiceProblem::Network);
+    }
+    CHECK(server.asked.empty());
+    CHECK(fs::is_empty(dir.path));
+}
+
+TEST_CASE("DownloadVoice: the downloaded config is checked too, whatever the list said") {
     TempDir dir;
     const std::string germanConfig = "{\"audio\": {\"quality\": \"medium\"}, \"language\": {\"code\": \"de_DE\", \"name_english\": \"German\"}}";
     FakeServer server = AmyServer(kModel, germanConfig);
     const VoiceOutcome r = DownloadVoice(AmyEntry(kModel, germanConfig), server.Fn(), nullptr, dir.path);
     CHECK(r.problem == VoiceProblem::UnsupportedLanguage);
     CHECK(server.asked.size() == 1);  // the model was never fetched
-    CHECK(fs::is_empty(dir.path));
-}
-
-TEST_CASE("FetchVoiceCatalogue: fetches voices.json, keeps Lexia's Voices and cleans up its temporary file") {
-    TempDir dir;
-    const std::string catalogue =
-        "{\"en_US-amy-medium\": {\"language\": {\"code\": \"en_US\", \"name_english\": \"English\"}, \"quality\": \"medium\", "
-        "\"files\": {\"a/en_US-amy-medium.onnx\": {\"size_bytes\": 5, \"md5_digest\": \"fc1ce62a4f04f089e22b8c3a13bde28a\"}, "
-        "\"a/en_US-amy-medium.onnx.json\": {\"size_bytes\": 5, \"md5_digest\": \"fc1ce62a4f04f089e22b8c3a13bde28a\"}}}, "
-        "\"de_DE-t-medium\": {\"language\": {\"code\": \"de_DE\", \"name_english\": \"German\"}, \"quality\": \"medium\", "
-        "\"files\": {\"d/de_DE-t-medium.onnx\": {\"size_bytes\": 5, \"md5_digest\": \"fc1ce62a4f04f089e22b8c3a13bde28a\"}, "
-        "\"d/de_DE-t-medium.onnx.json\": {\"size_bytes\": 5, \"md5_digest\": \"fc1ce62a4f04f089e22b8c3a13bde28a\"}}}}";
-    FakeServer server;
-    server.files[std::string(kVoiceRepoUrl) + "voices.json"] = catalogue;
-    const CatalogueResult r = FetchVoiceCatalogue(server.Fn(), dir.path);
-    REQUIRE(r.error.ok());
-    REQUIRE(r.voices.size() == 1);
-    CHECK(r.voices[0].name == "en_US-amy-medium");
-    CHECK(fs::is_empty(dir.path));
-}
-
-TEST_CASE("FetchVoiceCatalogue: no network, or a reply that is not a catalogue, is a Network problem") {
-    TempDir dir;
-    FakeServer none;
-    CHECK(FetchVoiceCatalogue(none.Fn(), dir.path).error.problem == VoiceProblem::Network);
-    FakeServer junk;
-    junk.files[std::string(kVoiceRepoUrl) + "voices.json"] = "<html>captive portal</html>";
-    CHECK(FetchVoiceCatalogue(junk.Fn(), dir.path).error.problem == VoiceProblem::Network);
     CHECK(fs::is_empty(dir.path));
 }

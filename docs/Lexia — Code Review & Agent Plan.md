@@ -14,13 +14,24 @@ On-screen wording follows the glossary.
   0.6.0 one still described the console prototype). **Lexia 0.6.2** (Nov 8, tag `v0.6.2`, made from `v0.6.1`, files
   in `release\0.6.2\`): the same code with the new Discord invite (`https://discord.gg/vPsjF5NzPG`; the old one was
   broken). Main has the same invite.
-- **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12).
-  Done for 0.7: B10, the Voices ljspeech (the default) and Norman instead of B8's Cori and Mike, and the Download
-  sheet's catalogue at commit `cf910fb`; B11, a Voice the user adds from a file may be X-low, Low, Medium or High,
-  and the Voice lists show "LJ Speech (Medium)" with the file name as the tooltip; B9, an update keeps a Voice that Lexia
+- **Now:** towards **Lexia 0.7** (owner, Nov 8: future changes go into 0.7). `vcpkg.json` says 0.7.0 (PR #12). The work goes on the version branch `release/0.7` (owner, Nov 19: one version branch per version, merged into `main` at its release; CLAUDE.md, "How work runs").
+  Done for 0.7: B10, new Voices instead of B8's Cori and Mike of `cf910fb`, and the Download sheet's catalogue at
+  commit `cf910fb`; B13 (owner, Nov 17), the shipped Voices are the old Cori Medium of Bryce Beattie (the default;
+  `rhasspy/piper-voices` commit `5041a7a`) and Norman, and ljspeech stops shipping (an update keeps it as the user's
+  own Voice); B14 (owner, Nov 19), Norman stops shipping too (he mispronounces too much; an update keeps him as the
+  user's own Voice), so the old Cori is the only shipped Voice; B11, a Voice the user adds from a file may be X-low, Low, Medium or High,
+  and the Voice lists show "Cori (Medium)" with the file name as the tooltip; B9, an update keeps a Voice that Lexia
   no longer ships (owner, Nov 10): it becomes one of the user's own Voices; A6, row fragments and tight centred
   stacks in the Layout; L, the English recogniser fine-tuned to read pixel game fonts (owner Nov 10; L0-L3, L5, L6
   done: round 2 epoch 5 ships as `ocr_models/rec_en.onnx`). Open in L: L4 (new pixel-font Fixtures) and L7 (owner).
+  B12 (owner, Nov 17): the Download sheet offers a short list that the owner picked and that is compiled into Lexia:
+  Kristin, John and LJ Speech (all Medium, public domain, `rhasspy/piper-voices` at `cf910fb`). Lexia no longer
+  fetches the catalogue. The owner will add more Voices to the list later (B12.4, the labels, waits until a Voice
+  needs one). Cori (the old one) is the only shipped Voice, final (B14, owner Nov 19: Norman stops shipping). **G3** (owner, Nov 18): the Overlay and the
+  read-along bar are drawn in Lexia's accent colour of the current light or dark mode; a Picked area has a soft
+  see-through accent fill and no frame; the Block under the mouse, a press and the Drag have a see-through accent
+  frame and no fill; the bar touches the line box (no gap). The colour settings (`overlay.hoverColor`,
+  `overlay.pickedColor`) are removed; an old file keeps them, unread.
 - **Open, the owner's:** the by-hand checks (below), D7 (the tutorial video), A5 (games, browser, video).
 - **Later:** E1, E2, E6 and the Language UI (Lexia 0.8); J, Linux on Ubuntu, and H5, signing (Lexia 1.0).
 - No GitHub issue is open.
@@ -30,16 +41,8 @@ On-screen wording follows the glossary.
 
 ## How we work
 
-- One task = one branch (`feat/<task-id>`) = one PR. Stop at the task boundary and summarise: what changed, how it
-  was verified, what the owner must check by hand.
-- Every task has checks an agent can run itself: a Release build with zero warnings, `ctest`, and for layout work
-  `score_layout.ps1` (no Fixture worse than the tolerance).
-- The owner is the eyes and ears: anything visual, audible, or inside a game is on the owner's list.
-- A change that implements or changes a task updates this plan and the "Plan" section of `CLAUDE.md` in the same PR.
-- New and changed code is commented (the why, the non-obvious). C++ is navigated with clangd. Code plans use the
-  Security Guidance plugin and have a Security section.
-- Before each merge: `.\scripts\check_docs.ps1` passes (CI: `.github/workflows/docs.yml`), and the PR template's
-  docs checklist is done.
+The steps of a task (the roles of the overseer and the builders, the clear run, the docs review, the report) are in
+`CLAUDE.md`, section "How work runs", and its Rules. This plan keeps only what is done and what is open.
 
 ## The owner's open checks
 
@@ -74,10 +77,27 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   `%LOCALAPPDATA%\Lexia`). Setup closes a running Lexia when asked (also an elevated one); the Run as administrator task.
 - [ ] **G1 Read-along bar.** With read-along on: the bar sits under the word you hear; at a hyphen at a Line end; on
   numbers; after Pause, Skip and Stop; with two Picks queued.
+- [ ] **R48 Word marks with the Voices.** With read-along on, pick a text with two or more sentences and a number ("In
+  2024 the old mill was sold for 3.5 million pounds."), with Cori and with a Voice you download or add from
+  a file: does the mark move word by word, also in the second sentence, and not skip "old"? The first time a Voice
+  speaks there is a short wait (the log says how long: "Made the aligned copy"); `%LOCALAPPDATA%\Lexia\aligned` then
+  holds two files per Voice (about 60 MB for a Medium Voice) and the next start is as fast as before. Delete a Voice on
+  the Voices page: its files in `aligned` go too. "Wait... then go.": "then" has no mark of its own (known). The
+  uninstaller's offer to remove `%LOCALAPPDATA%\Lexia` removes the copies with it.
 - [ ] **G2 Read-along layer.** With read-along on, in a browser and in Undertale, leave the Overlay while it speaks:
   the bar goes on under the heard word; mouse and keys still reach the game or page; the bar goes when the Reading
   ends, on Stop (Control bar, Speech key triple tap), Off and Quit; it is not in the next Shot; Pause keeps the bar on
   its word. With read-along off nothing stays, and no bar shows on the Overlay.
+- [ ] **G3 Overlay and bar in the accent colour.** In light and in dark mode (Settings window, Dark mode; also
+  Windows' own mode with the theme on "system"): press the Read key. A Block under the mouse has a thin see-through
+  frame in the accent colour (you can read the text through it); press the button on it: the frame stays until you
+  move far enough to make a Drag; a Drag shows the same frame round the area. After the Pick, the area is
+  un-dimmed with a soft accent tint and no frame; a Block you hover that is already Picked keeps its tint. With
+  read-along on, the bar under the heard word is the accent colour and touches the bottom of the line, in the Overlay
+  and in the layer after you leave it, with the same colour. Check in a browser and in Undertale, at 100 % and
+  150 %. Is the frame (2 px, about 60 %) and the tint (about 22 %) easy to see on a busy picture? Tell me if
+  the numbers should change (`overlay_highlight.h`). An old settings.json with `overlay.hoverColor` loads without
+  a note and keeps the keys.
 - [ ] **K9 Settings page.** The page against your mockup (light and dark); hover and Tab over each switch and read the
   card; the read button on a switch's card; turn read-along off while the layer shows: the layer goes; Narrator reads
   a switch as a switch.
@@ -106,18 +126,36 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
   (title screen, settings, save slots) still read one entry per click. A mixed-case centred prompt is still one
   Block per line (known limit).
 - [ ] **H4 Installer pages.** Look at each page of Setup, light and dark.
-- [ ] **B10 Voices ljspeech and Norman.** Install over a 0.7 test build with Cori active: Cori and Mike are now your own
-  Voices (Delete works) and Cori still speaks. On a new install ljspeech is the default; pick Norman on the Voices page
-  and Pick text ("library", "anonymized", "account"), also at Speed, Pitch and Volume changed. Open the Download sheet:
-  the list loads and a download works.
+- [ ] **B14 Norman stops shipping.** (a) A fresh install (Setup) and the portable zip offer only Cori: the Voice choice
+  shows "Cori (Medium)" alone, the Voices page lists only Cori, and the Download sheet shows Kristin, John and LJ Speech
+  (no Norman); `voices\` in the program folder holds `en_GB-cori-medium` only. (b) Update a 0.7 build that shipped
+  Norman (with Norman active, Speed changed and a Preset saved): Norman is on the Voices page as one of your own
+  Voices (Delete works), a settings.json that chose Norman still speaks with him and keeps its Speed, and the Preset
+  loads into him; on a new install without that choice Cori is still the default. Delete him, Quit and start Lexia
+  again: he stays deleted.
+- [ ] **B13 The old Cori is the default.** On a new install (no settings.json) the Voice choice shows "Cori (Medium)"
+  and Pick text speaks with it; "library", "anonymized" and "account" sound right (also at Speed, Pitch and Volume
+  changed). Cori is the only Voice in the choice (B14). LJ Speech is not in the choice. Update a 0.7 build that had
+  `en_US-ljspeech-medium` active, with its Speed changed: after the update LJ Speech is on the Voices page as your own
+  Voice (Delete works), is still the active Voice, still speaks and keeps its Speed; delete it, Quit and start Lexia
+  again: it stays deleted and Cori speaks. On a PC that has a Cori of `cf910fb` in `%LOCALAPPDATA%\Lexia\voices`
+  (downloaded earlier), check which Cori speaks (the program folder's one, the old one, must win).
+- [ ] **B12 The download list.** Open Voices, then the Download icon: the three rows (Kristin, John, LJ Speech, each
+  about 61 MB) show at once, with no wait and no "Getting the list of voices" (turn the network off to check). LJ Speech
+  shows "Installed" if it is one of your own Voices already. Download Kristin: the progress bar moves, Cancel works, and
+  when it ends Kristin is in the Voice choice and speaks. Download John too. With the network off, Download shows the
+  network message in the row, and "Try again" works when the network is back. The sheet shows no other Voice.
+- [ ] **B10 Voices ljspeech and Norman.** Superseded: B13 replaced ljspeech by Cori as the default, B14 stopped shipping
+  Norman (see the B14 check); the Download sheet is B12. Nothing to check here.
 - [ ] **B11 Any quality, short names.** Add a High Voice from a file (for example `en_US-ljspeech-high`, 114 MB) and
-  a Low one: both are added, listed as "LJ Speech (High)" and "… (Low)", and speak. The Voice choice shows "LJ Speech
-  (Medium)" and "Norman (Medium)"; hover the choice and each open row: the tooltip is the file name. The Download
-  sheet shows short names (Medium only) with the file name on hover; the Delete sheet names the short name.
-- [ ] **B9 Update keeps old Voices.** Update a 0.7 test build with Cori active, its Speed changed and a Cori Preset
-  saved (ljspeech ships again since B10, so a 0.6 install keeps it as a shipped Voice): Cori is on the Voices page as
-  your own Voice (Delete works), still speaks, keeps its Speed, and the Preset loads into it. Then delete it, Quit and
-  start Lexia again: it stays deleted. Also update a 0.6 install with ljspeech active: it stays active, with its Speed.
+  a Low one: both are added, listed as "LJ Speech (High)" and "… (Low)", and speak. The Voice choice shows "Cori
+  (Medium)" and "LJ Speech (High)" (the one you added); hover the choice and each open row: the tooltip is the file name. The Download
+  sheet shows short names with the file name on hover; the Delete sheet names the short name.
+- [ ] **B9 Update keeps old Voices.** Update a 0.7 build with `en_US-ljspeech-medium` active, its Speed changed and a
+  Preset saved (since B13 ljspeech is a Voice that Lexia no longer ships): LJ Speech is on the Voices page as your own
+  Voice (Delete works), still speaks, keeps its Speed, and the Preset loads into it. Then delete it, Quit and start
+  Lexia again: it stays deleted. Also update a 0.7 test build that had the Cori of `cf910fb` active: the old Cori
+  (B13) has the same name and now speaks under it.
 
 ## Open tasks
 
@@ -125,6 +163,37 @@ These are the by-hand checks of merged work. Each item is short; tick it here wh
 
 A silent tutorial with captions in the Interface language, shipped in the package. The owner makes the video; the
 Help page shows its place until then.
+
+### B12 The download list (Lexia 0.7)
+
+Owner, Nov 12: Lexia **ships** Medium Voices only, so that the installer stays small. The **download list** may offer
+any quality (X-low, Low, Medium, High). Owner, Nov 17: the Download sheet offers only a short list that the owner
+picked by ear: **Kristin, John and LJ Speech** (all `en_US`, Medium, public domain, `rhasspy/piper-voices` at commit
+`cf910fb`). The list is compiled into Lexia (`src/tts/download_list.cpp`), so opening the sheet makes no request:
+Lexia no longer fetches or parses the catalogue. Lexia does not distribute these Voices: the user downloads each one
+from its source. The research and the samples are in `docs/notes/voice-download-list.md`. The owner will add more
+Voices later; adding one is one row in `download_list.cpp` (steps in the note).
+
+- [x] **B12.1 Pick (owner, Nov 17).** Kristin, John and LJ Speech. The shipped Voice is final (Cori; Norman stopped shipping in B14).
+- [x] **B12.2 The list (agent).** `DownloadList()` in `src/tts/download_list.*`: for each Voice the name, Language, quality,
+  the base URL (https, pinned to a commit of `rhasspy/piper-voices`) and for both files the path, size and MD5, with
+  the SHA-256 in a comment. `FetchVoiceCatalogue`, `ParseVoiceCatalogue`, `FilterCatalogueForLexia`, the catalogue
+  thread of `VoiceTab`, `VoiceEventSink::CatalogueFailed`, the "could not get the list" view and `--sheet offline`
+  are removed. `lexia_cli --voices-catalogue` prints the list with no network.
+- [x] **B12.3 Quality (agent).** `QualityRule` and `VoiceProblem::NotMedium` are removed: every check accepts Piper's
+  qualities (a later entry may be Low or High). The shipped Voices stay Medium: the package step
+  (`cmake/notices.cmake`) fails if a `ship: true` Voice in `voices/voices.json` is not `-medium` (tested in
+  `tests/notices_test.cmake`).
+- [ ] **B12.4 Labels (set aside).** A label of allowed use, the licence name and link, and the credit in each row
+  (owner, Nov 17: no labels while every Voice on the list is public domain). Do this when the owner adds a Voice that
+  needs one (a CC BY Voice needs its credit); then the label and the licence link come from the list in the repo
+  through `LinkUrl`, never from the network.
+- **Security.** No network when the sheet opens, and only on the user's request for a download (ADR-0005). The base URLs
+  are compiled-in constants, https only (`DownloadVoice` refuses another base) and pinned to a commit. Each file is
+  checked by size and MD5 before it is renamed, the paths are plain (`IsSafeRelativePath`, tested), and
+  `CheckVoiceConfig` still checks the downloaded config. No catalogue JSON from the network is parsed now.
+- *Done when:* the Download sheet offers the owner's three Voices at once, a Voice downloads and speaks, `ctest`
+  passes, and the owner's by-hand check is in "The owner's open checks". (Done, except the by-hand check.)
 
 ### Open code-review findings (low priority; fix when the area is touched)
 
@@ -134,7 +203,7 @@ Help page shows its place until then.
 | R25 | `capture.cpp` | The DIB bits are read right after `BitBlt` without the `GdiFlush()` that the CreateDIBSection docs ask for. | `GdiFlush()` after `BitBlt` |
 | R33 | `main.cpp` | `SetProcessDpiAwarenessContext` is imported statically, so the `SetProcessDPIAware` fallback never runs (the exe does not load before Windows 10 1703). | Remove the fallback; the manifest declares PerMonitorV2 |
 
-R1–R23, R26–R32 and R34–R45 are fixed (Phase 0, A, C, D, E; R36–R45 from the whole-codebase review of Nov 11,
+R1–R23, R26–R32 and R34–R50 are fixed (Phase 0, A, C, D, E; R36–R45 from the whole-codebase review of Nov 11,
 fixed on `feat/L` at the owner's request, this once; later review fixes go on their version's branch):
 
 | # | Where | Finding | Fix |
@@ -149,6 +218,11 @@ fixed on `feat/L` at the owner's request, this once; later review fixes go on th
 | R43 | `settings_window.cpp` | The destructor skipped `WM_DESTROY`, so the UI Automation provider was not detached in order. | `DestroyWindow` with the user data set, `destroying_` guard |
 | R44 | `CLAUDE.md` | The module map put `key_chord.*` in `native_ui/` and had no `key_edit.*`. | Own row |
 | R45 | `app.cpp` | One Home On / Off click pushed the state twice. | One push |
+| R46 | `piper_voice.cpp`, `speech_chunk.*` | libpiper never clears its list of phoneme code points between sentences, so from the second sentence of a Block the chunk's `phonemes` began with the earlier sentences' groups. `PhonemeTimings` then took this sentence's alignments for them: every word cut after the first sentence was at the wrong place (found by the new `read_along_voice` test on a patched Voice). | `OwnPhonemes` keeps the last `num_phoneme_ids` entries (3 tests) |
+| R47 | `read_along.cpp` | With more spoken words than text words ("2024" said as five words, "3.5" as three) the walk by the middle of each spoken word drifted and skipped the short words after the number ("old", "on", "the"). | `GroupSpokenWords`: every text word gets at least one spoken word, the cut points nearest the phoneme / letter shares (3 tests) |
+| R48 | `voices/`, `piper_voice.cpp`, `onnx_alignment.*` | The Voice files of the 0.7 test builds (ljspeech, Norman, Cori and Mike; only Cori ships now) come from rhasspy/piper-voices and have no alignment output (the `w_ceil` tensor that piper's `patch_voice_with_alignment.py` exposes), so libpiper gave no phoneme timings. Then the Reading queue cut no words: no read-along mark, and an Announcement waited for the end of the sentence, not the word. Found by `ctest read_along_voice`. Also known, not fixed: libpiper leaves out the space after an ellipsis, so "Wait... then go." is two spoken words and "then" has no mark. | Done (owner chose "patch at load"): `PiperVoice::Load` loads a copy of a model without the output, patched by `AddAlignmentOutput` (one graph output appended; the weights unchanged), from `%LOCALAPPDATA%\Lexia\aligned` (`<name>.<size>-<time>.onnx` and its `.json`; made at the first load, written through a `.part` file and a rename, old keys removed, never through a link). If the copy cannot be made or loaded, the original is used and speech works without marks. `RemoveVoice` deletes the copies. The input is bounds checked (`onnx_alignment_test.cpp`, 16 tests). |
+| R49 | `tests/uia_tree_main.cpp` | ctest `uia_tree` failed now and then (once in a full run while the owner used the desktop; once hung under CPU load). The client waited with fixed sleeps (50–300 ms) for work on the window thread and for UIA events, and the events check could start before UIA said a client listens, so the first look was lost; `OnUi` posted a thread message, which Windows drops in a modal loop (a COM wait in a UIA call), so the client waited forever; the restore used `SW_RESTORE`, which takes the foreground. | `WaitUntil` (each check waits for its condition, at most 5 s); the events check waits for `UiaClientsAreListening`; `OnUi` posts to a message-only window and has a 30 s deadline (a FAIL, not a hang); `SW_SHOWNOACTIVATE`; unbuffered output (253 -> 272 checks) |
+| R50 | `ort_runtime.*`, `main.cpp`, `cli_main.cpp`, `piper_voice.cpp` | The official ONNX Runtime package for Windows (1.20.1) is built with telemetry on: it writes ETW (TraceLogging) events, which the Windows diagnostic service can send to Microsoft. Lexia did not turn it off, against ADR-0005 ("no telemetry"). Found from a Hacker News thread, Nov 19. | New `ort_runtime.*`: `SharedOrtEnv` calls `Ort::Env::DisableTelemetryEvents()` once, when it makes the process's one environment (a failure is an error in the log, a success one info line). `StartOnnxRuntime()` (never throws) runs it at the start of `lexia.exe` and `lexia_cli` and at the top of `PiperVoice::Load`, so it is off before any OCR or Voice session, also in a process with no `OcrEngine`; the switch is process-wide, so it also covers the environment of `piper.dll`. Check again when Lexia moves to ONNX Runtime 1.29 or later (a new telemetry client is reported there). |
 
 Unverified, for the owner: GDI `BitBlt` returning
 black for exclusive-fullscreen or HDR games; the detector using every core while a game runs (stutter?).
@@ -378,14 +452,23 @@ can be scored with `lexia_cli` first if L does not reach its goal.
   tight stacks go on into the next Line, stacked Lines are ordered top first (Dist 0.1356 → 0.1310, BlkErr 1.76 → 1.29).
 - **B — Speech:** B1 Piper in-process (ADR-0004), B2 Reading queue, B3 Announcements, B4 Voice controls (Speed, Pitch,
   Volume; Presets as files since D8), B5 Voice library, B6 Voice licences (`docs/notes/voice-licences.md`), B8 (0.7)
-  the Voices Cori and Mike (replaced by B10); B10 (0.7) the shipped Voices `en_US-ljspeech-medium` (the default) and
-  `en_US-norman-medium`, public domain and trained from scratch (the owner chose them by ear: Cori, Mike and the
-  clean Joe and Jenny mispronounce common words), and the Download sheet's catalogue moved from `5041a7a` to
-  `cf910fb`, the commit of `voices.json` (`docs/third-party.md`); B9 (0.7) an update keeps a Voice that Lexia no
+  the Voices Cori and Mike (replaced by B10); B10 (0.7) the shipped Voices `en_US-ljspeech-medium` and
+  `en_US-norman-medium`, public domain and trained from scratch (the owner chose them by ear: the new Cori and Mike
+  and the clean Joe and Jenny of `cf910fb` mispronounce common words), and the Download sheet's catalogue moved from
+  `5041a7a` to `cf910fb`, the commit of `voices.json` (`docs/third-party.md`); B13 (0.7, owner Nov 17) the shipped
+  Voices are the old `en_GB-cori-medium` of Bryce Beattie, the default (the copy of `rhasspy/piper-voices` at
+  `5041a7a`, chosen by a per-Voice `source` in `voices/voices.json`, which `scripts/fetch_deps.ps1` uses and checks by
+  SHA-256; public domain, trained from scratch on LibriVox recordings of Cori Samuel), and `en_US-norman-medium`;
+  ljspeech stops shipping, and `AdoptRetiredVoices` (B9) keeps it as the user's own Voice, so an update loses
+  nothing; B14 (0.7, owner Nov 19) `en_US-norman-medium` stops shipping too (it mispronounces too much): its entry and
+  `licenses/components/voice-en_US-norman-medium.txt` are gone, the old Cori is the only shipped Voice, and the Download
+  sheet never listed him; an update keeps his files and `AdoptRetiredVoices` makes him one of the user's own Voices (no
+  code change); B12 (0.7, owner Nov 17) the Download sheet offers a short list compiled into Lexia (Kristin, John, LJ Speech
+  of `cf910fb`, `src/tts/download_list.*`) and fetches no catalogue; B9 (0.7) an update keeps a Voice that Lexia no
   longer ships: Setup no longer empties `{app}\voices`, and `AdoptRetiredVoices` (`tts/voice_library.*`, called by
   `App::Init`) copies it into the user's Voices folder once (the names handled are kept in settings.json `adoptedVoices`, so deleting the Voice sticks; the rule "Updates keep the user's data").
-  B11 (0.7, owner Nov 11) the user's own Voices in any of Piper's qualities: `QualityRule` (`tts/voice_library.*`; the
-  catalogue and downloads stay Medium, a file or the user's folder is `AnyKnown`; an odd quality word is `UnknownQuality`),
+  B11 (0.7, owner Nov 11) the user's own Voices in any of Piper's qualities (`tts/voice_library.*`: every check accepts the
+  four qualities, or none stated; an odd quality word is `UnknownQuality`; since B12 `QualityRule` and `NotMedium` are gone),
   and the Voice names on screen (`voice_names.*`: "LJ Speech (Medium)", "Jenny (Dioco) (Medium)"; the file name is
   the tooltip of the Voice choice, its rows and the Download sheet's rows).
 - **C — App core:** C1 `App`, C2 OCR worker, C3 safe Language switch, C4 live settings reload, C5 keys (F8, F7, F6; no
@@ -395,7 +478,11 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 - **E3–E5:** the Alphabet lock, the Lookalike fix, a Voice per script Stretch.
 - **F:** closed (became B1, ADR-0003, ADR-0004).
 - **G — Read-along (0.6):** G1 the Read-along bar on the Overlay (PR #2), G2 the Read-along layer (PR #3); since K9
-  one switch, "enable read-along" (`readAlong`, Off by default), controls both.
+  one switch, "enable read-along" (`readAlong`, Off by default), controls both. Tests added after 0.6: edge cases of
+  the pure core, the heard word and the layer window; `read_along_voice` (real Voices, see R46 to R48); and the rules
+  of the layer as pure functions, `ReadAlongLayerWanted` and `EndsReadAlongLayer`, which `App` asks. G3 (0.7, owner
+  Nov 18): the Overlay and the read-along bar in the accent colour, see-through marks (`overlay_highlight.*`), the bar
+  with no gap, and the colour settings removed.
 - **H:** H1 version from `vcpkg.json`, H2 licences and notices, H3 optional signing (`docs/signing.md`), H4 Inno Setup
   installer.
 - **I1:** the string table (`strings/`).
@@ -411,18 +498,32 @@ can be scored with `lexia_cli` first if L does not reach its goal.
 3. **M3 Right voice per language** — English done (ADR-0007); Bulgarian waits for 0.8.
 4. **M4 Lexia 0.5** — released Nov 5, 2026.
 5. **M5 Lexia 0.6: Read-along and the native Settings window** — released Nov 8, 2026; your checks open.
-6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (the Voices ljspeech and Norman); B11 done
+6. **M6 Lexia 0.7** — future changes after 0.6 (owner, Nov 8); B10 done (new Voices instead of Cori and Mike of `cf910fb`);
+   B13 done (the old Cori Medium is the default); B14 done (Norman stops shipping: the old Cori is the only shipped
+   Voice, final); B11 done
    (any quality from a file, short Voice names); B9 done
    (an update keeps a Voice that Lexia no longer ships); A6 done (Layout: row fragments and tight centred stacks); L:
-   the fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open).
+   the fine-tuned English recogniser ships (L0-L3, L5, L6 done; L4, the pixel-font Fixtures, and the owner's L7 open);
+   B12 done (the download list: Kristin, John and LJ Speech; the owner extends it later; the owner's check open);
+   G3 done (the Overlay and the read-along bar in the accent colour; the owner's check open).
 7. **M7 Lexia 0.8: Languages** — E1, E2, E6, the Language UI.
 8. **M8 Lexia 1.0: Linux and signing** — J; H5 if SignPath accepts Lexia.
 
 ## Decisions
 
 - **Free and open source, GPL-3.0-or-later** (ADR-0003). Free, no paid version.
-- **Piper replaces SAPI** for all speech (ADR-0004); Lexia ships and downloads Medium Voices, and the
-  user may add their own in any of Piper's qualities (B11).
+- **Piper replaces SAPI** for all speech (ADR-0004). Lexia ships Medium Voices only, so that the installer stays
+  small (owner, Nov 12). Lexia can use each of Piper's qualities: the user may add their own Voices in any quality
+  (B11), and the download list may offer any quality (B12: the list is short and compiled in, Medium only for now).
+- **The download list is the owner's pick** (Nov 12, Nov 17): a short list compiled into Lexia (`src/tts/download_list.cpp`:
+  Kristin, John and LJ Speech), not the full catalogue; opening the sheet makes no request. A Voice gets a label of
+  allowed use only if its licence needs one (none for now: all three are public domain). Lexia does not distribute
+  these Voices (`docs/notes/voice-download-list.md`).
+- **The default English Voice is the old Cori Medium** (owner, Nov 17, B13): Bryce Beattie's model, public domain,
+  trained from scratch, at `rhasspy/piper-voices` commit `5041a7a`. The newer `en_GB-cori-medium` of `cf910fb` (base
+  `hifi_tts_92`, CC BY 4.0) mispronounces common words and is not used. Norman, the second shipped Voice of the 0.7 test
+  builds, stops shipping (owner, Nov 19, B14: he mispronounces too much), so Cori is the only shipped Voice. It is
+  final (owner, Nov 19): the owner does not pick another shipped Voice.
 - **The Overlay never takes focus; input from global hotkeys only** (ADR-0001). No low-level input hooks (anti-cheat).
 - **PaddleOCR stays** (ADR-0002).
 - **Network only when the user asks; the screen never leaves the PC** (ADR-0005).

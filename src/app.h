@@ -66,8 +66,13 @@ public:
 private:
     // The read-along layer (G2, readAlong): a click-through window that goes on drawing the bar under the
     // heard word after a Session ends, until the Session's Readings are done. At most one.
-    void StartReadAlongLayer(const RECT& mon, ReadAlongTrack track);
+    // `styleReadAlong`: the Session was run with the Read-along setting on. Asks ReadAlongLayerWanted.
+    // `accent`: the bar's colour, the Session's `OverlayStyle::accent`.
+    void StartReadAlongLayer(const RECT& mon, ReadAlongTrack track, bool styleReadAlong, COLORREF accent);
     void EndReadAlongLayer(bool flush);  // removes it; flush = wait until the screen is drawn without it (before a Shot)
+    // Removes the layer if `event` ends it (EndsReadAlongLayer: the rules are in read_along.h); `nowOn` is the
+    // new state for the two "switched" events. flush as in EndReadAlongLayer.
+    void EndReadAlongLayerFor(ReadAlongLayerEvent event, bool nowOn = true, bool flush = false);
     bool RegisterKeys();
     bool TryRegister(int id);  // registers key `id` if it is wanted now; false if another program has it
     void UnregisterKey(int id);

@@ -1,6 +1,41 @@
 # Voice licences (B6)
 
-Update 2026-11-11 (B10): Lexia 0.7 ships `en_US-ljspeech-medium` (the default) and `en_US-norman-medium` instead of
+Update 2026-11-17 (B13): Lexia 0.7 ships the OLD `en_GB-cori-medium` of Bryce Beattie (the default; `rhasspy/piper-voices`
+commit `5041a7a`, public domain, trained from scratch on about 24 hours of LibriVox recordings of Cori Samuel; the
+model is not the `cf910fb` one that is described below and in B8, B10) and, until B14, `en_US-norman-medium`. `en_US-ljspeech-medium`
+is not shipped now (an update keeps it as the user's own Voice, B9).
+Update 2026-11-19 (B14): `en_US-norman-medium` is not shipped any more (owner: it mispronounces too much). Cori is the
+only shipped Voice; Norman's licence entry is removed from the package notices, and an update keeps his files as one of
+the user's own Voices (B9). The research on him below stays as it was. Cori's licence entry: `licenses/components/voice-en_GB-cori-medium.txt`.
+Section 5 of `docs/notes/voice-download-list.md` has the evidence.
+
+The research on all of Bryce Beattie's LibriVox Voices (Cori Medium and High, Kristin, John, Norman, ManyVoice, and
+LJ Speech for comparison) is in `docs/notes/librivox-voices.md` (2026-11-17, not legal advice). The result:
+
+- **Copyright and licence: no obstacle found.** Beattie's page says "License: public domain" for each Voice.
+  LibriVox says that all of its recordings are public domain and that each reader agrees to this. Since
+  2026-08-05, the LibriVox wiki lists the training of AI models as a known re-use. Public domain adds no term, thus
+  it does not conflict with the GPL (an aggregate, GPLv3 section 5).
+- **The limits:** the public domain status is under US law. The page does not list the readers or the books and
+  gives no hashes. Its note "any legal and ethical purpose" is not a licence text.
+- **The highest risk is the voice rights of a reader, not copyright.** Cori Samuel is a living, working narrator.
+  The laws that apply to voice copies (ELVIS Act, NO FAKES Act (not law), GDPR) are about impersonation,
+  commercial sale and contracts. A free assistive app that credits the reader is far from that. No complaint about
+  Piper's Cori was found, but that does not prove that there is none. The research recommends that the owner
+  contacts her before the release (optional), and that Lexia keeps a way to remove a Voice.
+- **ManyVoice (mv2):** it can be in the download list, but must not ship in the installer. It has 16 real readers
+  in one file, and their names come only from the sample file names.
+- **Credit:** name Bryce Beattie, LibriVox and the reader if the reader is known (Cori Samuel; no names are known
+  for John and Norman), and say that the reader does not endorse Lexia. John is fine-tuned from Kristin.
+- **Integrity:** Cori High, Kristin, John, Norman and LJ Speech on Hugging Face are the same `.onnx` files as on
+  Beattie's page. Cori Medium must come from the pinned commit `5041a7a`, never from "latest".
+
+Update 2026-11-12 (B12): this note is about the Voices that Lexia ships (Medium only). The Voices for the download
+list, checked again at `ae9d835`, are in `docs/notes/voice-download-list.md`. Section 3 below is old for alba,
+jenny_dioco, the medium amy, cori-medium, hfc_female, joe, mike and ryan-medium: since `cf910fb` they are fine-tuned
+from `hifi_tts_92` or `rdh`, not from lessac.
+
+Update 2026-11-11 (B10; superseded by B13 and B14, see above): Lexia 0.7 shipped `en_US-ljspeech-medium` (the default) and `en_US-norman-medium` instead of
 Cori and Mike, which mispronounce common words ("library", "anonymized", "account"; espeak-ng's phonemes are right).
 At `cf910fb` both are as in section 3 (trained from scratch, public domain). Tried and dropped by ear: Joe (`rdh`
 base, CC0) and Jenny (Dioco) (`hifi_tts_92` base; dataset licence: commercial use permitted, the voice must be called

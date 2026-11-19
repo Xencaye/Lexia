@@ -6,9 +6,8 @@
 namespace shot {
 
 namespace {
-constexpr const char* kShipped = "en_US-ljspeech-medium";  // comes with Lexia
-constexpr const char* kUser = "en_GB-alba-medium";         // one a person added: it can be deleted
-constexpr uint64_t kMiB = 1024 * 1024;
+constexpr const char* kShipped = "en_GB-cori-medium";  // comes with Lexia (the default English Voice)
+constexpr const char* kUser = "en_GB-alba-medium";    // one a person added: it can be deleted
 }  // namespace
 
 UiState SampleState(bool on, bool dark, const std::string& voices) {
@@ -42,13 +41,12 @@ UiState SampleState(bool on, bool dark, const std::string& voices) {
     return s;
 }
 
+// The Download sheet as the app shows it: the compiled-in list (download_list.cpp), with its real sizes (model +
+// config). LJ Speech is marked installed so the shot shows both kinds of row.
 std::vector<CatalogueEntry> SampleCatalogue() {
-    return {{"en_GB-alba-medium", "eng", 63 * kMiB, true},
-            {"en_GB-jenny_dioco-medium", "eng", 63 * kMiB, false},
-            {"en_GB-northern_english_male-medium", "eng", 63 * kMiB, false},
-            {"en_US-amy-medium", "eng", 63 * kMiB, false},
-            {"en_US-lessac-medium", "eng", 63 * kMiB, false},
-            {"en_US-ljspeech-medium", "eng", 63 * kMiB, true}};
+    return {{"en_US-kristin-medium", "eng", 63531379 + 4968, false},
+            {"en_US-john-medium", "eng", 63531379 + 4965, false},
+            {"en_US-ljspeech-medium", "eng", 63531379 + 4972, true}};
 }
 
 }  // namespace shot

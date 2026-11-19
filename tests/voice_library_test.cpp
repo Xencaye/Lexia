@@ -104,18 +104,18 @@ TEST_CASE("CheckVoiceConfig: a Voice for a language Lexia cannot read is refused
     CHECK(noName.languageName == "fr_FR");
 }
 
-TEST_CASE("CheckVoiceConfig: only Medium; the quality comes from the config, else the end of the name") {
+TEST_CASE("CheckVoiceConfig: the quality comes from the config, else the end of the name; any of Piper's qualities is accepted") {
     const VoiceOutcome low = CheckVoiceConfig("en_US-amy-low", Config("en_US", "English", "low"));
-    CHECK(low.problem == VoiceProblem::NotMedium);
+    CHECK(low.ok());
     CHECK(low.quality == "low");
-    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).problem == VoiceProblem::NotMedium);
-    CHECK(CheckVoiceConfig("en_US-amy-x_low", Config("en_US", "English", "x_low")).problem == VoiceProblem::NotMedium);
+    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).quality == "high");
+    CHECK(CheckVoiceConfig("en_US-amy-x_low", Config("en_US", "English", "x_low")).quality == "x_low");
     // No quality in the config: the name says it.
-    CHECK(CheckVoiceConfig("en_US-amy-medium", "{\"language\": {\"code\": \"en_US\"}}").ok());
-    CHECK(CheckVoiceConfig("en_US-amy-low", "{\"language\": {\"code\": \"en_US\"}}").problem == VoiceProblem::NotMedium);
-    // Neither says: refused, with an empty quality.
+    CHECK(CheckVoiceConfig("en_US-amy-medium", "{\"language\": {\"code\": \"en_US\"}}").quality == "medium");
+    CHECK(CheckVoiceConfig("en_US-amy-low", "{\"language\": {\"code\": \"en_US\"}}").quality == "low");
+    // Neither says: accepted, with an empty quality (a Voice the user trained may not say).
     const VoiceOutcome unknown = CheckVoiceConfig("amy", "{\"language\": {\"code\": \"en_US\"}}");
-    CHECK(unknown.problem == VoiceProblem::NotMedium);
+    CHECK(unknown.ok());
     CHECK(unknown.quality.empty());
 }
 
@@ -469,21 +469,24 @@ TEST_CASE("PickVoice: the preferred Voice if it is installed for the Language, e
     CHECK(PickVoice({}, "en", "") == nullptr);
 }
 
-// The default English Voice is the first one voices.json lists (ljspeech, then norman). A settings.json from a
-// 0.7 test build names en_GB-cori-medium as the active Voice; that Voice no longer ships, so the first listed one
-// speaks instead, with no migration step (AdoptRetiredVoices keeps its files as one of the user's own Voices).
+// The default English Voice is the first one voices.json lists. The list here is made-up data with two Voices (Cori,
+// then Norman, who shipped in the 0.7 test builds and no longer does, B14): the test needs a second listed Voice, and
+// the real voices.json lists Cori only. A settings.json from a 0.7 build
+// names en_US-ljspeech-medium as the active Voice; that Voice no longer ships from the program folder, so the first
+// listed one speaks instead, with no migration step (AdoptRetiredVoices keeps its files as one of the user's own
+// Voices, and then the settings.json choice finds it again).
 TEST_CASE("PickVoice: the first Voice in voices.json is the default, also for a Voice that no longer ships") {
     TempDir shipped;
     WriteText(shipped.path / "voices.json",
-              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-ljspeech-medium\"}, "
+              "{\"voices\": [{\"language\": \"en\", \"name\": \"en_GB-cori-medium\"}, "
               "{\"language\": \"en\", \"name\": \"en_US-norman-medium\"}]}");
-    WriteText(shipped.path / "en_US-ljspeech-medium.onnx", "M");
+    WriteText(shipped.path / "en_GB-cori-medium.onnx", "M");
     WriteText(shipped.path / "en_US-norman-medium.onnx", "M");
 
     const auto voices = ListInstalledVoices(shipped.path, {});
     REQUIRE(voices.size() == 2);
-    CHECK(PickVoice(voices, "en", "")->name == "en_US-ljspeech-medium");
-    CHECK(PickVoice(voices, "en", "en_GB-cori-medium")->name == "en_US-ljspeech-medium");
+    CHECK(PickVoice(voices, "en", "")->name == "en_GB-cori-medium");
+    CHECK(PickVoice(voices, "en", "en_US-ljspeech-medium")->name == "en_GB-cori-medium");
     CHECK(PickVoice(voices, "en", "en_US-norman-medium")->name == "en_US-norman-medium");
 }
 
@@ -675,26 +678,24 @@ TEST_CASE("AdoptRetiredVoices: a refused Voice is not handled, so it is tried ag
 
 // ------------------------------------------- Any quality for the user's own Voices (B11) ---
 
-TEST_CASE("CheckVoiceConfig AnyKnown: X-low, Low, Medium, High and no quality are accepted; another word is not") {
+TEST_CASE("CheckVoiceConfig: X-low, Low, Medium, High and no quality are accepted; another word is not") {
     for (const char* q : {"x_low", "low", "medium", "high"}) {
-        const VoiceOutcome o = CheckVoiceConfig(std::string("en_US-amy-") + q, Config("en_US", "English", q), QualityRule::AnyKnown);
+        const VoiceOutcome o = CheckVoiceConfig(std::string("en_US-amy-") + q, Config("en_US", "English", q));
         CHECK(o.ok());
         CHECK(o.quality == q);
     }
     // No quality in the config and none in the name (a Voice the user trained and named): accepted, quality "".
-    const VoiceOutcome mine = CheckVoiceConfig("myvoice", "{\"language\": {\"code\": \"en_US\"}}", QualityRule::AnyKnown);
+    const VoiceOutcome mine = CheckVoiceConfig("myvoice", "{\"language\": {\"code\": \"en_US\"}}");
     CHECK(mine.ok());
     CHECK(mine.quality.empty());
     // "my-voice": the last part of a user's name is not taken for a quality.
-    CHECK(CheckVoiceConfig("my-voice", "{\"language\": {\"code\": \"en_US\"}}", QualityRule::AnyKnown).ok());
-    const VoiceOutcome odd = CheckVoiceConfig("en_US-amy-ultra", Config("en_US", "English", "ultra"), QualityRule::AnyKnown);
+    CHECK(CheckVoiceConfig("my-voice", "{\"language\": {\"code\": \"en_US\"}}").ok());
+    const VoiceOutcome odd = CheckVoiceConfig("en_US-amy-ultra", Config("en_US", "English", "ultra"));
     CHECK(odd.problem == VoiceProblem::UnknownQuality);
     CHECK(odd.quality == "ultra");
     // The language still comes first.
-    CHECK(CheckVoiceConfig("de_DE-x-high", Config("de_DE", "German", "high"), QualityRule::AnyKnown).problem ==
+    CHECK(CheckVoiceConfig("de_DE-x-high", Config("de_DE", "German", "high")).problem ==
           VoiceProblem::UnsupportedLanguage);
-    // The catalogue's rule is unchanged: Medium only.
-    CHECK(CheckVoiceConfig("en_US-amy-high", Config("en_US", "English", "high")).problem == VoiceProblem::NotMedium);
 }
 
 TEST_CASE("AddVoiceFiles: a High Voice from a file is added, and listed with its quality") {
@@ -711,9 +712,29 @@ TEST_CASE("AddVoiceFiles: a High Voice from a file is added, and listed with its
 
 TEST_CASE("ListInstalledVoices: a shipped Voice's quality comes from its name") {
     TempDir shipped;
+    // Made-up data: any Voice name that voices.json lists will do (Norman is not shipped any more, B14).
     WriteText(shipped.path / "voices.json", "{\"voices\": [{\"language\": \"en\", \"name\": \"en_US-norman-medium\"}]}");
     WriteText(shipped.path / "en_US-norman-medium.onnx", "M");
     const auto voices = ListInstalledVoices(shipped.path, {});
     REQUIRE(voices.size() == 1);
     CHECK(voices[0].quality == "medium");
+}
+
+TEST_CASE("RemoveVoice: the patched copies of the Voice go too, those of another Voice stay") {
+    TempDir dir;
+    TempDir aligned;
+    WriteText(dir.path / "en_US-amy-medium.onnx", "model");
+    WriteText(dir.path / "en_US-amy-medium.onnx.json", "{}");
+    WriteText(aligned.path / "en_US-amy-medium.100-200.onnx", "copy");
+    WriteText(aligned.path / "en_US-amy-medium.100-200.onnx.json", "{}");
+    WriteText(aligned.path / "en_US-amy-medium.300-400.onnx.part", "half");
+    WriteText(aligned.path / "en_US-bob-medium.100-200.onnx", "copy");
+    WriteText(aligned.path / "en_US-amy-medium-high.100-200.onnx", "other Voice, longer name");
+
+    CHECK(RemoveVoice(dir.path, "en_US-amy-medium", aligned.path).ok());
+    CHECK_FALSE(fs::exists(aligned.path / "en_US-amy-medium.100-200.onnx"));
+    CHECK_FALSE(fs::exists(aligned.path / "en_US-amy-medium.100-200.onnx.json"));
+    CHECK_FALSE(fs::exists(aligned.path / "en_US-amy-medium.300-400.onnx.part"));
+    CHECK(fs::exists(aligned.path / "en_US-bob-medium.100-200.onnx"));
+    CHECK(fs::exists(aligned.path / "en_US-amy-medium-high.100-200.onnx"));
 }

@@ -209,9 +209,9 @@ _Avoid_: system volume, main volume
 **Voice library**:
 The Voices Lexia can speak with: the ones that ship in `voices\` next to the exe and the ones the user
 downloaded or added, which live in `%LOCALAPPDATA%\Lexia\voices`. Each Voice is attached to the Language its
-config says it speaks. Only Voices for a Language Lexia can read are accepted: Lexia ships and downloads Medium Voices, and a Voice the user
-adds from a file may be in any of Piper's qualities (X-low, Low, Medium, High). Lists show a Voice by its short name and
-quality ("LJ Speech (Medium)", `voice_names.*`); the file name ("en_US-ljspeech-medium") stays its identity and is the
+config says it speaks. Only Voices for a Language Lexia can read are accepted: Lexia ships Medium Voices (the default English Voice is Cori), the download list may offer any quality (B12), and
+a Voice the user adds from a file may be in any of Piper's qualities (X-low, Low, Medium, High). Lists show a Voice by
+its short name and quality ("Cori (Medium)", `voice_names.*`); the file name ("en_GB-cori-medium") stays its identity and is the
 tooltip. Downloading happens
 only when the user asks (ADR-0005).
 _Avoid_: voice store, voice pack, voice manager
@@ -255,7 +255,7 @@ Lexia has no quit key; quitting is done from the tray menu. Closing the Settings
 
 Lexia uses British English everywhere: the UI words (`strings/table_en.cpp`: "minimise", "analyses", "colours"), the
 installer, this glossary and the other docs. Code identifiers and file keys that come from other APIs or older files
-keep their spelling (`SC_MINIMIZE`, `hoverColor` in settings.json).
+keep their spelling (`SC_MINIMIZE`, `RecognizeBlocks`).
 
 ## Testing
 
